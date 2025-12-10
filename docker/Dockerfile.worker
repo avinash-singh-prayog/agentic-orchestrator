@@ -1,18 +1,18 @@
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install uv package manager
-RUN pip install uv
+# Install uv package manager and curl for healthcheck
+RUN pip install uv && apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy dependency files and README (required by hatchling)
+COPY pyproject.toml README.md ./
+
+# Copy source code first (needed for editable install)
+COPY src/ ./src/
 
 # Install dependencies
 RUN uv pip install --system -e .
-
-# Copy source code
-COPY src/ ./src/
 
 # Set Python path
 ENV PYTHONPATH=/app/src

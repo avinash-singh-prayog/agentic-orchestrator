@@ -436,11 +436,18 @@ Respond with a JSON object:
         # Check if workflow is complete
         is_complete = False
         
-        if state.get("booking_confirmation", {}).get("status") == "confirmed":
+        booking_confirmation = state.get("booking_confirmation")
+        if booking_confirmation and booking_confirmation.get("status") == "confirmed":
             is_complete = True
         elif state.get("is_serviceable") is False:
             is_complete = True
         elif state.get("approval_status") == "pending":
+            is_complete = True
+        # Also complete if we have a serviceability check result (positive)
+        elif state.get("is_serviceable") is True:
+            is_complete = True
+        # Complete if we have quotes (rate inquiry complete)
+        elif state.get("quotes"):
             is_complete = True
         
         return {

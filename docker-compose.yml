@@ -1,26 +1,7 @@
-version: "3.9"
-
 services:
   # ===========================================
   # INFRASTRUCTURE SERVICES
   # ===========================================
-  
-  # SLIM Gateway - Production-grade A2A transport
-  slim:
-    image: ghcr.io/agntcy/slim:0.6.1
-    container_name: slim-gateway
-    ports:
-      - "46357:46357"
-    volumes:
-      - ./config/docker/slim/server-config.yaml:/config/server-config.yaml:ro
-    command: ["--config", "/config/server-config.yaml"]
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:46357/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    networks:
-      - orchestrator-net
 
   # PostgreSQL - LangGraph Checkpointer persistence
   postgres:
@@ -31,11 +12,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator_secret}
       POSTGRES_DB: ${POSTGRES_DB:-orchestrator}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orchestrator"]
+      test: [ "CMD-SHELL", "pg_isready -U orchestrator" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,24 +26,24 @@ services:
   # ===========================================
   # OBSERVABILITY STACK
   # ===========================================
-  
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.108.0
     container_name: otel-collector
-    command: ["--config", "/etc/otel-collector-config.yaml"]
+    command: [ "--config", "/etc/otel-collector-config.yaml" ]
     volumes:
       - ./config/docker/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8888:8888"   # Prometheus metrics
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8888:8888" # Prometheus metrics
     networks:
       - orchestrator-net
 
   # ===========================================
   # SUPERVISOR AGENT
   # ===========================================
-  
+
   supervisor:
     build:
       context: .
@@ -71,11 +52,11 @@ services:
     ports:
       - "${SUPERVISOR_PORT:-8000}:8000"
     environment:
-      - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openai/gpt-4-turbo}
+      - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - TRANSPORT_SERVER_ENDPOINT=http://slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-orchestrator}
@@ -86,12 +67,10 @@ services:
       - MAX_AUTO_APPROVAL_LIMIT=${MAX_AUTO_APPROVAL_LIMIT:-5000}
       - PYTHONPATH=/app/src
     depends_on:
-      slim:
-        condition: service_healthy
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,7 +80,7 @@ services:
   # ===========================================
   # WORKER AGENTS
   # ===========================================
-  
+
   serviceability-agent:
     build:
       context: .
@@ -112,14 +91,11 @@ services:
     environment:
       - AGENT_TYPE=serviceability
       - AGENT_PORT=9001
-      - SERVICE_AGENT_LLM=${SERVICE_AGENT_LLM:-ollama/mistral}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - TRANSPORT_SERVER_ENDPOINT=http://slim:46357
+      - SERVICE_AGENT_LLM=${SERVICE_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - PYTHONPATH=/app/src
-    depends_on:
-      slim:
-        condition: service_healthy
     networks:
       - orchestrator-net
 
@@ -133,15 +109,11 @@ services:
     environment:
       - AGENT_TYPE=rate
       - AGENT_PORT=9002
-      - RATE_AGENT_LLM=${RATE_AGENT_LLM:-groq/llama-3.1-70b-versatile}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - TRANSPORT_SERVER_ENDPOINT=http://slim:46357
+      - RATE_AGENT_LLM=${RATE_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - PYTHONPATH=/app/src
-    depends_on:
-      slim:
-        condition: service_healthy
     networks:
       - orchestrator-net
 
@@ -155,15 +127,30 @@ services:
     environment:
       - AGENT_TYPE=carrier
       - AGENT_PORT=9003
-      - CARRIER_AGENT_LLM=${CARRIER_AGENT_LLM:-openai/gpt-4-turbo}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - TRANSPORT_SERVER_ENDPOINT=http://slim:46357
+      - CARRIER_AGENT_LLM=${CARRIER_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - PYTHONPATH=/app/src
+    networks:
+      - orchestrator-net
+
+  # ===========================================
+  # FRONTEND UI
+  # ===========================================
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: orchestrator-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
-      slim:
+      supervisor:
         condition: service_healthy
+    environment:
+      - VITE_ORCHESTRATOR_API_URL=http://localhost:8000
     networks:
       - orchestrator-net
 

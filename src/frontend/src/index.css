@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================
+   CSS Variables - Theming System
+   =========================== */
+
+:root {
+  /* Dark theme (default) */
+  --app-background: #1a1d21;
+  --node-background: #2d3139;
+  --node-background-hover: #383d47;
+  --node-background-active: #0d47a1;
+  --node-text-primary: #e8e9ea;
+  --node-text-secondary: #9ca3af;
+  --accent-primary: #2196f3;
+  --accent-secondary: #64b5f6;
+  --chat-background: #1e2228;
+  --chat-text: #fbfcfe;
+  --chat-input-background: #2d3139;
+  --sidebar-background: #1a1d21;
+  --nav-background: #1a1d21;
+  --nav-border: #3d424d;
+  --border-color: #3d424d;
+  --transport-background: #1565c0;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --group-background: rgba(33, 150, 243, 0.08);
+  --group-border: rgba(33, 150, 243, 0.3);
+}
+
+body[data-theme="light"] {
+  /* Light theme overrides */
+  --app-background: #f5f8fd;
+  --node-background: #e3edf7;
+  --node-background-hover: #d0e0f0;
+  --node-background-active: #1976d2;
+  --node-text-primary: #1a1d21;
+  --node-text-secondary: #64748b;
+  --accent-primary: #1976d2;
+  --accent-secondary: #42a5f5;
+  --chat-background: #ffffff;
+  --chat-text: #1a1d21;
+  --chat-input-background: #f1f5f9;
+  --sidebar-background: #fafbfc;
+  --nav-background: #ffffff;
+  --nav-border: #e2e8f0;
+  --border-color: #e2e8f0;
+  --transport-background: #1976d2;
+  --group-background: rgba(25, 118, 210, 0.06);
+  --group-border: rgba(25, 118, 210, 0.2);
+}
+
+/* ===========================
+   Base Styles
+   =========================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--app-background);
+  color: var(--node-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ===========================
+   Custom Scrollbar
+   =========================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--node-text-secondary);
+}
+
+/* ===========================
+   ReactFlow Custom Styles
+   =========================== */
+
+.react-flow__node {
+  border-radius: 12px;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2px;
+}
+
+.react-flow__controls {
+  background-color: var(--node-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.react-flow__controls-button {
+  background-color: var(--node-background);
+  border-color: var(--border-color);
+  fill: var(--node-text-primary);
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--node-background-hover);
+}
+
+/* ===========================
+   Animation Utilities
+   =========================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--node-background) 25%,
+    var(--node-background-hover) 50%,
+    var(--node-background) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(33, 150, 243, 0.6);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ===========================
+   Glassmorphism
+   =========================== */
+
+.glass {
+  background: rgba(45, 49, 57, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}

@@ -101,10 +101,26 @@ agentic-orchestrator/
 docker-compose up --build
 
 # Services available at:
+# - Frontend UI: http://localhost:3000
 # - Supervisor: http://localhost:8000
 # - Serviceability Agent: http://localhost:9001
 # - Rate Agent: http://localhost:9002
 # - Carrier Agent: http://localhost:9003
+```
+
+### Frontend Development
+
+```bash
+# Navigate to frontend directory
+cd src/frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# The frontend will be available at http://localhost:3000
 ```
 
 ## 📡 API Usage
