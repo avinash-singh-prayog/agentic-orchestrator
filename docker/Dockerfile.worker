@@ -1,0 +1,25 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+# Install uv package manager
+RUN pip install uv
+
+# Copy dependency files
+COPY pyproject.toml ./
+
+# Install dependencies
+RUN uv pip install --system -e .
+
+# Copy source code
+COPY src/ ./src/
+
+# Set Python path
+ENV PYTHONPATH=/app/src
+
+# Dynamic port based on AGENT_TYPE
+ARG AGENT_PORT=9001
+EXPOSE ${AGENT_PORT}
+
+# Entry point script to run the correct agent
+CMD ["sh", "-c", "python -m orchestrator.agents.workers.${AGENT_TYPE}.server"]
