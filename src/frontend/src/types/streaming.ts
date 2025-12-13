@@ -40,6 +40,7 @@ export interface HITLInterrupt {
   reason: string
   action: string
   context: {
+    order_id?: string
     order_value?: number
     origin?: string
     destination?: string

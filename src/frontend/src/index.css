@@ -1,56 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* ===========================
-   CSS Variables - Theming System
+   TailwindCSS v4 Theme Configuration
    =========================== */
 
-:root {
-  /* Dark theme (default) */
-  --app-background: #1a1d21;
-  --node-background: #2d3139;
-  --node-background-hover: #383d47;
-  --node-background-active: #0d47a1;
-  --node-text-primary: #e8e9ea;
-  --node-text-secondary: #9ca3af;
-  --accent-primary: #2196f3;
-  --accent-secondary: #64b5f6;
-  --chat-background: #1e2228;
-  --chat-text: #fbfcfe;
-  --chat-input-background: #2d3139;
-  --sidebar-background: #1a1d21;
-  --nav-background: #1a1d21;
-  --nav-border: #3d424d;
-  --border-color: #3d424d;
-  --transport-background: #1565c0;
-  --success: #4caf50;
-  --warning: #ff9800;
-  --error: #f44336;
-  --group-background: rgba(33, 150, 243, 0.08);
-  --group-border: rgba(33, 150, 243, 0.3);
-}
+@theme {
+  /* Colors */
+  --color-slate-950: #0a0a0f;
+  --color-slate-900: #12121a;
+  --color-slate-800: #1e2030;
+  --color-slate-700: #2d3148;
+  --color-slate-600: #3f4466;
+  --color-slate-500: #94a3b8;
+  --color-slate-400: #94a3b8;
+  --color-slate-300: #cbd5e1;
 
-body[data-theme="light"] {
-  /* Light theme overrides */
-  --app-background: #f5f8fd;
-  --node-background: #e3edf7;
-  --node-background-hover: #d0e0f0;
-  --node-background-active: #1976d2;
-  --node-text-primary: #1a1d21;
-  --node-text-secondary: #64748b;
-  --accent-primary: #1976d2;
-  --accent-secondary: #42a5f5;
-  --chat-background: #ffffff;
-  --chat-text: #1a1d21;
-  --chat-input-background: #f1f5f9;
-  --sidebar-background: #fafbfc;
-  --nav-background: #ffffff;
-  --nav-border: #e2e8f0;
-  --border-color: #e2e8f0;
-  --transport-background: #1976d2;
-  --group-background: rgba(25, 118, 210, 0.06);
-  --group-border: rgba(25, 118, 210, 0.2);
+  /* Brand Colors */
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-purple-500: #8b5cf6;
+  --color-purple-600: #7c3aed;
+  --color-emerald-500: #10b981;
+  --color-teal-500: #14b8a6;
+  --color-amber-500: #f59e0b;
+  --color-orange-500: #f97316;
+  --color-red-500: #ef4444;
+  --color-cyan-500: #06b6d4;
+  --color-pink-500: #ec4899;
+
+  /* Fonts */
+  --font-inter: "Inter", system-ui, sans-serif;
 }
 
 /* ===========================
@@ -70,10 +49,9 @@ body {
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background-color: var(--app-background);
-  color: var(--node-text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: var(--font-inter);
+  background: linear-gradient(135deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
+  color: #f1f5f9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -88,8 +66,8 @@ body {
    =========================== */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -97,20 +75,20 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--node-text-secondary);
+  background: rgba(148, 163, 184, 0.5);
 }
 
 /* ===========================
-   ReactFlow Custom Styles
+   ReactFlow Overrides
    =========================== */
 
 .react-flow__node {
-  border-radius: 12px;
+  border-radius: 16px !important;
 }
 
 .react-flow__edge-path {
@@ -118,70 +96,191 @@ body {
 }
 
 .react-flow__controls {
-  background-color: var(--node-background);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background: rgba(30, 32, 48, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px);
 }
 
 .react-flow__controls-button {
-  background-color: var(--node-background);
-  border-color: var(--border-color);
-  fill: var(--node-text-primary);
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  fill: #f1f5f9 !important;
 }
 
 .react-flow__controls-button:hover {
-  background-color: var(--node-background-hover);
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-flow__background pattern circle {
+  fill: rgba(148, 163, 184, 0.1);
 }
 
 /* ===========================
-   Animation Utilities
+   Animations
    =========================== */
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(59, 130, 246, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.2);
+  }
+}
+
+@keyframes node-active {
+
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px 5px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes edge-flow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--node-background) 25%,
-    var(--node-background-hover) 50%,
-    var(--node-background) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+.node-active {
+  animation: node-active 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+.edge-animated {
+  stroke-dasharray: 8 4;
+  animation: edge-flow 1s linear infinite;
+}
+
+@keyframes flowDash {
+  0% {
+    stroke-dashoffset: 20;
   }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
   50% {
-    box-shadow: 0 0 40px rgba(33, 150, 243, 0.6);
+    opacity: 0.7;
+    transform: scale(1.1);
   }
 }
 
-.pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+.message-appear {
+  animation: fade-in-up 0.4s ease-out;
 }
 
 /* ===========================
-   Glassmorphism
+   Gradient Utilities
    =========================== */
 
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .glass {
-  background: rgba(45, 49, 57, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(15, 15, 21, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-body[data-theme="light"] .glass {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+/* ===========================
+   Message Bubbles
+   =========================== */
+
+.message-user {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 20px 20px 4px 20px;
+}
+
+.message-assistant {
+  background: rgba(30, 32, 48, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px 20px 20px 4px;
+}
+
+/* ===========================
+   Input Styles
+   =========================== */
+
+.input-modern {
+  background: rgba(26, 26, 37, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  color: #f8fafc;
+  transition: all 0.3s ease;
+}
+
+.input-modern:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input-modern::placeholder {
+  color: #64748b;
 }

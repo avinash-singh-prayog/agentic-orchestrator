@@ -92,6 +92,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
 
         const decoder = new TextDecoder()
         let buffer = ""
+        let lastMessage = ""
 
         while (true) {
           const { done, value } = await reader.read()
@@ -108,23 +109,41 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
               try {
                 const data = JSON.parse(line)
                 
-                if (data.response) {
-                  // Try to parse inner response as JSON (for streaming events)
-                  try {
-                    const innerData = JSON.parse(data.response.replace(/'/g, '"'))
-                    if (innerData.sender && innerData.message) {
-                      addEvent({
-                        order_id: innerData.order_id || "",
-                        sender: innerData.sender,
-                        receiver: innerData.receiver || "",
-                        message: innerData.message,
-                        timestamp: innerData.timestamp || new Date().toISOString(),
-                        state: innerData.state || "PROCESSING",
-                      })
+                // New format: {"content": {"sender": "...", "message": "...", "node": "..."}}
+                // Or: {"content": "plain text"} for old format
+                if (data.content) {
+                  let parsed = data.content
+                  
+                  // Try to parse if it's a JSON string
+                  if (typeof parsed === "string") {
+                    try {
+                      parsed = JSON.parse(parsed)
+                    } catch {
+                      // It's just plain text
+                      parsed = { sender: "System", message: parsed, node: "unknown" }
                     }
-                  } catch {
-                    // If not parseable, treat as final response
-                    setFinalResponse(data.response)
+                  }
+                  
+                  if (parsed.sender && parsed.message) {
+                    lastMessage = parsed.message
+                    addEvent({
+                      order_id: "",
+                      sender: parsed.sender,
+                      receiver: "",
+                      message: parsed.message,
+                      timestamp: new Date().toISOString(),
+                      state: "PROCESSING",
+                    })
+                  } else if (typeof data.content === "string") {
+                    lastMessage = data.content
+                    addEvent({
+                      order_id: "",
+                      sender: "System",
+                      receiver: "",
+                      message: data.content,
+                      timestamp: new Date().toISOString(),
+                      state: "PROCESSING",
+                    })
                   }
                 }
               } catch (e) {
@@ -134,7 +153,12 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           }
         }
 
-        set({ status: "completed" })
+        // Set final response from last message
+        if (lastMessage) {
+          setFinalResponse(lastMessage)
+        } else {
+          set({ status: "completed" })
+        }
       } catch (error) {
         setError(error instanceof Error ? error.message : "Unknown error occurred")
       }
@@ -155,8 +179,18 @@ export const useStreamingFinalResponse = () =>
 export const useStreamingError = () =>
   useOrchestratorStreamingStore((state) => state.error)
 
-export const useStreamingActions = () =>
-  useOrchestratorStreamingStore((state) => ({
-    startStreaming: state.startStreaming,
-    reset: state.reset,
-  }))
+// Action hooks - return stable references
+export const useStartStreaming = () =>
+  useOrchestratorStreamingStore((state) => state.startStreaming)
+
+export const useResetStreaming = () =>
+  useOrchestratorStreamingStore((state) => state.reset)
+
+// Combined actions hook using getState for stable reference
+export const useStreamingActions = () => {
+  const store = useOrchestratorStreamingStore
+  return {
+    startStreaming: store.getState().startStreaming,
+    reset: store.getState().reset,
+  }
+}

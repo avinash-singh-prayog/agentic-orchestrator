@@ -1,7 +1,7 @@
 /**
  * Transport Node Component
  * 
- * Renders the SLIM transport / message bus node.
+ * SLIM transport node with inline styles.
  */
 
 import React from "react"
@@ -10,7 +10,6 @@ import { Zap } from "lucide-react"
 
 interface TransportNodeData {
     label: string
-    description?: string
     active?: boolean
 }
 
@@ -18,53 +17,90 @@ const TransportNode: React.FC<NodeProps> = ({ data }) => {
     const nodeData = data as unknown as TransportNodeData
     const isActive = nodeData.active
 
+    const nodeStyles: React.CSSProperties = {
+        width: 480,
+        height: 56,
+        padding: "0 24px",
+        borderRadius: 16,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        background: "linear-gradient(90deg, #1e40af 0%, #7c3aed 50%, #1e40af 100%)",
+        backgroundSize: isActive ? "200% 100%" : "100% 100%",
+        border: "1px solid rgba(255, 255, 255, 0.2)",
+        boxShadow: isActive
+            ? "0 0 40px rgba(124, 58, 237, 0.4), 0 10px 30px rgba(0, 0, 0, 0.3)"
+            : "0 4px 20px rgba(0, 0, 0, 0.3)",
+        animation: isActive ? "shimmer 2s linear infinite" : "none",
+        position: "relative",
+    }
+
+    const iconBoxStyles: React.CSSProperties = {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(255, 255, 255, 0.15)",
+        backdropFilter: "blur(8px)",
+    }
+
+    const handleStyles: React.CSSProperties = {
+        width: 12,
+        height: 12,
+        border: "2px solid rgba(255, 255, 255, 0.4)",
+        background: "#7c3aed",
+    }
+
     return (
-        <div
-            className={`
-        flex items-center justify-center gap-3 rounded-xl
-        bg-transport-background border border-accent-primary/30
-        transition-all duration-300
-        ${isActive ? "shadow-lg shadow-accent-primary/30 ring-2 ring-accent-primary" : ""}
-      `}
-            style={{ width: 500, height: 52 }}
-        >
+        <div style={nodeStyles}>
             {/* Input handle */}
             <Handle
                 type="target"
                 position={Position.Top}
                 id="top"
-                className="!h-3 !w-3 !border-2 !border-white !bg-transport-background"
+                style={{ ...handleStyles, top: -6 }}
             />
 
-            {/* Icon and label */}
-            <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-                    <Zap className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-white">{nodeData.label}</span>
+            {/* Icon */}
+            <div style={iconBoxStyles}>
+                <Zap style={{
+                    width: 18,
+                    height: 18,
+                    color: "white",
+                    animation: isActive ? "pulse 1.5s infinite" : "none",
+                }} />
             </div>
 
-            {/* Multiple output handles */}
+            {/* Label */}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "white" }}>
+                    {nodeData.label}
+                </span>
+                <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)" }}>
+                    A2A Message Transport
+                </span>
+            </div>
+
+            {/* Output handles */}
             <Handle
                 type="source"
                 position={Position.Bottom}
                 id="bottom-left"
-                className="!h-3 !w-3 !border-2 !border-white !bg-transport-background"
-                style={{ left: "20%" }}
+                style={{ ...handleStyles, bottom: -6, left: "20%" }}
             />
             <Handle
                 type="source"
                 position={Position.Bottom}
                 id="bottom-center"
-                className="!h-3 !w-3 !border-2 !border-white !bg-transport-background"
-                style={{ left: "50%" }}
+                style={{ ...handleStyles, bottom: -6, left: "50%" }}
             />
             <Handle
                 type="source"
                 position={Position.Bottom}
                 id="bottom-right"
-                className="!h-3 !w-3 !border-2 !border-white !bg-transport-background"
-                style={{ left: "80%" }}
+                style={{ ...handleStyles, bottom: -6, left: "80%" }}
             />
         </div>
     )

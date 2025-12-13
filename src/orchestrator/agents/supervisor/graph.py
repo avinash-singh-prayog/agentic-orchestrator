@@ -549,7 +549,7 @@ Respond with a JSON object:
             context: Optional context.
             
         Yields:
-            Response chunks.
+            Response chunks with sender info for frontend animation.
         """
         context = context or {}
         
@@ -571,9 +571,28 @@ Respond with a JSON object:
             "full_response": "",
         }
         
+        # Map node names to friendly sender names for frontend
+        node_to_sender = {
+            "supervisor": "Supervisor",
+            "serviceability": "Serviceability",
+            "rate_negotiation": "Rate Agent",
+            "carrier_execution": "Carrier",
+            "approval_gate": "Approval",
+            "general_response": "Supervisor",
+            "reflection": "System",
+        }
+        
         async for event in self.graph.astream(initial_state):
             for node_name, node_output in event.items():
+                sender = node_to_sender.get(node_name, "System")
+                
                 if "messages" in node_output:
                     for msg in node_output["messages"]:
                         if msg.get("role") == "assistant":
-                            yield msg["content"]
+                            # Format: {"sender": "...", "message": "...", "node": "..."}
+                            yield json.dumps({
+                                "sender": sender,
+                                "message": msg["content"],
+                                "node": node_name,
+                            })
+

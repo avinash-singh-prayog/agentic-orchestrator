@@ -139,20 +139,20 @@ services:
   # FRONTEND UI
   # ===========================================
 
-  frontend:
-    build:
-      context: ./src/frontend
-      dockerfile: Dockerfile
-    container_name: orchestrator-frontend
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      supervisor:
-        condition: service_healthy
-    environment:
-      - VITE_ORCHESTRATOR_API_URL=http://localhost:8000
-    networks:
-      - orchestrator-net
+  # frontend:
+  #   build:
+  #     context: ./src/frontend
+  #     dockerfile: Dockerfile
+  #   container_name: orchestrator-frontend
+  #   ports:
+  #     - "${FRONTEND_PORT:-3000}:80"
+  #   depends_on:
+  #     supervisor:
+  #       condition: service_healthy
+  #   environment:
+  #     - VITE_ORCHESTRATOR_API_URL=http://localhost:8000
+  #   networks:
+  #     - orchestrator-net
 
 networks:
   orchestrator-net:

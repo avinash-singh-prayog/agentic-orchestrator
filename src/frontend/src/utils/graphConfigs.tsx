@@ -179,3 +179,12 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
 export const getGraphConfig = (): GraphConfig => {
     return ORCHESTRATOR_CONFIG
 }
+
+export const getInitialNodes = (): Node[] => {
+    return ORCHESTRATOR_CONFIG.nodes
+}
+
+export const getInitialEdges = (): Edge[] => {
+    return ORCHESTRATOR_CONFIG.edges
+}
+

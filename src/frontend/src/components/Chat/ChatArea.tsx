@@ -1,23 +1,23 @@
 /**
  * Chat Area Component
  * 
- * Main chat interface with input, messages, and streaming display.
+ * Premium styled chat interface with proper streaming and sync support.
  */
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Loader2 } from "lucide-react"
+import { Send, Loader2, Sparkles } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
-import { useStreamingActions, useStreamingStatus } from "@/stores/orchestratorStreamingStore"
+import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
 import StreamingFeed from "./StreamingFeed"
 import type { Message } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
 
 interface ChatAreaProps {
-    onProcessingChange?: (isProcessing: boolean) => void
+    onAgentActive?: (agent: string | null) => void
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ onProcessingChange }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
     const [input, setInput] = useState("")
     const [messages, setMessages] = useState<Message[]>([])
     const [useStreaming, setUseStreaming] = useState(true)
@@ -27,18 +27,55 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onProcessingChange }) => {
     const { sendMessage, loading: apiLoading } = useAgentAPI()
     const { startStreaming, reset } = useStreamingActions()
     const streamingStatus = useStreamingStatus()
+    const finalResponse = useStreamingFinalResponse()
+    const streamingEvents = useStreamingEvents()
 
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
+    const isStreamActive = streamingStatus !== "idle"
 
-    // Notify parent about processing state
-    useEffect(() => {
-        onProcessingChange?.(isLoading)
-    }, [isLoading, onProcessingChange])
-
-    // Scroll to bottom on new messages
+    // Scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, [messages])
+    }, [messages, streamingStatus, finalResponse, streamingEvents])
+
+    // Add final streaming response as assistant message when complete
+    useEffect(() => {
+        if (streamingStatus === "completed" && finalResponse && useStreaming) {
+            const assistantMessage: Message = {
+                id: uuidv4(),
+                role: "assistant",
+                content: finalResponse,
+                timestamp: new Date(),
+            }
+            setMessages((prev) => {
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg?.role === "assistant" && lastMsg?.content === finalResponse) {
+                    return prev
+                }
+                return [...prev, assistantMessage]
+            })
+        }
+    }, [streamingStatus, finalResponse, useStreaming])
+
+    // Create final message from last streaming event if no explicit final response
+    useEffect(() => {
+        if (streamingStatus === "completed" && !finalResponse && streamingEvents.length > 0 && useStreaming) {
+            const lastEvent = streamingEvents[streamingEvents.length - 1]
+            const assistantMessage: Message = {
+                id: uuidv4(),
+                role: "assistant",
+                content: lastEvent.message,
+                timestamp: new Date(),
+            }
+            setMessages((prev) => {
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg?.role === "assistant") {
+                    return prev
+                }
+                return [...prev, assistantMessage]
+            })
+        }
+    }, [streamingStatus, finalResponse, streamingEvents, useStreaming])
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return
@@ -58,16 +95,21 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onProcessingChange }) => {
         if (useStreaming) {
             await startStreaming(prompt)
         } else {
+            // Sync mode - show animation for Supervisor during processing
+            onAgentActive?.("Supervisor")
             try {
                 const response = await sendMessage(prompt)
-                const assistantMessage: Message = {
-                    id: uuidv4(),
-                    role: "assistant",
-                    content: response,
-                    timestamp: new Date(),
+                if (response) {
+                    const assistantMessage: Message = {
+                        id: uuidv4(),
+                        role: "assistant",
+                        content: response,
+                        timestamp: new Date(),
+                    }
+                    setMessages((prev) => [...prev, assistantMessage])
                 }
-                setMessages((prev) => [...prev, assistantMessage])
-            } catch (error) {
+            } catch (err) {
+                console.error("Send error:", err)
                 const errorMessage: Message = {
                     id: uuidv4(),
                     role: "assistant",
@@ -75,6 +117,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onProcessingChange }) => {
                     timestamp: new Date(),
                 }
                 setMessages((prev) => [...prev, errorMessage])
+            } finally {
+                onAgentActive?.(null)
             }
         }
     }
@@ -86,100 +130,161 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onProcessingChange }) => {
         }
     }
 
-    const handleExampleClick = (prompt: string) => {
-        setInput(prompt)
-        inputRef.current?.focus()
+    const containerStyles: React.CSSProperties = {
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: "linear-gradient(180deg, #0a0a0f 0%, #0f0f15 100%)",
     }
 
+    const headerStyles: React.CSSProperties = {
+        padding: "16px 20px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+    }
+
+    const exampleButtonStyles: React.CSSProperties = {
+        width: "100%",
+        padding: "12px 16px",
+        textAlign: "left",
+        fontSize: 13,
+        color: "#cbd5e1",
+        background: "rgba(30, 32, 48, 0.6)",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: 12,
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+    }
+
+    const inputStyles: React.CSSProperties = {
+        flex: 1,
+        padding: "14px 48px 14px 16px",
+        fontSize: 14,
+        color: "#f8fafc",
+        background: "rgba(26, 26, 37, 0.9)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        borderRadius: 14,
+        outline: "none",
+    }
+
+    const sendButtonStyles: React.CSSProperties = {
+        position: "absolute",
+        right: 8,
+        top: "50%",
+        transform: "translateY(-50%)",
+        width: 36,
+        height: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 10,
+        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+        border: "none",
+        cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
+        opacity: input.trim() && !isLoading ? 1 : 0.5,
+    }
+
+    const showEmptyState = messages.length === 0 && !isStreamActive
+
     return (
-        <div className="flex h-full flex-col bg-chat-background">
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Empty state with example prompts */}
-                {messages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                        <h2 className="text-xl font-semibold text-node-text-primary mb-2">
-                            Logistics Orchestrator
-                        </h2>
-                        <p className="text-sm text-node-text-secondary mb-6 max-w-md">
-                            Ask me about shipping routes, rates, or booking shipments.
-                            I'll coordinate with specialized agents to help you.
+        <div style={containerStyles}>
+            {/* Header */}
+            <div style={headerStyles}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: "#f1f5f9", marginBottom: 2 }}>Chat</h2>
+                <p style={{ fontSize: 12, color: "#64748b" }}>Ask about shipping routes, rates, or bookings</p>
+            </div>
+
+            {/* Messages */}
+            <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+                {showEmptyState ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", paddingInline: 16 }}>
+                        <div style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 20,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15))",
+                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            marginBottom: 20,
+                        }}>
+                            <Sparkles style={{ width: 32, height: 32, color: "#60a5fa" }} />
+                        </div>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#f1f5f9", marginBottom: 8 }}>How can I help?</h2>
+                        <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
+                            I coordinate with specialized agents to help with shipping logistics.
                         </p>
 
-                        {/* Example prompts */}
-                        <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-                            {EXAMPLE_PROMPTS.map((prompt, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => handleExampleClick(prompt)}
-                                    className="px-3 py-2 text-xs text-node-text-secondary bg-node-background border border-border-color rounded-lg hover:bg-node-background-hover hover:text-node-text-primary transition-colors"
-                                >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+                            {EXAMPLE_PROMPTS.slice(0, 4).map((prompt, i) => (
+                                <button key={i} style={exampleButtonStyles} onClick={() => { setInput(prompt); inputRef.current?.focus() }}>
                                     {prompt}
                                 </button>
                             ))}
                         </div>
                     </div>
-                )}
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {messages.map((msg) => (
+                            <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }} className="message-appear">
+                                <div style={{
+                                    maxWidth: "85%",
+                                    padding: "12px 16px",
+                                    borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                                    background: msg.role === "user"
+                                        ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
+                                        : "rgba(30, 32, 48, 0.9)",
+                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                                    color: "#f1f5f9",
+                                }}>
+                                    <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.content}</p>
+                                </div>
+                            </div>
+                        ))}
 
-                {/* Message history */}
-                {messages.map((message) => (
-                    <div
-                        key={message.id}
-                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                        <div
-                            className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === "user"
-                                    ? "bg-accent-primary text-white"
-                                    : "bg-node-background text-chat-text border border-border-color"
-                                }`}
-                        >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        </div>
+                        {/* Streaming feed - show during active streaming */}
+                        {useStreaming && isStreamActive && streamingStatus !== "completed" && <StreamingFeed />}
+
+                        <div ref={messagesEndRef} />
                     </div>
-                ))}
-
-                {/* Streaming feed */}
-                {useStreaming && <StreamingFeed />}
-
-                <div ref={messagesEndRef} />
+                )}
             </div>
 
             {/* Input area */}
-            <div className="border-t border-border-color bg-chat-background p-4">
-                <div className="flex items-center gap-3">
-                    {/* Streaming toggle */}
+            <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 15, 21, 0.8)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                         onClick={() => setUseStreaming(!useStreaming)}
-                        className={`px-3 py-2 text-xs rounded-lg border transition-colors ${useStreaming
-                                ? "bg-accent-primary/20 border-accent-primary text-accent-primary"
-                                : "bg-node-background border-border-color text-node-text-secondary"
-                            }`}
-                        title={useStreaming ? "Streaming enabled" : "Streaming disabled"}
+                        style={{
+                            padding: "8px 12px",
+                            fontSize: 12,
+                            fontWeight: 500,
+                            borderRadius: 8,
+                            border: useStreaming ? "1px solid rgba(59, 130, 246, 0.4)" : "1px solid rgba(255, 255, 255, 0.1)",
+                            background: useStreaming ? "rgba(59, 130, 246, 0.15)" : "rgba(30, 32, 48, 0.6)",
+                            color: useStreaming ? "#60a5fa" : "#94a3b8",
+                            cursor: "pointer",
+                        }}
                     >
                         {useStreaming ? "Stream" : "Sync"}
                     </button>
 
-                    {/* Input field */}
-                    <div className="flex-1 relative">
+                    <div style={{ flex: 1, position: "relative" }}>
                         <input
                             ref={inputRef}
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder="Ask about shipping routes, rates, or bookings..."
-                            className="w-full rounded-lg border border-border-color bg-chat-input-background px-4 py-3 pr-12 text-sm text-chat-text placeholder-node-text-secondary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                            placeholder="Type your message..."
+                            style={inputStyles}
                             disabled={isLoading}
                         />
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isLoading}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary text-white transition-colors hover:bg-accent-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                        <button onClick={handleSend} disabled={!input.trim() || isLoading} style={sendButtonStyles}>
                             {isLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 style={{ width: 16, height: 16, color: "white", animation: "spin 1s linear infinite" }} />
                             ) : (
-                                <Send className="h-4 w-4" />
+                                <Send style={{ width: 16, height: 16, color: "white" }} />
                             )}
                         </button>
                     </div>

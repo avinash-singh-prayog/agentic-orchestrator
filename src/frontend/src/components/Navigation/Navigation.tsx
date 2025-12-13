@@ -1,11 +1,11 @@
 /**
  * Navigation Component
  * 
- * Top navigation bar with logo, theme toggle, and status.
+ * Premium styled navigation with inline styles.
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, Boxes } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 
@@ -29,53 +29,103 @@ const Navigation: React.FC = () => {
         return () => clearInterval(interval)
     }, [getHealth])
 
+    const navStyles: React.CSSProperties = {
+        height: 64,
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 24px",
+        background: "linear-gradient(90deg, rgba(10, 10, 15, 0.98), rgba(18, 18, 26, 0.95))",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        backdropFilter: "blur(20px)",
+    }
+
+    const logoBoxStyles: React.CSSProperties = {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+        boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
+    }
+
+    const healthBadgeStyles: React.CSSProperties = {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 14px",
+        borderRadius: 20,
+        background: "rgba(30, 32, 48, 0.8)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+    }
+
+    const buttonStyles: React.CSSProperties = {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(30, 32, 48, 0.6)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+    }
+
     return (
-        <nav className="flex h-14 w-full items-center justify-between border-b border-nav-border bg-nav-background px-6">
-            {/* Logo and Title */}
-            <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary">
-                    <span className="text-lg font-bold text-white">🚚</span>
+        <nav style={navStyles}>
+            {/* Logo */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={logoBoxStyles}>
+                    <Boxes style={{ width: 22, height: 22, color: "white" }} />
                 </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-node-text-primary">
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        background: "linear-gradient(135deg, #3b82f6, #a78bfa)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                    }}>
                         Logistics Orchestrator
                     </span>
-                    <span className="text-xs text-node-text-secondary">
+                    <span style={{ fontSize: 11, color: "#64748b" }}>
                         Multi-Agent System
                     </span>
                 </div>
             </div>
 
-            {/* Right side controls */}
-            <div className="flex items-center gap-4">
+            {/* Right side */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 {/* Health Status */}
-                <div className="flex items-center gap-2">
+                <div style={healthBadgeStyles}>
                     {healthStatus === "healthy" ? (
-                        <Activity className="h-4 w-4 text-success" />
+                        <>
+                            <Activity style={{ width: 16, height: 16, color: "#10b981" }} />
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "#10b981" }}>Connected</span>
+                        </>
                     ) : healthStatus === "unhealthy" ? (
-                        <AlertCircle className="h-4 w-4 text-error" />
+                        <>
+                            <AlertCircle style={{ width: 16, height: 16, color: "#ef4444" }} />
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "#ef4444" }}>Disconnected</span>
+                        </>
                     ) : (
-                        <Activity className="h-4 w-4 animate-pulse text-node-text-secondary" />
+                        <>
+                            <Activity style={{ width: 16, height: 16, color: "#94a3b8" }} />
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "#94a3b8" }}>Checking...</span>
+                        </>
                     )}
-                    <span className="text-xs text-node-text-secondary">
-                        {healthStatus === "healthy"
-                            ? "Connected"
-                            : healthStatus === "unhealthy"
-                                ? "Disconnected"
-                                : "Checking..."}
-                    </span>
                 </div>
 
                 {/* Theme Toggle */}
-                <button
-                    onClick={toggleTheme}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-color bg-node-background transition-colors hover:bg-node-background-hover"
-                    aria-label="Toggle theme"
-                >
+                <button onClick={toggleTheme} style={buttonStyles}>
                     {isLightMode ? (
-                        <Moon className="h-4 w-4 text-node-text-primary" />
+                        <Moon style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     ) : (
-                        <Sun className="h-4 w-4 text-node-text-primary" />
+                        <Sun style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     )}
                 </button>
             </div>
