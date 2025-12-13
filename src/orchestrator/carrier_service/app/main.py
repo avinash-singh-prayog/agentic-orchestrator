@@ -98,11 +98,19 @@ async def run_agent(request: PromptRequest) -> AgentResponse:
         label = None
         if result.get("final_label"):
             label_obj = result["final_label"]
-            label = {
-                "tracking_number": label_obj.tracking_number,
-                "label_url": label_obj.label_url,
-                "carrier": label_obj.carrier.value,
-            }
+            # Handle both dict (from tools) and Pydantic model
+            if isinstance(label_obj, dict):
+                label = {
+                    "tracking_number": label_obj.get("tracking_number"),
+                    "label_url": label_obj.get("label_url"),
+                    "carrier": label_obj.get("carrier"),
+                }
+            else:
+                label = {
+                    "tracking_number": label_obj.tracking_number,
+                    "label_url": label_obj.label_url,
+                    "carrier": label_obj.carrier.value,
+                }
 
         return AgentResponse(
             response=last_msg,

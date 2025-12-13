@@ -11,11 +11,7 @@ from orchestrator.carrier_service.domain.interfaces import ICarrierAdapter
 
 
 class BaseCarrierAdapter(ICarrierAdapter, ABC):
-    """
-    Base class for carrier adapters.
-
-    Provides common functionality like logging and error handling.
-    """
+    """Base class for carrier adapters."""
 
     def __init__(self, name: str):
         self._name = name
