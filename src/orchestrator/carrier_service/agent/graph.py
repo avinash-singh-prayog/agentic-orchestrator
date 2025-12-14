@@ -49,6 +49,7 @@ class CarrierGraph:
 
         workflow.add_node("parse", self.nodes.parse_request)
         workflow.add_node("rates", self.nodes.fetch_rates)
+        workflow.add_node("generate", self.nodes.generate_response)
         workflow.add_node("book", self.nodes.book_shipment)
 
         workflow.set_entry_point("parse")
@@ -62,8 +63,10 @@ class CarrierGraph:
         workflow.add_conditional_edges(
             "rates",
             self._check_rates_result,
-            {"book": "book", "end": END},
+            {"book": "book", "generate": "generate", "end": END},
         )
+        
+        workflow.add_edge("generate", END)
 
         workflow.add_edge("book", END)
 
@@ -75,9 +78,10 @@ class CarrierGraph:
             return "error"
         return "continue"
 
-    def _check_rates_result(self, state: CarrierAgentState) -> Literal["book", "end"]:
-        if state.get("rates"):
-            return "book"
+    def _check_rates_result(self, state: CarrierAgentState) -> Literal["book", "generate", "end"]:
+        # For now, end after fetching rates to avoid auto-booking stub message
+        if state.get("serviceability_response"):
+            return "generate"
         return "end"
 
     async def invoke(self, user_message: str) -> dict:

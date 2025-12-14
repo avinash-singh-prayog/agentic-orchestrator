@@ -58,24 +58,43 @@ async def check_serviceability(request: ServiceabilityCheckRequest) -> ServiceCh
 
     logger.info(f"Serviceability check: {origin} ({origin_country}) -> {destination} ({dest_country})")
 
-    orchestrator = Container.get_orchestrator()
-    results = await orchestrator.check_serviceability_all(
-        origin, destination, origin_country, dest_country
+    client = Container.get_serviceability_client()
+    # Call the external API via client
+    # Note: request payload handling might be slightly different; client expects specific args
+    response = await client.check_serviceability(
+        origin_pincode=origin,
+        dest_pincode=destination,
+        origin_country=origin_country,
+        dest_country=dest_country,
+        weight_kg=1.0 # Default
     )
 
-    # Format response to match legacy API structure
-    carriers = []
-    for r in results:
-        carrier_data = {
-            "carrier_code": r.carrier_code.value,
-            "carrier_name": r.carrier_name,
-            "is_serviceable": r.is_serviceable,
-            "services": [s.model_dump() for s in r.services],
-            "response_time_ms": r.response_time_ms,
-            "message": r.message,
-            "metadata": r.metadata.model_dump() if r.metadata else None,
-        }
-        carriers.append(carrier_data)
+    logger.info(f"Client Response Success: {response.success}")
+    if not response.success:
+        logger.error(f"Client Response Message: {response.message}")
+
+    # Transform 'response' (ServiceabilityResponse) to 'ServiceCheckResponse' (Legacy API model)
+    # The Legacy 'ServiceCheckResponse' expects 'carriers' list with 'serviceable_count'.
+    
+    carriers_data = []
+    serviceable_count = 0
+    
+    if response.success:
+        for p in response.partners:
+            # Map Partner to expected dict format in ServiceCheckResponse
+            # Note: Partner model has 'services' which has 'rate' now.
+            # Legacy expected 'services' list.
+            
+            p_dict = p.model_dump()
+            if p.is_serviceable:
+                serviceable_count += 1
+            
+            # Legacy model expects 'carrier_code' not 'partner_code' maybe?
+            # 'carriers' list items in ServiceCheckResponse are type 'dict'
+            # Let's try to match the fields computed in the new Partner model dump
+            # The Legacy ServiceCheckResponse defines 'carriers: list[dict]' so it's flexible.
+            
+            carriers_data.append(p_dict)
 
     return ServiceCheckResponse(
         source_postal_code=origin,
@@ -83,7 +102,7 @@ async def check_serviceability(request: ServiceabilityCheckRequest) -> ServiceCh
         source_country_code=origin_country,
         destination_country_code=dest_country,
         flow=flow,
-        carriers=carriers,
-        serviceable_count=sum(1 for r in results if r.is_serviceable),
-        total_carriers=len(results),
+        carriers=carriers_data,
+        serviceable_count=serviceable_count,
+        total_carriers=len(carriers_data),
     )

@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from orchestrator.carrier_service.app.routers import (
     health_router,
     agent_router,
-    carriers_router,
     serviceability_router,
 )
 from orchestrator.carrier_service.config.settings import settings
@@ -46,7 +45,6 @@ app.add_middleware(
 # Include routers
 app.include_router(health_router)
 app.include_router(agent_router)
-app.include_router(carriers_router)
 app.include_router(serviceability_router)
 
 

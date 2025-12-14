@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
 
 from orchestrator.carrier_service.agent.state import CarrierAgentState
-from orchestrator.carrier_service.agent.tools import get_shipping_rates, create_shipment_auto
+from orchestrator.carrier_service.agent.tools import check_serviceability_tool
 from orchestrator.carrier_service.domain.models import ShipmentRequest
 
 logger = logging.getLogger("carrier_agent.nodes")
@@ -28,15 +28,20 @@ Extract the following information:
 - dest_pincode: The destination postal/zip code (string)  
 - weight_kg: The package weight in kilograms (float)
 - description: Brief description of contents (string, default to "General Goods")
+- origin_country: Origin country ISO code (string, default "IN")
+- dest_country: Destination country ISO code (string, default "IN")
 
-If you cannot find a specific field, make a reasonable inference or use defaults.
+If the user mentions "US", "USA", "America", defaulting dest_country to "US" is reasonable.
+If the zip code looks like a US zip (5 digits) and user mentions international context, assume US.
 
 Respond ONLY with valid JSON:
 {
   "origin_pincode": "string",
   "dest_pincode": "string", 
   "weight_kg": number,
-  "description": "string"
+  "description": "string",
+  "origin_country": "string",
+  "dest_country": "string"
 }"""
 
 
@@ -83,79 +88,103 @@ class CarrierNodes:
                 dest_pincode=str(data.get("dest_pincode", "90210")),
                 weight_kg=float(data.get("weight_kg", 1.0)),
                 description=str(data.get("description", "General Goods")),
+                origin_country=str(data.get("origin_country", "IN")),
+                dest_country=str(data.get("dest_country", "IN")),
             )
         except Exception as e:
             logger.error(f"LLM extraction failed: {e}")
             return None
 
     async def fetch_rates(self, state: CarrierAgentState) -> Dict[str, Any]:
-        """Fetch rates using the get_shipping_rates tool."""
+        """Fetch rates using the check_serviceability_tool (which includes rates)."""
         request = state.get("request")
         if not request:
             return {"error": "No shipment request to fetch rates for"}
 
         try:
-            # Use the tool to get rates
-            result = await get_shipping_rates.ainvoke({
-                "origin": request.origin_pincode,
-                "destination": request.dest_pincode,
+            # Use the serviceability tool to get partners and rates
+            # Note: The tool returns a dictionary (model_dump)
+            result = await check_serviceability_tool.ainvoke({
+                "origin_pincode": request.origin_pincode,
+                "dest_pincode": request.dest_pincode,
                 "weight_kg": request.weight_kg,
-                "description": request.description,
-                "strategy": "cheapest",
+                "country_code_origin": request.origin_country,
+                "country_code_dest": request.dest_country
             })
             
-            rates_data = result.get("rates", [])
-            if not rates_data:
-                return {
-                    "error": "No carriers available",
-                    "messages": [AIMessage(content="Sorry, no rates are available at this time.")],
-                }
+            partners = result.get("partners", [])
+            rates_data = []
 
-            # Format rates for display
-            rate_lines = [f"• {r['service_name']} ({r['carrier']}): ${r['price']:.2f} - {r['estimated_days']} days" for r in rates_data]
-            message = f"Found {len(rates_data)} shipping options:\n\n" + "\n".join(rate_lines)
+            # Extract rates from partners structure
+            for partner in partners:
+                if not partner.get("is_serviceable"):
+                    continue
+                
+                partner_name = partner.get("partner_name", "Unknown")
+                for service in partner.get("services", []):
+                    rate_info = service.get("rate")
+                    if rate_info and rate_info.get("price"):
+                        price = rate_info["price"].get("amount", 0)
+                        currency = rate_info["price"].get("currency", "INR")
+                        rates_data.append({
+                            "carrier": partner_name,
+                            "service_name": service.get("service_name"),
+                            "service_code": service.get("service_code"),
+                            "price": price,
+                            "currency": currency,
+                            "estimated_days": service.get("tat_days", 0)
+                        })
+
+            # Store raw result for generation
             
-            return {"rates": rates_data, "messages": [AIMessage(content=message)]}
+            return {
+                "rates": rates_data, 
+                "serviceability_response": result,
+                # Do NOT return a final message here, let generate_response handle it
+            }
 
         except Exception as e:
             logger.error(f"Failed to fetch rates: {e}")
             return {"error": str(e), "messages": [AIMessage(content=f"Error fetching rates: {str(e)}")]}
 
+    async def generate_response(self, state: CarrierAgentState) -> Dict[str, Any]:
+        """Generate a dynamic response using the LLM based on tool outputs."""
+        user_msg = state["messages"][0].content
+        data = state.get("serviceability_response", {})
+        partners = data.get("partners", [])
+        logger.info(f"Generate response context: Found {len(partners)} partners")
+        
+        # lightweight context to save tokens
+        context = {
+            "partners": partners,
+            "metadata": data.get("metadata", {})
+        }
+        
+        system_prompt = """You are a helpful logistics assistant.
+        Answer the user's question based strictly on the provided serviceability data.
+        
+        - If the user asks for available carriers, list them.
+        - If the user asks for the cheapest, find it in the data.
+        - If the user asks for the fastest, find it in the data.
+        - Use the specific prices and currency from the data.
+        - Be concise and natural.
+        
+        Data:
+        {data}
+        """
+        
+        messages = [
+            SystemMessage(content=system_prompt.format(data=json.dumps(context, indent=2))),
+            HumanMessage(content=user_msg)
+        ]
+        
+        response = await self.llm.ainvoke(messages)
+        return {"messages": [response]}
+
     async def book_shipment(self, state: CarrierAgentState) -> Dict[str, Any]:
-        """Book shipment using the create_shipment_auto tool."""
-        request = state.get("request")
-        rates = state.get("rates", [])
-
-        if not rates:
-            return {"error": "No rates available", "messages": [AIMessage(content="Cannot book - no rates were found.")]}
-        if not request:
-            return {"error": "No shipment request", "messages": [AIMessage(content="Cannot book - missing shipment details.")]}
-
-        try:
-            # Use the tool to auto-book with cheapest option
-            result = await create_shipment_auto.ainvoke({
-                "origin": request.origin_pincode,
-                "destination": request.dest_pincode,
-                "weight_kg": request.weight_kg,
-                "description": request.description,
-                "strategy": "cheapest",
-            })
-
-            message = (
-                f"✅ **Shipment Booked!**\n\n"
-                f"• Carrier: {result['carrier'].upper()}\n"
-                f"• Service: {result['selected_service']}\n"
-                f"• Price: ${result['price']:.2f}\n"
-                f"• Tracking: `{result['tracking_number']}`\n"
-                f"• Label: {result['label_url']}"
-            )
-
-            return {
-                "selected_rate": result,
-                "final_label": result,
-                "messages": [AIMessage(content=message)],
-            }
-
-        except Exception as e:
-            logger.error(f"Booking failed: {e}")
-            return {"error": f"Booking failed: {str(e)}", "messages": [AIMessage(content=f"Booking failed: {str(e)}")]}
+        """Book shipment Stub."""
+        # Booking logic is pending migration to the new toolset.
+        # Returning a placeholder message.
+        return {
+             "messages": [AIMessage(content="✅ **Booking capability is currently being upgraded.**\n\nPlease use the external booking portal for now.")]
+        }

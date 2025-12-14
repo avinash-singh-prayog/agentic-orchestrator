@@ -28,6 +28,9 @@ class CarrierAgentState(MessagesState):
     # Available rates from all carriers
     rates: List[RateQuote] = []
 
+    # Raw serviceability response for dynamic generation
+    serviceability_response: Optional[dict] = None
+
     # Selected rate for booking
     selected_rate: Optional[RateQuote] = None
 

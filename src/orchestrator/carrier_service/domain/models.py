@@ -93,6 +93,8 @@ class ShipmentRequest(BaseModel):
     dest_pincode: str = Field(..., description="Destination postal/pin code")
     weight_kg: float = Field(..., gt=0, description="Package weight in kilograms")
     description: str = Field(default="General Goods", description="Contents description")
+    origin_country: str = Field(default="IN", description="Origin country code")
+    dest_country: str = Field(default="IN", description="Destination country code")
     length_cm: Optional[float] = Field(default=None, description="Package length in cm")
     width_cm: Optional[float] = Field(default=None, description="Package width in cm")
     height_cm: Optional[float] = Field(default=None, description="Package height in cm")
@@ -132,8 +134,29 @@ class ServiceDeliveryModes(BaseModel):
     standard: bool = True
 
 
+# =============================================================================
+# Serviceability Response Models (Matching External API)
+# =============================================================================
+
+
+class Money(BaseModel):
+    """Monetary value."""
+
+    currency: str = Field(..., description="Currency code (e.g. INR, USD)")
+    amount: float = Field(..., description="Amount value")
+    type: str = Field(default="standard", description="Type of charge")
+
+
+class Rate(BaseModel):
+    """Rate details for a service."""
+
+    rate_id: str
+    price: Money
+    description: Optional[str] = None
+
+
 class CarrierService(BaseModel):
-    """A service offered by a carrier."""
+    """A service offered by a carrier/partner."""
 
     service_code: str
     service_name: str
@@ -144,40 +167,36 @@ class CarrierService(BaseModel):
     insurance: bool = True
     product_types: ServiceProductTypes = Field(default_factory=ServiceProductTypes)
     delivery_modes: ServiceDeliveryModes = Field(default_factory=ServiceDeliveryModes)
+    rate: Optional[Rate] = None  # Added rate field
 
 
-class ServiceabilityMetadataResult(BaseModel):
-    """Metadata from serviceability check."""
+class Partner(BaseModel):
+    """Partner (Carrier) details in serviceability response."""
 
-    source_country_code: str = "IN"
-    destination_country_code: str = "IN"
-    flow: str = "domestic"  # "domestic" or "international"
-    is_serviceable: bool = False
-    rates_available: bool = False
-    rates_count: int = 0
-
-
-class ServiceabilityResult(BaseModel):
-    """Result of serviceability check for a carrier."""
-
-    carrier_code: CarrierCode
-    carrier_name: str
+    partner_id: str
+    partner_code: str
+    partner_name: str
+    rating: float = 0
+    source: str = "real_time"
     is_serviceable: bool
     services: List[CarrierService] = Field(default_factory=list)
     response_time_ms: int = 0
-    message: Optional[str] = None
-    metadata: Optional[ServiceabilityMetadataResult] = None
+    metadata: Optional[dict] = None
 
-    # Legacy fields for backward compatibility
-    @property
-    def origin(self) -> str:
-        return self.metadata.source_country_code if self.metadata else ""
 
-    @property
-    def destination(self) -> str:
-        return self.metadata.destination_country_code if self.metadata else ""
+class ServiceabilityResponse(BaseModel):
+    """Top-level serviceability API response."""
 
-    @property
-    def carrier(self) -> CarrierCode:
-        return self.carrier_code
+    success: bool
+    message: str
+    partners: List[Partner] = Field(default_factory=list)
+    metadata: Optional[dict] = None
+
+
+# Retrofit ServiceabilityResult to be an alias or compat layer if needed,
+# or we can remove it if we fully switch. For now, keeping a compat version
+# is safer for untracked usages, but since we deleted the main consumer,
+# let's deprecate checking 'ServiceabilityResult' in favor of 'Partner'.
+# We can keep 'CarrierCode' as it might be useful.
+
 

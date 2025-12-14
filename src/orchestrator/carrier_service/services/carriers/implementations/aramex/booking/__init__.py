@@ -1,1 +1,0 @@
-"""Aramex Booking Service - Placeholder."""
