@@ -20,18 +20,27 @@ class IServiceabilityChecker(ABC):
     """Interface for checking if a route is serviceable."""
 
     @abstractmethod
-    async def check_serviceability(self, origin: str, dest: str) -> ServiceabilityResult:
+    async def check_serviceability(
+        self,
+        origin: str,
+        dest: str,
+        origin_country: str = "IN",
+        dest_country: str = "IN",
+    ) -> ServiceabilityResult:
         """
         Check if shipping is available between origin and destination.
 
         Args:
             origin: Origin postal/pin code
             dest: Destination postal/pin code
+            origin_country: Origin country code (2-letter ISO)
+            dest_country: Destination country code (2-letter ISO)
 
         Returns:
             ServiceabilityResult with availability status
         """
         pass
+
 
 
 class IRateFetcher(ABC):

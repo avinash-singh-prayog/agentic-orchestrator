@@ -1,0 +1,1 @@
+"""Aramex Rate Service - Placeholder."""

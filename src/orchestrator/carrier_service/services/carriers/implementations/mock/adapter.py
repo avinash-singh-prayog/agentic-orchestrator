@@ -3,7 +3,7 @@
 from typing import List
 
 from orchestrator.carrier_service.domain.models import (
-    CarrierType, LabelResponse, RateQuote, ServiceabilityResult, ShipmentRequest,
+    CarrierCode, LabelResponse, RateQuote, ServiceabilityResult, ShipmentRequest,
 )
 from orchestrator.carrier_service.services.carriers.base import BaseCarrierAdapter
 from orchestrator.carrier_service.services.carriers.implementations.mock.booking import MockBookingService
@@ -22,10 +22,18 @@ class MockCarrierAdapter(BaseCarrierAdapter):
 
     @property
     def carrier_type(self) -> str:
-        return CarrierType.MOCK
+        return CarrierCode.MOCK
 
-    async def check_serviceability(self, origin: str, dest: str) -> ServiceabilityResult:
-        return await self._serviceability.check_serviceability(origin, dest)
+    async def check_serviceability(
+        self,
+        origin: str,
+        dest: str,
+        origin_country: str = "IN",
+        dest_country: str = "IN",
+    ) -> ServiceabilityResult:
+        return await self._serviceability.check_serviceability(
+            origin, dest, origin_country, dest_country
+        )
 
     async def get_rates(self, request: ShipmentRequest) -> List[RateQuote]:
         return await self._rates.get_rates(request)

@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from orchestrator.carrier_service.services.carriers.factory import CarrierFactory
 from orchestrator.carrier_service.domain.models import (
-    CarrierType, LabelResponse, RateQuote, ServiceabilityResult, ShipmentRequest,
+    CarrierCode, LabelResponse, RateQuote, ServiceabilityResult, ShipmentRequest,
 )
 from orchestrator.carrier_service.services.carrier_selector import CarrierSelector, SelectionStrategy
 
@@ -30,13 +30,21 @@ class CarrierOrchestrator:
         self.selector = selector or CarrierSelector()
         logger.info(f"Initialized orchestrator with {len(self.factory.get_all())} carriers")
 
-    async def check_serviceability_all(self, origin: str, destination: str) -> List[ServiceabilityResult]:
+    async def check_serviceability_all(
+        self,
+        origin: str,
+        destination: str,
+        origin_country: str = "IN",
+        dest_country: str = "IN",
+    ) -> List[ServiceabilityResult]:
         """Check serviceability across all carriers in parallel."""
         carriers = self.factory.get_all()
 
         async def check_carrier(adapter):
             try:
-                return await adapter.check_serviceability(origin, destination)
+                return await adapter.check_serviceability(
+                    origin, destination, origin_country, dest_country
+                )
             except Exception as e:
                 logger.error(f"Serviceability check failed for {adapter.carrier_name}: {e}")
                 return None
@@ -70,9 +78,9 @@ class CarrierOrchestrator:
         all_rates = await self.get_rates_all(request)
         return self.selector.rank_rates(all_rates, strategy)
 
-    async def create_shipment(self, carrier_type: CarrierType, request: ShipmentRequest, service_code: str) -> LabelResponse:
+    async def create_shipment(self, carrier_code: CarrierCode, request: ShipmentRequest, service_code: str) -> LabelResponse:
         """Create a shipment with a specific carrier."""
-        adapter = self.factory.get(carrier_type)
+        adapter = self.factory.get(carrier_code)
         logger.info(f"Creating shipment with {adapter.carrier_name}")
         return await adapter.create_shipment(request, service_code)
 

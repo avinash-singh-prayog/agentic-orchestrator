@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import List
 
-from orchestrator.carrier_service.domain.models import CarrierType, RateQuote, ShipmentRequest
+from orchestrator.carrier_service.domain.models import CarrierCode, RateQuote, ShipmentRequest
 
 logger = logging.getLogger("carrier.mock.rates")
 
@@ -28,7 +28,7 @@ class MockRateFetcher:
                 if dim_weight > request.weight_kg:
                     price = tier["base_price"] * dim_weight
             rates.append(RateQuote(
-                carrier=CarrierType.MOCK, service_name=tier["name"], service_code=tier["code"],
+                carrier=CarrierCode.MOCK, service_name=tier["name"], service_code=tier["code"],
                 price=round(price, 2), currency="USD", estimated_delivery_days=tier["days"],
             ))
         logger.info(f"Fetched {len(rates)} rates for {request.weight_kg}kg shipment")

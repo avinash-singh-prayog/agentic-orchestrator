@@ -12,7 +12,7 @@ from langchain_core.tools import tool
 
 from orchestrator.carrier_service.services.carrier_orchestrator import CarrierOrchestrator
 from orchestrator.carrier_service.services.carrier_selector import SelectionStrategy
-from orchestrator.carrier_service.domain.models import ShipmentRequest, CarrierType
+from orchestrator.carrier_service.domain.models import ShipmentRequest, CarrierCode
 
 logger = logging.getLogger("carrier_agent.tools")
 
@@ -93,8 +93,8 @@ async def create_shipment(carrier: str, service_code: str, origin: str, destinat
     """
     orchestrator = get_orchestrator()
     request = ShipmentRequest(origin_pincode=origin, dest_pincode=destination, weight_kg=weight_kg, description=description)
-    carrier_type = CarrierType(carrier.lower())
-    label = await orchestrator.create_shipment(carrier_type, request, service_code)
+    carrier_code = CarrierCode(carrier.lower())
+    label = await orchestrator.create_shipment(carrier_code, request, service_code)
     return {"success": True, "tracking_number": label.tracking_number, "label_url": label.label_url, "carrier": label.carrier.value}
 
 

@@ -6,7 +6,7 @@ import random
 import string
 from datetime import datetime
 
-from orchestrator.carrier_service.domain.models import CarrierType, LabelResponse, ShipmentRequest
+from orchestrator.carrier_service.domain.models import CarrierCode, LabelResponse, ShipmentRequest
 
 logger = logging.getLogger("carrier.mock.booking")
 
@@ -25,4 +25,4 @@ class MockBookingService:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         label_url = f"{self.LABEL_BASE_URL}/{tracking_number}_{timestamp}.pdf"
         logger.info(f"Created shipment: {tracking_number} with service {service_code}")
-        return LabelResponse(tracking_number=tracking_number, label_url=label_url, carrier=CarrierType.MOCK)
+        return LabelResponse(tracking_number=tracking_number, label_url=label_url, carrier=CarrierCode.MOCK)
