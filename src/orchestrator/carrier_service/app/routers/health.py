@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from orchestrator.carrier_service.app.container import Container
+from orchestrator.carrier_service.domain.models import CarrierCode
 
 router = APIRouter(tags=["Health"])
 
@@ -18,8 +18,7 @@ class HealthResponse(BaseModel):
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """Health check endpoint."""
-    factory = Container.get_factory()
-    carriers = [c.value for c in factory.get_available_carriers()]
+    carriers = [c.value for c in CarrierCode]
     return HealthResponse(
         status="healthy",
         carriers=carriers,

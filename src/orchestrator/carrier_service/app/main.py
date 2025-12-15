@@ -43,9 +43,10 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health_router)
-app.include_router(agent_router)
-app.include_router(serviceability_router)
+# Include routers
+app.include_router(health_router, prefix="/carrier")
+app.include_router(agent_router, prefix="/carrier")
+app.include_router(serviceability_router, prefix="/carrier")
 
 
 def main() -> None:
