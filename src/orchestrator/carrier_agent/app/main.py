@@ -64,7 +64,7 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "slim":
         import asyncio
-        from .server_wrapper import run_slim_server
-        asyncio.run(run_slim_server())
+        from .server_wrapper import run_server
+        asyncio.run(run_server())
     else:
         main()

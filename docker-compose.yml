@@ -112,6 +112,11 @@ services:
       - SUPERVISOR_LLM=openrouter/openai/gpt-4o-mini
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+    depends_on:
+      - slim
+      - otel-collector
     networks:
       - orchestrator-net
   # ===========================================
@@ -130,12 +135,20 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      # External serviceability API (running on host machine)
+      - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-http://host.docker.internal:9022/serviceability/v3/check}
     command: [ "/app/.venv/bin/python", "-m", "carrier_agent.app.main", "slim" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - slim
+      - otel-collector
     networks:
       - orchestrator-net
 
   slim:
-    image: ghcr.io/agntcy/slim:latest
+    image: ghcr.io/agntcy/slim:0.6.1
     container_name: orchestrator-slim
     command: [ "/slim", "--config", "/etc/slim.yaml" ]
     ports:

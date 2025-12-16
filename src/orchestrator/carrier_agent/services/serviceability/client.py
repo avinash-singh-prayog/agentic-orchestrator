@@ -4,6 +4,7 @@ Serviceability Service Client.
 Interacts with the internal serviceability API.
 """
 
+import os
 import httpx
 import logging
 from typing import Optional, Dict, Any, List
@@ -12,13 +13,18 @@ from ...domain.models import ServiceabilityResponse, ServiceabilityRequest, Loca
 
 logger = logging.getLogger("carrier_agent.serviceability.client")
 
-SERVICEABILITY_API_URL = "http://127.0.0.1:9022/serviceability/v3/check"
+# Configure via environment variable for Docker/local flexibility
+SERVICEABILITY_API_URL = os.getenv(
+    "SERVICEABILITY_API_URL", 
+    "http://127.0.0.1:9022/serviceability/v3/check"
+)
 
 class ServiceabilityClient:
     """Client for the internal serviceability service."""
 
     def __init__(self, base_url: str = SERVICEABILITY_API_URL):
         self.base_url = base_url
+        logger.info(f"ServiceabilityClient initialized with URL: {self.base_url}")
     
     async def check_serviceability(
         self,
