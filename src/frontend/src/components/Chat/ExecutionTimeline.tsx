@@ -242,7 +242,15 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
             {/* Timeline */}
             <div style={timelineStyles}>
                 {events.map((event, index) => {
-                    const senderKey = event.sender.toLowerCase()
+                    const getAgentKey = (sender: string) => {
+                        const s = sender.toLowerCase()
+                        if (s.includes("carrier")) return "carrier"
+                        if (s.includes("rate")) return "rate"
+                        if (s.includes("service")) return "serviceability"
+                        if (s.includes("slim")) return "slim"
+                        return "supervisor"
+                    }
+                    const senderKey = getAgentKey(event.sender)
                     const config = agentConfig[senderKey] || agentConfig.supervisor
                     const Icon = config.icon
                     const isLatest = index === events.length - 1

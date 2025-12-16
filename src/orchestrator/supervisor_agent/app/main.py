@@ -158,12 +158,11 @@ async def stream_events(
             # Track node transitions
             if event_type == "on_chain_start":
                 node_name = event.get("name", "")
-                if node_name in ["supervisor", "tools"]:
-                    sender = "Supervisor" if node_name == "supervisor" else "Carrier Agent"
+                if node_name == "supervisor":
                     yield json.dumps({
                         "content": {
-                            "sender": sender,
-                            "message": f"Executing {node_name} node...",
+                            "sender": "Supervisor",
+                            "message": "Executing supervisor node...",
                             "node": node_name
                         }
                     }) + "\n"
@@ -181,11 +180,22 @@ async def stream_events(
             
             # Capture tool results
             elif event_type == "on_tool_end":
+                tool_name = event.get("name", "unknown")
                 tool_output = event.get("data", {}).get("output", "")
+                
+                # Determine sender based on tool name
+                sender = "Carrier Agent"
+                if "rate" in tool_name.lower():
+                    sender = "Rate Agent"
+                elif "service" in tool_name.lower():
+                    sender = "Serviceability Agent"
+                elif "slim" in tool_name.lower():
+                    sender = "SLIM Transport"
+                
                 if tool_output:
                     yield json.dumps({
                         "content": {
-                            "sender": "Carrier Agent",
+                            "sender": sender,
                             "message": str(tool_output)[:200] + "...",
                             "node": "carrier"
                         }
@@ -343,8 +353,17 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
             
             # 2. Capture Tool Outputs (from Tool)
             elif isinstance(msg, ToolMessage):
+                tool_name = msg.name or "unknown"
+                sender = "Carrier Agent"
+                if "rate" in tool_name.lower():
+                    sender = "Rate Agent"
+                elif "service" in tool_name.lower():
+                    sender = "Serviceability Agent"
+                elif "slim" in tool_name.lower():
+                    sender = "SLIM Transport"
+                    
                 pending_activity.append({
-                    "sender": "Carrier Agent", # Generalizing for now
+                    "sender": sender,
                     "message": str(msg.content)[:200] + ("..." if len(str(msg.content)) > 200 else ""),
                     "state": "done"
                 })
