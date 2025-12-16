@@ -56,6 +56,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  activity?: { sender: string; receiver?: string; message: string; state?: string }[]
 }
 
 interface ChatHistoryState {
@@ -77,7 +78,7 @@ interface ChatHistoryActions {
   setActiveConversation: (id: string | null) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
   addUserMessage: (content: string) => Promise<void>
-  addAssistantMessage: (content: string) => Promise<void>
+  addAssistantMessage: (content: string, activity?: { sender: string; receiver?: string; message: string; state?: string }[]) => Promise<void>
   getActiveThreadId: () => string | null
   reset: () => void
 }
@@ -116,7 +117,8 @@ const convertDBMessage = (msg: DBMessage): Message => ({
   conversationId: msg.conversationId,
   role: msg.role,
   content: msg.content,
-  timestamp: new Date(msg.timestamp)
+  timestamp: new Date(msg.timestamp),
+  activity: msg.activity
 })
 
 // ============================================================================
@@ -204,6 +206,8 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
       }
       
       // Remove conversations that don't exist in backend
+      // FIXME: Disabled to prevent deleting local-only conversations before sync
+      /*
       const backendIds = new Set(data.map(c => c.thread_id))
       const localConvs = await getDBConversations(tenantId, userId)
       for (const local of localConvs) {
@@ -211,6 +215,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
           await deleteDBConversation(local.id)
         }
       }
+      */
       
       // Reload from cache
       await get().loadConversations()
@@ -349,12 +354,14 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     await get().loadConversations()
   },
 
-  addAssistantMessage: async (content) => {
+  addAssistantMessage: async (content, activity) => {
     const { activeConversationId } = get()
+    console.log('[addAssistantMessage] Called with activity:', activity?.length, 'events, conversationId:', activeConversationId)
     if (!activeConversationId) return
     
-    // Add to IndexedDB
-    const dbMessage = await addDBMessage(activeConversationId, 'assistant', content)
+    // Add to IndexedDB with activity
+    const dbMessage = await addDBMessage(activeConversationId, 'assistant', content, activity)
+    console.log('[addAssistantMessage] Saved to IndexedDB, message has activity:', !!dbMessage.activity, dbMessage.activity?.length)
     
     // Update local state
     set(state => ({ 

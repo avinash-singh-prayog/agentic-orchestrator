@@ -90,7 +90,7 @@ const Navigation: React.FC = () => {
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}>
-                        Logistics Orchestrator
+                        Agentic Orchestrator
                     </span>
                     <span style={{ fontSize: 11, color: "#8b9cb8" }}>
                         Multi-Agent System

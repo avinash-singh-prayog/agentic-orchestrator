@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
 import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
-import StreamingFeed from "./StreamingFeed"
+import ExecutionTimeline from "./ExecutionTimeline"
 import type { Message } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
 
@@ -37,7 +37,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
     const activeConversationId = useActiveConversationId()
 
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
-    const isStreamActive = streamingStatus !== "idle"
+    const isStreamActive = streamingStatus === "streaming" || streamingStatus === "connecting"
 
     // Sync local messages with history store when active conversation changes
     useEffect(() => {
@@ -47,7 +47,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                 id: msg.id,
                 role: msg.role,
                 content: msg.content,
-                timestamp: new Date(msg.timestamp)
+                timestamp: new Date(msg.timestamp),
+                activity: msg.activity
             }))
             setMessages(convertedMessages)
         } else {
@@ -249,24 +250,35 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         {messages.map((msg) => (
-                            <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }} className="message-appear">
-                                <div style={{
-                                    maxWidth: "85%",
-                                    padding: "12px 16px",
-                                    borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                                    background: msg.role === "user"
-                                        ? "linear-gradient(135deg, #4f8fff, #9d7cf6)"
-                                        : "rgba(35, 39, 56, 0.9)",
-                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.12)",
-                                    color: "#f8fafc",
-                                }}>
-                                    <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.content}</p>
+                            <React.Fragment key={msg.id}>
+                                {/* Show stored activity BEFORE assistant message (that generated it) */}
+                                {msg.role === 'assistant' && msg.activity && msg.activity.length > 0 && (
+                                    <ExecutionTimeline
+                                        events={msg.activity}
+                                        isLive={false}
+                                        defaultCollapsed={true}
+                                    />
+                                )}
+
+                                <div style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }} className="message-appear">
+                                    <div style={{
+                                        maxWidth: "85%",
+                                        padding: "12px 16px",
+                                        borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                                        background: msg.role === "user"
+                                            ? "linear-gradient(135deg, #4f8fff, #9d7cf6)"
+                                            : "rgba(35, 39, 56, 0.9)",
+                                        border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.12)",
+                                        color: "#f8fafc",
+                                    }}>
+                                        <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.content}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            </React.Fragment>
                         ))}
 
-                        {/* Streaming feed - show during active streaming */}
-                        {useStreaming && isStreamActive && streamingStatus !== "completed" && <StreamingFeed />}
+                        {/* Live Agent Activity - shows during streaming */}
+                        {useStreaming && isStreamActive && <ExecutionTimeline isLive={true} />}
 
                         <div ref={messagesEndRef} />
                     </div>
@@ -274,7 +286,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
             </div>
 
             {/* Input area */}
-            <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.1)", background: "rgba(20, 22, 30, 0.9)" }}>
+            <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", background: "rgba(20, 22, 30, 0.9)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                         onClick={() => setUseStreaming(!useStreaming)}
@@ -300,7 +312,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={handleKeyPress}
                             placeholder="Type your message..."
-                            style={inputStyles}
+                            style={{ ...inputStyles, width: "100%" }}
                             disabled={isLoading}
                         />
                         <button onClick={handleSend} disabled={!input.trim() || isLoading} style={sendButtonStyles}>

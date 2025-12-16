@@ -50,9 +50,17 @@ const App: React.FC = () => {
   // Save assistant response to history when streaming completes
   useEffect(() => {
     if (streamingStatus === "completed" && finalResponse) {
-      addAssistantMessage(finalResponse)
+      // Convert streaming events to activity format and save with message
+      const activity = streamingEvents.map(event => ({
+        sender: event.sender,
+        receiver: event.receiver,
+        message: event.message,
+        state: event.state
+      }))
+      console.log('[Activity Save] Saving activity with', activity.length, 'events:', activity)
+      addAssistantMessage(finalResponse, activity)
     }
-  }, [streamingStatus, finalResponse, addAssistantMessage])
+  }, [streamingStatus, finalResponse, streamingEvents, addAssistantMessage])
 
   // Handle resizer drag
   const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {

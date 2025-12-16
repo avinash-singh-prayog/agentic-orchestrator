@@ -2,7 +2,7 @@
  * IndexedDB Database Configuration
  * 
  * Uses Dexie.js for type-safe IndexedDB access.
- * Stores conversation metadata and messages for offline access.
+ * Stores conversation metadata, messages, and agent activity for offline access.
  */
 
 import Dexie, { type Table } from 'dexie'
@@ -21,12 +21,20 @@ export interface Conversation {
   messageCount: number
 }
 
+export interface AgentActivityEvent {
+  sender: string
+  receiver?: string
+  message: string
+  state?: string
+}
+
 export interface Message {
   id: string
   conversationId: string  // Maps to Conversation.id (thread_id)
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  activity?: AgentActivityEvent[]  // Agent activity for assistant messages
 }
 
 export interface UserSession {
@@ -48,8 +56,16 @@ class ChatDatabase extends Dexie {
   constructor() {
     super('orchestrator-chat')
     
-    this.version(1).stores({
+    // Version 2: Added activity field to messages
+    this.version(2).stores({
       // Indexed fields for fast queries
+      conversations: 'id, tenantId, userId, [tenantId+userId], updatedAt',
+      messages: 'id, conversationId, timestamp',
+      sessions: 'id'
+    })
+    
+    // Keep v1 for migration path
+    this.version(1).stores({
       conversations: 'id, tenantId, userId, [tenantId+userId], updatedAt',
       messages: 'id, conversationId, timestamp',
       sessions: 'id'
@@ -133,14 +149,16 @@ export async function deleteConversation(id: string): Promise<void> {
 export async function addMessage(
   conversationId: string,
   role: 'user' | 'assistant',
-  content: string
+  content: string,
+  activity?: AgentActivityEvent[]
 ): Promise<Message> {
   const message: Message = {
     id: crypto.randomUUID(),
     conversationId,
     role,
     content,
-    timestamp: new Date()
+    timestamp: new Date(),
+    ...(activity && activity.length > 0 ? { activity } : {})
   }
   
   await db.transaction('rw', [db.messages, db.conversations], async () => {
