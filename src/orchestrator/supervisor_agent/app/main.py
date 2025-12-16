@@ -170,10 +170,29 @@ async def stream_events(
             # Capture tool calls
             elif event_type == "on_tool_start":
                 tool_name = event.get("name", "unknown")
+                
+                # 1. Handoff from Supervisor
                 yield json.dumps({
                     "content": {
                         "sender": "Supervisor",
-                        "message": f"Calling {tool_name}...",
+                        "message": f"Delegating to {tool_name}...",
+                        "node": "tools"
+                    }
+                }) + "\n"
+                
+                # 2. Agent Starting (Keeps graph active on Agent)
+                sender = "Carrier Agent"
+                if "rate" in tool_name.lower():
+                    sender = "Rate Agent"
+                elif "service" in tool_name.lower():
+                    sender = "Serviceability Agent"
+                elif "slim" in tool_name.lower():
+                    sender = "SLIM Transport"
+                    
+                yield json.dumps({
+                    "content": {
+                        "sender": sender,
+                        "message": "Processing request...",
                         "node": "tools"
                     }
                 }) + "\n"

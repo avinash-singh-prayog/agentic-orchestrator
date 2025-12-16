@@ -39,21 +39,12 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         edges: ["supervisor-to-slim"],
     }
 
-    if (senderLower.includes("serviceability") || senderLower === "serviceability_agent") {
-        return {
-            nodes: [...basePath.nodes, "serviceability"],
-            edges: [...basePath.edges, "slim-to-serviceability"],
-        }
-    }
-
-    if (senderLower.includes("rate") || senderLower === "rate_agent") {
-        return {
-            nodes: [...basePath.nodes, "rate-agent"],
-            edges: [...basePath.edges, "slim-to-rate"],
-        }
-    }
-
-    if (senderLower.includes("carrier") || senderLower === "carrier_agent") {
+    if (
+        senderLower.includes("service") ||
+        senderLower.includes("rate") ||
+        senderLower.includes("carrier") ||
+        senderLower === "carrier_agent"
+    ) {
         return {
             nodes: [...basePath.nodes, "carrier"],
             edges: [...basePath.edges, "slim-to-carrier"],
