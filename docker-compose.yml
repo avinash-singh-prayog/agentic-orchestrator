@@ -114,6 +114,7 @@ services:
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+      - DATABASE_URL=${DATABASE_URL:-postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod}
     depends_on:
       - slim
       - otel-collector
@@ -137,8 +138,8 @@ services:
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # External serviceability API (running on host machine)
-      - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-http://host.docker.internal:9022/serviceability/v3/check}
-    command: [ "/app/.venv/bin/python", "-m", "carrier_agent.app.main", "slim" ]
+      - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
+    command: [ "/app/.venv/bin/python", "-m", "carrier_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

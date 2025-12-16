@@ -5,6 +5,7 @@ Entry point for the carrier service API.
 """
 
 import logging
+import asyncio
 
 import uvicorn
 from fastapi import FastAPI
@@ -50,7 +51,7 @@ app.include_router(serviceability_router, prefix="/carrier/v1")
 
 
 def main() -> None:
-    """Run the server."""
+    """Run the HTTP server only."""
     logger.info(f"Starting Carrier Service on {settings.host}:{settings.port}")
     uvicorn.run(
         app,
@@ -60,11 +61,44 @@ def main() -> None:
     )
 
 
+async def run_dual_mode() -> None:
+    """Run both HTTP (uvicorn) and SLIM servers concurrently."""
+    import uvicorn
+    from .server_wrapper import run_server as run_slim_server
+    
+    logger.info(f"Starting Carrier Agent in DUAL mode...")
+    logger.info(f"  - HTTP server on {settings.host}:{settings.port}")
+    logger.info(f"  - SLIM server for inter-agent communication")
+    
+    # Create uvicorn server config
+    config = uvicorn.Config(
+        app,
+        host=settings.host,
+        port=settings.port,
+        log_level=settings.log_level.lower(),
+    )
+    server = uvicorn.Server(config)
+    
+    # Run both servers concurrently
+    await asyncio.gather(
+        server.serve(),
+        run_slim_server(),
+    )
+
+
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "slim":
-        import asyncio
+    import asyncio
+    
+    mode = sys.argv[1] if len(sys.argv) > 1 else "http"
+    
+    if mode == "slim":
+        # SLIM-only mode
         from .server_wrapper import run_server
         asyncio.run(run_server())
+    elif mode == "dual":
+        # Dual mode: HTTP + SLIM
+        asyncio.run(run_dual_mode())
     else:
+        # HTTP-only mode (default)
         main()

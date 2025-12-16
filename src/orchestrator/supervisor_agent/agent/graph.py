@@ -2,7 +2,9 @@
 Supervisor Agent Graph.
 """
 
+from typing import Optional
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from .state import SupervisorAgentState
 from .nodes import SupervisorNodes
 
@@ -13,7 +15,14 @@ def should_continue(state: SupervisorAgentState):
         return "tools"
     return END
 
-def build_graph():
+def build_graph(checkpointer: Optional[BaseCheckpointSaver] = None):
+    """
+    Build the supervisor agent graph.
+    
+    Args:
+        checkpointer: Optional checkpointer for conversation persistence.
+                     When provided, enables multi-turn context memory.
+    """
     nodes = SupervisorNodes()
     workflow = StateGraph(SupervisorAgentState)
 
@@ -30,4 +39,5 @@ def build_graph():
 
     workflow.add_edge("tools", "supervisor")
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
+

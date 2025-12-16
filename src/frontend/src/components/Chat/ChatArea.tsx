@@ -2,6 +2,7 @@
  * Chat Area Component
  * 
  * Premium styled chat interface with proper streaming and sync support.
+ * Syncs with chatHistoryStore for conversation persistence.
  */
 
 import React, { useState, useRef, useEffect } from "react"
@@ -9,6 +10,7 @@ import { Send, Loader2, Sparkles } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
+import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
 import StreamingFeed from "./StreamingFeed"
 import type { Message } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
@@ -30,8 +32,29 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
     const finalResponse = useStreamingFinalResponse()
     const streamingEvents = useStreamingEvents()
 
+    // Get messages from chat history store
+    const historyMessages = useChatMessages()
+    const activeConversationId = useActiveConversationId()
+
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
     const isStreamActive = streamingStatus !== "idle"
+
+    // Sync local messages with history store when active conversation changes
+    useEffect(() => {
+        if (activeConversationId && historyMessages.length > 0) {
+            // Convert history messages to local format
+            const convertedMessages: Message[] = historyMessages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: new Date(msg.timestamp)
+            }))
+            setMessages(convertedMessages)
+        } else {
+            // Clear messages when no active conversation OR new/empty conversation
+            setMessages([])
+        }
+    }, [activeConversationId, historyMessages])
 
     // Scroll to bottom
     useEffect(() => {

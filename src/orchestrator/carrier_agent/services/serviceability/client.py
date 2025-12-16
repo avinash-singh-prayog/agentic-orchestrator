@@ -13,11 +13,10 @@ from ...domain.models import ServiceabilityResponse, ServiceabilityRequest, Loca
 
 logger = logging.getLogger("carrier_agent.serviceability.client")
 
-# Configure via environment variable for Docker/local flexibility
-SERVICEABILITY_API_URL = os.getenv(
-    "SERVICEABILITY_API_URL", 
-    "http://127.0.0.1:9022/serviceability/v3/check"
-)
+# Configure via environment variable - required, no default
+SERVICEABILITY_API_URL = os.getenv("SERVICEABILITY_API_URL")
+if not SERVICEABILITY_API_URL:
+    raise ValueError("SERVICEABILITY_API_URL environment variable is required but not set")
 
 class ServiceabilityClient:
     """Client for the internal serviceability service."""
@@ -77,8 +76,9 @@ class ServiceabilityClient:
 
         async with httpx.AsyncClient() as client:
             try:
+                url = self.base_url + '/serviceability/v3/check'
                 response = await client.post(
-                    self.base_url,
+                    url,
                     json=payload,
                     headers=headers,
                     timeout=30.0

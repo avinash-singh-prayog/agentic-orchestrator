@@ -56,6 +56,10 @@ export const API_ENDPOINTS = {
   PROMPT_STREAM: "/supervisor/v1/agent/stream", // Streaming mode (SSE)
   HEALTH: "/health",
   
+  // Conversation history endpoints
+  CONVERSATIONS: "/supervisor/v1/conversations",
+  CONVERSATION: (threadId: string) => `/supervisor/v1/conversations/${threadId}`,
+  
   // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",
   PENDING_APPROVALS: "/admin/pending-approvals",

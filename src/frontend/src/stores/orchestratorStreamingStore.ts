@@ -2,11 +2,13 @@
  * Orchestrator Streaming Store
  * 
  * Zustand store for managing streaming state from the orchestrator API.
+ * Integrates with chat history store for multi-tenant context.
  */
 
 import { create } from "zustand"
 import type { OrchestratorStreamStep, StreamingState } from "@/types/streaming"
 import { API_ENDPOINTS } from "@/utils/const"
+import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
 interface OrchestratorStreamingActions {
   addEvent: (event: OrchestratorStreamStep) => void
@@ -64,6 +66,20 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
     startStreaming: async (prompt, context) => {
       const { reset, addEvent, setFinalResponse, setError } = get()
 
+      // Get multi-tenant context from chat history store
+      const chatStore = useChatHistoryStore.getState()
+      const tenantId = chatStore.tenantId || '507f1f77bcf86cd799439011'
+      const userId = chatStore.userId || 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+      let threadId = chatStore.activeConversationId
+
+      // Auto-create conversation if needed
+      if (!threadId) {
+        threadId = await chatStore.createNewConversation()
+      }
+
+      // Add user message to local history
+      await chatStore.addUserMessage(prompt)
+
       reset()
       set({ status: "connecting" })
 
@@ -75,6 +91,9 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           },
           body: JSON.stringify({
             prompt,
+            tenant_id: tenantId,
+            user_id: userId,
+            thread_id: threadId,
             ...context,
           }),
         })
