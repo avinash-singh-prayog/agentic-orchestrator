@@ -88,6 +88,7 @@ class MessageInfo(BaseModel):
     role: str
     content: str
     timestamp: str
+    activity: Optional[List[dict]] = []
 
 
 # ============================================================================
@@ -305,7 +306,9 @@ async def list_conversations(tenant_id: str, user_id: str):
 
 @app.get("/supervisor/v1/conversations/{thread_id}", response_model=List[MessageInfo])
 async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
-    """Get all messages in a conversation."""
+    """Get all messages in a conversation, including tool activity."""
+    from langchain_core.messages import ToolMessage
+    
     namespace = f"{tenant_id}:{user_id}"
     
     async with get_checkpointer() as checkpointer:
@@ -321,17 +324,61 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
         if not checkpoint_tuple:
             raise HTTPException(status_code=404, detail="Conversation not found")
         
-        messages = checkpoint_tuple.checkpoint.get("channel_values", {}).get("messages", [])
+        raw_messages = checkpoint_tuple.checkpoint.get("channel_values", {}).get("messages", [])
         
-        return [
-            MessageInfo(
-                role="user" if isinstance(msg, HumanMessage) else "assistant",
-                content=msg.content if hasattr(msg, "content") else str(msg),
-                timestamp=getattr(msg, "timestamp", "") or ""
-            )
-            for msg in messages
-            if isinstance(msg, (HumanMessage, AIMessage)) and msg.content  # Filter empty messages
-        ]
+        # Process messages to aggregate activity
+        processed_messages = []
+        pending_activity = []
+        
+        for msg in raw_messages:
+            # 1. Capture Tool Calls (from AI)
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                for tool_call in msg.tool_calls:
+                    tool_name = tool_call.get("name", "unknown")
+                    pending_activity.append({
+                        "sender": "Supervisor",
+                        "message": f"Calling {tool_name}...",
+                        "state": "pending"
+                    })
+            
+            # 2. Capture Tool Outputs (from Tool)
+            elif isinstance(msg, ToolMessage):
+                pending_activity.append({
+                    "sender": "Carrier Agent", # Generalizing for now
+                    "message": str(msg.content)[:200] + ("..." if len(str(msg.content)) > 200 else ""),
+                    "state": "done"
+                })
+            
+            # 3. Capture AI Response (Result)
+            elif isinstance(msg, AIMessage) and msg.content:
+                # Attach collected activity to this assistant message
+                processed_messages.append(MessageInfo(
+                    role="assistant",
+                    content=str(msg.content),
+                    timestamp=getattr(msg, "timestamp", "") or "",
+                    activity=pending_activity
+                ))
+                pending_activity = [] # Reset buffer
+                
+            # 4. Capture User Message
+            elif isinstance(msg, HumanMessage):
+                # If there's pending activity before a user message, attach it to a placeholder? 
+                # Or just drop it? Ideally activity belongs to previous turn.
+                # In standard flow, activity -> AI Message.
+                if pending_activity:
+                    # Creating a system/assistant message to hold the activity if no final response followed?
+                    # For now, let's just clear typical pending activity or attach it to next?
+                    # Let's attach to PREVIOUS message if possible? No.
+                    pass
+                    
+                processed_messages.append(MessageInfo(
+                    role="user",
+                    content=str(msg.content),
+                    timestamp=getattr(msg, "timestamp", "") or "",
+                    activity=[]
+                ))
+        
+        return processed_messages
 
 
 @app.delete("/supervisor/v1/conversations/{thread_id}")

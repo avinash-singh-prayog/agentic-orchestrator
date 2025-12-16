@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import { API_ENDPOINTS } from '@/utils/const'
+import { type AgentActivityEvent } from '@/types/message'
 import {
   type Conversation as DBConversation,
   type Message as DBMessage,
@@ -40,6 +41,7 @@ interface MessageInfo {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  activity?: AgentActivityEvent[]
 }
 
 interface Conversation {
@@ -285,7 +287,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
             
             // Save to cache
             for (const msg of data) {
-              await addDBMessage(id, msg.role, msg.content)
+              await addDBMessage(id, msg.role, msg.content, msg.activity)
             }
             
             // Reload from cache
