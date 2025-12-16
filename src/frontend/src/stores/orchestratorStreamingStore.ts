@@ -83,6 +83,34 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
+        // Check content-type to determine response format
+        const contentType = response.headers.get("content-type") || ""
+        
+        // NDJSON streaming (application/x-ndjson or text/event-stream)
+        const isStreaming = contentType.includes("ndjson") || 
+                           contentType.includes("event-stream") ||
+                           contentType.includes("octet-stream")
+        
+        // Handle sync JSON response (only if explicitly application/json)
+        if (contentType.includes("application/json") && !isStreaming) {
+          const data = await response.json()
+          if (data.response) {
+            // Add a single event showing the supervisor response
+            addEvent({
+              order_id: "",
+              sender: "Supervisor",
+              receiver: "",
+              message: "Processing your request...",
+              timestamp: new Date().toISOString(),
+              state: "PROCESSING",
+            })
+            
+            setFinalResponse(data.response)
+            return
+          }
+        }
+
+        // Handle streaming response (NDJSON)
         set({ status: "streaming" })
 
         const reader = response.body?.getReader()

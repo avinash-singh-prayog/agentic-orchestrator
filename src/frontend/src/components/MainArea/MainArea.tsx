@@ -159,7 +159,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
         position: "relative",
         height: "100%",
         width: "100%",
-        background: "linear-gradient(135deg, #0a0a0f 0%, #0f0f15 50%, #0a0a0f 100%)",
+        background: "linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%)",
     }
 
     return (
@@ -183,7 +183,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                     variant={BackgroundVariant.Dots}
                     gap={24}
                     size={1}
-                    color="rgba(148, 163, 184, 0.08)"
+                    color="rgba(139, 156, 184, 0.1)"
                 />
                 <Controls showInteractive={false} />
             </ReactFlow>
@@ -199,23 +199,23 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                     gap: 10,
                     padding: "10px 16px",
                     borderRadius: 12,
-                    background: "rgba(15, 15, 21, 0.95)",
-                    border: "1px solid rgba(59, 130, 246, 0.4)",
+                    background: "rgba(20, 22, 30, 0.95)",
+                    border: "1px solid rgba(79, 143, 255, 0.4)",
                     backdropFilter: "blur(12px)",
-                    boxShadow: "0 4px 20px rgba(59, 130, 246, 0.15)",
+                    boxShadow: "0 4px 20px rgba(79, 143, 255, 0.2)",
                 }}>
                     <div style={{
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+                        background: "linear-gradient(135deg, #4f8fff, #9d7cf6)",
                         animation: "pulse 1.5s infinite",
                     }} />
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>
+                        <span style={{ fontSize: 11, color: "#a8b5cf", textTransform: "uppercase", letterSpacing: 1 }}>
                             Active Agent
                         </span>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#60a5fa" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#6ba6ff" }}>
                             {activeAgentName}
                         </span>
                     </div>

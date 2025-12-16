@@ -40,7 +40,7 @@ const App: React.FC = () => {
     height: "100vh",
     width: "100vw",
     overflow: "hidden",
-    background: "linear-gradient(135deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%)",
+    background: "linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%)",
   }
 
   const hitlButtonStyles: React.CSSProperties = {
@@ -52,8 +52,8 @@ const App: React.FC = () => {
     gap: 8,
     padding: "10px 16px",
     borderRadius: 12,
-    background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(249, 115, 22, 0.15))",
-    border: "1px solid rgba(245, 158, 11, 0.3)",
+    background: "linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 146, 60, 0.12))",
+    border: "1px solid rgba(251, 191, 36, 0.25)",
     color: "#fbbf24",
     fontSize: 13,
     fontWeight: 500,
@@ -71,8 +71,8 @@ const App: React.FC = () => {
           {/* Chat area - LEFT (35%) */}
           <div style={{
             width: "35%",
-            borderRight: "1px solid rgba(255, 255, 255, 0.08)",
-            background: "rgba(15, 15, 21, 0.9)",
+            borderRight: "1px solid rgba(255, 255, 255, 0.1)",
+            background: "rgba(20, 22, 30, 0.95)",
           }}>
             <ChatArea onAgentActive={setSyncActiveAgent} />
           </div>
@@ -81,7 +81,7 @@ const App: React.FC = () => {
           <div style={{
             position: "relative",
             width: "65%",
-            background: "linear-gradient(180deg, rgba(10, 10, 15, 1) 0%, rgba(15, 15, 21, 1) 100%)",
+            background: "linear-gradient(180deg, rgba(20, 22, 30, 1) 0%, rgba(26, 29, 40, 1) 100%)",
           }}>
             <MainArea
               isProcessing={isProcessing}

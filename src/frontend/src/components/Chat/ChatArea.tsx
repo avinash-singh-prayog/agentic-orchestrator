@@ -134,12 +134,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "linear-gradient(180deg, #0a0a0f 0%, #0f0f15 100%)",
+        background: "linear-gradient(180deg, #14161e 0%, #1a1d28 100%)",
     }
 
     const headerStyles: React.CSSProperties = {
         padding: "16px 20px",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
     }
 
     const exampleButtonStyles: React.CSSProperties = {
@@ -147,9 +147,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         padding: "12px 16px",
         textAlign: "left",
         fontSize: 13,
-        color: "#cbd5e1",
-        background: "rgba(30, 32, 48, 0.6)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        color: "#d1dae8",
+        background: "rgba(35, 39, 56, 0.6)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
         borderRadius: 12,
         cursor: "pointer",
         transition: "all 0.2s ease",
@@ -160,8 +160,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         padding: "14px 48px 14px 16px",
         fontSize: 14,
         color: "#f8fafc",
-        background: "rgba(26, 26, 37, 0.9)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        background: "rgba(35, 39, 56, 0.8)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
         borderRadius: 14,
         outline: "none",
     }
@@ -177,7 +177,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 10,
-        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+        background: "linear-gradient(135deg, #4f8fff, #9d7cf6)",
         border: "none",
         cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
         opacity: input.trim() && !isLoading ? 1 : 0.5,
@@ -204,14 +204,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15))",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            background: "linear-gradient(135deg, rgba(79, 143, 255, 0.15), rgba(157, 124, 246, 0.15))",
+                            border: "1px solid rgba(255, 255, 255, 0.12)",
                             marginBottom: 20,
                         }}>
-                            <Sparkles style={{ width: 32, height: 32, color: "#60a5fa" }} />
+                            <Sparkles style={{ width: 32, height: 32, color: "#6ba6ff" }} />
                         </div>
-                        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#f1f5f9", marginBottom: 8 }}>How can I help?</h2>
-                        <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#f8fafc", marginBottom: 8 }}>How can I help?</h2>
+                        <p style={{ fontSize: 13, color: "#a8b5cf", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
                             I coordinate with specialized agents to help with shipping logistics.
                         </p>
 
@@ -232,10 +232,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                                     padding: "12px 16px",
                                     borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                                     background: msg.role === "user"
-                                        ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
-                                        : "rgba(30, 32, 48, 0.9)",
-                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                                    color: "#f1f5f9",
+                                        ? "linear-gradient(135deg, #4f8fff, #9d7cf6)"
+                                        : "rgba(35, 39, 56, 0.9)",
+                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.12)",
+                                    color: "#f8fafc",
                                 }}>
                                     <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.content}</p>
                                 </div>
@@ -251,7 +251,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
             </div>
 
             {/* Input area */}
-            <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 15, 21, 0.8)" }}>
+            <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.1)", background: "rgba(20, 22, 30, 0.9)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                         onClick={() => setUseStreaming(!useStreaming)}
@@ -260,9 +260,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                             fontSize: 12,
                             fontWeight: 500,
                             borderRadius: 8,
-                            border: useStreaming ? "1px solid rgba(59, 130, 246, 0.4)" : "1px solid rgba(255, 255, 255, 0.1)",
-                            background: useStreaming ? "rgba(59, 130, 246, 0.15)" : "rgba(30, 32, 48, 0.6)",
-                            color: useStreaming ? "#60a5fa" : "#94a3b8",
+                            border: useStreaming ? "1px solid rgba(79, 143, 255, 0.4)" : "1px solid rgba(255, 255, 255, 0.12)",
+                            background: useStreaming ? "rgba(79, 143, 255, 0.15)" : "rgba(35, 39, 56, 0.6)",
+                            color: useStreaming ? "#6ba6ff" : "#a8b5cf",
                             cursor: "pointer",
                         }}
                     >

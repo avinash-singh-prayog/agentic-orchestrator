@@ -48,12 +48,12 @@ const CustomEdge: React.FC<EdgeProps> = ({
                 path={edgePath}
                 style={{
                     stroke: isAnimated
-                        ? "rgba(59, 130, 246, 0.4)"
+                        ? "rgba(79, 143, 255, 0.45)"
                         : selected
-                            ? "#3b82f6"
-                            : "rgba(148, 163, 184, 0.25)",
+                            ? "#4f8fff"
+                            : "rgba(139, 156, 184, 0.3)",
                     strokeWidth: isAnimated ? 3 : 2,
-                    filter: isAnimated ? "drop-shadow(0 0 6px rgba(59, 130, 246, 0.5))" : "none",
+                    filter: isAnimated ? "drop-shadow(0 0 6px rgba(79, 143, 255, 0.55))" : "none",
                 }}
             />
 
@@ -69,7 +69,7 @@ const CustomEdge: React.FC<EdgeProps> = ({
                         strokeLinecap="round"
                         style={{
                             filter: "blur(4px)",
-                            opacity: 0.6,
+                            opacity: 0.65,
                         }}
                     />
 
@@ -87,7 +87,7 @@ const CustomEdge: React.FC<EdgeProps> = ({
                     />
 
                     {/* Moving particle dot */}
-                    <circle r="4" fill="#60a5fa" filter="url(#glowFilter)">
+                    <circle r="4" fill="#6ba6ff" filter="url(#glowFilter)">
                         <animateMotion
                             dur={`${pathLength / 60}s`}
                             repeatCount="indefinite"
@@ -98,9 +98,9 @@ const CustomEdge: React.FC<EdgeProps> = ({
                     {/* Gradient and filter definitions */}
                     <defs>
                         <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#3b82f6" />
-                            <stop offset="50%" stopColor="#8b5cf6" />
-                            <stop offset="100%" stopColor="#3b82f6" />
+                            <stop offset="0%" stopColor="#4f8fff" />
+                            <stop offset="50%" stopColor="#9d7cf6" />
+                            <stop offset="100%" stopColor="#4f8fff" />
                         </linearGradient>
                         <filter id="glowFilter" x="-50%" y="-50%" width="200%" height="200%">
                             <feGaussianBlur stdDeviation="3" result="coloredBlur" />

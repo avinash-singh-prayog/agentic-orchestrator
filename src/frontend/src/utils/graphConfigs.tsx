@@ -31,8 +31,8 @@ const transportStyle = {
 const groupStyle = {
     width: 740,
     height: 500,
-    backgroundColor: "var(--group-background)",
-    border: "1px dashed var(--group-border)",
+    backgroundColor: "rgba(26, 29, 40, 0.4)",
+    border: "1px dashed rgba(139, 156, 184, 0.2)",
     borderRadius: "16px",
 }
 

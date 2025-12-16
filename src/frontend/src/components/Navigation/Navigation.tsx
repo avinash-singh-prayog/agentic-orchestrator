@@ -36,8 +36,8 @@ const Navigation: React.FC = () => {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 24px",
-        background: "linear-gradient(90deg, rgba(10, 10, 15, 0.98), rgba(18, 18, 26, 0.95))",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        background: "linear-gradient(90deg, rgba(20, 22, 30, 0.98), rgba(26, 29, 40, 0.95))",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         backdropFilter: "blur(20px)",
     }
 
@@ -48,8 +48,8 @@ const Navigation: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-        boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
+        background: "linear-gradient(135deg, #4f8fff, #9d7cf6)",
+        boxShadow: "0 4px 15px rgba(79, 143, 255, 0.35)",
     }
 
     const healthBadgeStyles: React.CSSProperties = {
@@ -58,8 +58,8 @@ const Navigation: React.FC = () => {
         gap: 8,
         padding: "6px 14px",
         borderRadius: 20,
-        background: "rgba(30, 32, 48, 0.8)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        background: "rgba(35, 39, 56, 0.8)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
     }
 
     const buttonStyles: React.CSSProperties = {
@@ -69,8 +69,8 @@ const Navigation: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(30, 32, 48, 0.6)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        background: "rgba(35, 39, 56, 0.6)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
         cursor: "pointer",
         transition: "all 0.2s ease",
     }
@@ -86,13 +86,13 @@ const Navigation: React.FC = () => {
                     <span style={{
                         fontSize: 16,
                         fontWeight: 700,
-                        background: "linear-gradient(135deg, #3b82f6, #a78bfa)",
+                        background: "linear-gradient(135deg, #4f8fff, #c4b5fd)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}>
                         Logistics Orchestrator
                     </span>
-                    <span style={{ fontSize: 11, color: "#64748b" }}>
+                    <span style={{ fontSize: 11, color: "#8b9cb8" }}>
                         Multi-Agent System
                     </span>
                 </div>

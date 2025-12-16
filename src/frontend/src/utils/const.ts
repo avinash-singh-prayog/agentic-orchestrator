@@ -49,11 +49,14 @@ export const AGENT_STATUS = {
   ERROR: "error",
 } as const
 
-// API endpoints
+// API endpoints - match Supervisor Agent API
 export const API_ENDPOINTS = {
-  PROMPT: "/agent/prompt",
-  PROMPT_STREAM: "/agent/prompt/stream",
+  // Supervisor Agent endpoints
+  PROMPT: "/supervisor/v1/agent/run",           // Sync mode
+  PROMPT_STREAM: "/supervisor/v1/agent/stream", // Streaming mode (SSE)
   HEALTH: "/health",
+  
+  // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",
   PENDING_APPROVALS: "/admin/pending-approvals",
   APPROVE: "/admin/approve",

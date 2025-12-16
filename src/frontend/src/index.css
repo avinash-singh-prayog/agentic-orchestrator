@@ -2,31 +2,32 @@
 
 /* ===========================
    TailwindCSS v4 Theme Configuration
+   Modern Lighter Dark Theme
    =========================== */
 
 @theme {
-  /* Colors */
-  --color-slate-950: #0a0a0f;
-  --color-slate-900: #12121a;
-  --color-slate-800: #1e2030;
-  --color-slate-700: #2d3148;
-  --color-slate-600: #3f4466;
-  --color-slate-500: #94a3b8;
-  --color-slate-400: #94a3b8;
-  --color-slate-300: #cbd5e1;
+  /* Colors - Lighter Dark Palette */
+  --color-slate-950: #14161e;
+  --color-slate-900: #1a1d28;
+  --color-slate-800: #232738;
+  --color-slate-700: #2f3549;
+  --color-slate-600: #4a5168;
+  --color-slate-500: #8b9cb8;
+  --color-slate-400: #a8b5cf;
+  --color-slate-300: #d1dae8;
 
-  /* Brand Colors */
-  --color-blue-500: #3b82f6;
-  --color-blue-600: #2563eb;
-  --color-purple-500: #8b5cf6;
-  --color-purple-600: #7c3aed;
-  --color-emerald-500: #10b981;
-  --color-teal-500: #14b8a6;
-  --color-amber-500: #f59e0b;
-  --color-orange-500: #f97316;
-  --color-red-500: #ef4444;
-  --color-cyan-500: #06b6d4;
-  --color-pink-500: #ec4899;
+  /* Brand Colors - Brighter accents */
+  --color-blue-500: #4f8fff;
+  --color-blue-600: #3b7cf6;
+  --color-purple-500: #9d7cf6;
+  --color-purple-600: #8b5cf6;
+  --color-emerald-500: #22c997;
+  --color-teal-500: #2dd4bf;
+  --color-amber-500: #fbbf24;
+  --color-orange-500: #fb923c;
+  --color-red-500: #f87171;
+  --color-cyan-500: #22d3ee;
+  --color-pink-500: #f472b6;
 
   /* Fonts */
   --font-inter: "Inter", system-ui, sans-serif;
@@ -50,8 +51,8 @@ body {
 
 body {
   font-family: var(--font-inter);
-  background: linear-gradient(135deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
-  color: #f1f5f9;
+  background: linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%);
+  color: #f8fafc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -71,16 +72,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(20, 22, 30, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: rgba(139, 156, 184, 0.4);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(139, 156, 184, 0.6);
 }
 
 /* ===========================
@@ -96,24 +97,24 @@ body {
 }
 
 .react-flow__controls {
-  background: rgba(30, 32, 48, 0.9) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(35, 39, 56, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 12px !important;
   backdrop-filter: blur(12px);
 }
 
 .react-flow__controls-button {
   background: transparent !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  fill: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  fill: #f8fafc !important;
 }
 
 .react-flow__controls-button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .react-flow__background pattern circle {
-  fill: rgba(148, 163, 184, 0.1);
+  fill: rgba(139, 156, 184, 0.08);
 }
 
 /* ===========================
@@ -124,11 +125,11 @@ body {
 
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 20px rgba(79, 143, 255, 0.25), 0 0 40px rgba(79, 143, 255, 0.15);
   }
 
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 30px rgba(79, 143, 255, 0.45), 0 0 60px rgba(79, 143, 255, 0.25);
   }
 }
 
@@ -137,12 +138,12 @@ body {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 0 rgba(79, 143, 255, 0.4);
   }
 
   50% {
     transform: scale(1.02);
-    box-shadow: 0 0 30px 5px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 30px 5px rgba(79, 143, 255, 0.35);
   }
 }
 
@@ -234,16 +235,23 @@ body {
    =========================== */
 
 .gradient-text {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #4f8fff, #9d7cf6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .glass {
-  background: rgba(15, 15, 21, 0.85);
+  background: rgba(26, 29, 40, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-subtle {
+  background: rgba(35, 39, 56, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -252,13 +260,13 @@ body {
    =========================== */
 
 .message-user {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #4f8fff, #9d7cf6);
   border-radius: 20px 20px 4px 20px;
 }
 
 .message-assistant {
-  background: rgba(30, 32, 48, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(35, 39, 56, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px 20px 20px 4px;
 }
 
@@ -267,8 +275,8 @@ body {
    =========================== */
 
 .input-modern {
-  background: rgba(26, 26, 37, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(35, 39, 56, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 1rem 1.25rem;
   color: #f8fafc;
@@ -277,10 +285,31 @@ body {
 
 .input-modern:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: #4f8fff;
+  box-shadow: 0 0 0 3px rgba(79, 143, 255, 0.2);
 }
 
 .input-modern::placeholder {
-  color: #64748b;
+  color: #8b9cb8;
+}
+
+/* ===========================
+   Additional Utilities
+   =========================== */
+
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(79, 143, 255, 0.3);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(157, 124, 246, 0.3);
 }
