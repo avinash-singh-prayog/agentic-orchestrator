@@ -6,13 +6,12 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { ThemeProvider } from "@/contexts/ThemeContext"
+import { useTheme } from "@/contexts/ThemeContext"
 import Navigation from "@/components/Navigation/Navigation"
 import MainArea from "@/components/MainArea/MainArea"
 import { ChatArea } from "@/components/Chat"
 import ChatSidebar from "@/components/Chat/ChatSidebar"
-import HITLApprovalPanel from "@/components/Admin/HITLApprovalPanel"
-import { ClipboardCheck } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   useStreamingStatus,
   useStreamingEvents,
@@ -21,11 +20,12 @@ import {
 import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
 const App: React.FC = () => {
-  const [showHITLPanel, setShowHITLPanel] = useState(false)
+  const { isLightMode } = useTheme()
+  const [isGraphVisible, setIsGraphVisible] = useState(false)
   const [syncActiveAgent, setSyncActiveAgent] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(220) // Sidebar width in pixels
-  const [chatWidth, setChatWidth] = useState(400) // Chat width in pixels
-  const [draggingPanel, setDraggingPanel] = useState<'sidebar' | 'chat' | null>(null)
+  const [graphWidth, setGraphWidth] = useState(450) // Graph width in pixels
+  const [draggingPanel, setDraggingPanel] = useState<'sidebar' | 'graph' | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const streamingStatus = useStreamingStatus()
@@ -68,10 +68,11 @@ const App: React.FC = () => {
     setDraggingPanel('sidebar')
   }, [])
 
-  const handleChatMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleGraphMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    setDraggingPanel('chat')
+    setDraggingPanel('graph')
   }, [])
+
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!draggingPanel || !containerRef.current) return
@@ -83,11 +84,11 @@ const App: React.FC = () => {
       const minWidth = 180
       const maxWidth = 350
       setSidebarWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
-    } else if (draggingPanel === 'chat') {
-      const newWidth = e.clientX - containerRect.left - sidebarWidth
+    } else if (draggingPanel === 'graph') {
+      const newWidth = containerRect.right - e.clientX
       const minWidth = 300
-      const maxWidth = containerRect.width - sidebarWidth - 400
-      setChatWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
+      const maxWidth = containerRect.width - sidebarWidth - 300 // Keep space for chat
+      setGraphWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
     }
   }, [draggingPanel, sidebarWidth])
 
@@ -123,27 +124,11 @@ const App: React.FC = () => {
     height: "100vh",
     width: "100vw",
     overflow: "hidden",
-    background: "linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%)",
+    background: isLightMode
+      ? "#f8fafc"
+      : "linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%)",
   }
 
-  const hitlButtonStyles: React.CSSProperties = {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "10px 16px",
-    borderRadius: 12,
-    background: "linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 146, 60, 0.12))",
-    border: "1px solid rgba(251, 191, 36, 0.25)",
-    color: "#fbbf24",
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-  }
 
   const getResizerStyles = (isActive: boolean): React.CSSProperties => ({
     width: 6,
@@ -189,63 +174,122 @@ const App: React.FC = () => {
   )
 
   return (
-    <ThemeProvider>
-      <div style={appStyles}>
-        <Navigation />
+    <div style={appStyles}>
+      <Navigation />
 
-        <div ref={containerRef} style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          {/* Sidebar - Chat History */}
-          <div style={{ width: sidebarWidth > 50 ? sidebarWidth : 50, flexShrink: 0 }}>
-            <ChatSidebar
-              isCollapsed={sidebarWidth <= 50}
-              onToggleCollapse={() => setSidebarWidth(sidebarWidth <= 50 ? 220 : 50)}
-            />
-          </div>
-
-          {/* Sidebar Resizer */}
-          <Resizer
-            onMouseDown={handleSidebarMouseDown}
-            isActive={draggingPanel === 'sidebar'}
+      <div ref={containerRef} style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
+        {/* Sidebar - Chat History */}
+        <div style={{ width: sidebarWidth > 50 ? sidebarWidth : 50, flexShrink: 0 }}>
+          <ChatSidebar
+            isCollapsed={sidebarWidth <= 50}
+            onToggleCollapse={() => setSidebarWidth(sidebarWidth <= 50 ? 220 : 50)}
           />
+        </div>
 
-          {/* Chat area */}
-          <div style={{
-            width: chatWidth,
-            minWidth: 300,
-            background: "rgba(20, 22, 30, 0.95)",
-            flexShrink: 0,
-          }}>
-            <ChatArea onAgentActive={setSyncActiveAgent} />
-          </div>
+        {/* Sidebar Resizer */}
+        <Resizer
+          onMouseDown={handleSidebarMouseDown}
+          isActive={draggingPanel === 'sidebar'}
+        />
 
-          {/* Chat Resizer */}
-          <Resizer
-            onMouseDown={handleChatMouseDown}
-            isActive={draggingPanel === 'chat'}
-          />
+        {/* Chat area */}
+        <div style={{
+          flex: 1,
+          // width: isGraphVisible ? `calc(100% - ${graphWidth}px)` : "100%",
+          marginRight: isGraphVisible ? graphWidth : 0,
+          minWidth: 300,
+          background: isLightMode ? "#ffffff" : "rgba(20, 22, 30, 0.95)",
+          flexShrink: 0,
+          transition: draggingPanel === 'graph' ? "none" : "margin-right 0.3s ease",
+          borderRight: "none",
+        }}>
+          <ChatArea onAgentActive={setSyncActiveAgent} />
+        </div>
 
-          {/* Graph - RIGHT */}
-          <div style={{
-            position: "relative",
-            flex: 1,
-            minWidth: 400,
-            background: "linear-gradient(180deg, rgba(20, 22, 30, 1) 0%, rgba(26, 29, 40, 1) 100%)",
-          }}>
+
+        {/* Graph - RIGHT (Collapsible) */}
+        {/* Graph - RIGHT (Collapsible) */}
+        <div style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: isGraphVisible ? graphWidth : 0,
+          overflow: "hidden",
+          transition: draggingPanel === 'graph' ? "none" : "width 0.3s ease",
+          background: isLightMode
+            ? "#f1f5f9"
+            : "linear-gradient(180deg, rgba(20, 22, 30, 1) 0%, rgba(26, 29, 40, 1) 100%)",
+          borderLeft: "none",
+        }}>
+          {isGraphVisible && (
             <MainArea
               isProcessing={isProcessing}
               activeAgent={streamingActiveAgent || syncActiveAgent}
             />
+          )}
 
-            <button onClick={() => setShowHITLPanel(true)} style={hitlButtonStyles}>
-              <ClipboardCheck style={{ width: 16, height: 16 }} />
-              HITL Approvals
-            </button>
-          </div>
+          {/* Graph Resizer (Invisible/Hoverable) */}
+          {isGraphVisible && (
+            <div
+              onMouseDown={handleGraphMouseDown}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 6,
+                cursor: "col-resize",
+                zIndex: 50,
+                transform: "translateX(-50%)", // Center on the edge
+              }}
+              onMouseEnter={(e) => {
+                if (!draggingPanel) {
+                  e.currentTarget.style.background = 'rgba(79, 143, 255, 0.5)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!draggingPanel) {
+                  e.currentTarget.style.background = 'transparent'
+                }
+              }}
+            />
+          )}
         </div>
 
-        <HITLApprovalPanel isOpen={showHITLPanel} onClose={() => setShowHITLPanel(false)} />
+        {/* Toggle Button (Arrow) */}
+        <div
+          onClick={() => setIsGraphVisible(!isGraphVisible)}
+          style={{
+            position: "absolute",
+            right: isGraphVisible ? graphWidth : 0,
+            top: 20,
+            // transform: "translateY(-50%)",
+            width: 24,
+            height: 40,
+            background: isLightMode ? "#f1f5f9" : "#1a1d28",
+            border: isLightMode ? "1px solid #e2e8f0" : "1px solid rgba(255, 255, 255, 0.1)",
+            borderRight: "none",
+            borderTopLeftRadius: 8,
+            borderBottomLeftRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            zIndex: 100,
+            transition: draggingPanel === 'graph' ? "none" : "right 0.3s ease",
+            boxShadow: isLightMode ? "-2px 0 8px rgba(0,0,0,0.05)" : "-2px 0 8px rgba(0,0,0,0.3)",
+          }}
+          title={isGraphVisible ? "Collapse Architecture" : "View Architecture"}
+        >
+          {isGraphVisible ? (
+            <ChevronRight size={16} color={isLightMode ? "#64748b" : "#94a3b8"} />
+          ) : (
+            <ChevronLeft size={16} color={isLightMode ? "#64748b" : "#94a3b8"} />
+          )}
+        </div>
       </div>
-    </ThemeProvider>
+    </div>
   )
 }
 
