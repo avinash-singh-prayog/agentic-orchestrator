@@ -36,11 +36,14 @@ class SupervisorNodes:
         Your goal is to help the user by orchestrating specialized worker agents.
         
         Available Workers:
-        - "check_serviceability": Carrier Agent. Use this to check rates, serviceability, or book shipments.
+        - "call_serviceability_agent": Serviceability Agent. Use this to check rates, serviceability, or carrier availability.
+        - "call_booking_agent": Booking Agent. Use this to create orders, check order status, or cancel orders.
         
-        If the user's request requires shipping info, CALL THE TOOL.
-        If it's a general greeting, answer directly.
-        """)
+        Routing Guidelines:
+        - If user asks about shipping RATES or SERVICEABILITY or CARRIER availability → call_serviceability_agent
+        - If user wants to CREATE an ORDER, BOOK a shipment, check ORDER STATUS, or CANCEL an order → call_booking_agent
+        - If it's a general greeting or question, answer directly.
+        """);
         
         # Include system prompt if not present
         if not isinstance(messages[0], SystemMessage):
@@ -65,7 +68,7 @@ class SupervisorNodes:
                 tool_instance = self.tools[tool_name]
                 # We simply pass the original user prompt to the carrier agent for now
                 # In a more advanced version, we'd extract specific args.
-                # The tool 'call_carrier_agent' expects 'prompt'.
+                # The tool 'call_serviceability_agent' expects 'prompt'.
                 # Ideally the LLM extracts this.
                 try:
                      result = await tool_instance.ainvoke(tool_args)

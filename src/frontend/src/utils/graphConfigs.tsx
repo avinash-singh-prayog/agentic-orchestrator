@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react"
-import { Brain, Package, Zap } from "lucide-react"
+import { Brain, Package, Zap, ShoppingCart } from "lucide-react"
 import { NODE_IDS, EDGE_IDS, NODE_TYPES, EDGE_TYPES } from "./const"
 
 export interface GraphConfig {
@@ -54,7 +54,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             type: NODE_TYPES.CUSTOM,
             data: {
                 icon: Brain,
-                label1: "Supervisor",
+                label1: "Supervisor Agent",
                 label2: "Orchestrator Agent",
                 handles: "source",
                 status: "idle",
@@ -77,19 +77,35 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...transportStyle,
         },
-        // Carrier Agent (Unified)
+        // Serviceability Agent
         {
-            id: NODE_IDS.CARRIER,
+            id: NODE_IDS.SERVICEABILITY_AGENT,
             type: NODE_TYPES.CUSTOM,
             data: {
                 icon: Package,
-                label1: "Carrier Agent",
+                label1: "Serviceability Agent",
                 label2: "Logistics Fulfillment",
                 handles: "target",
                 status: "idle",
-                description: "Executes shipments, rates, and checks",
+                description: "Checks rates and serviceability",
             },
-            position: { x: 280, y: 300 },
+            position: { x: 120, y: 300 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...nodeStyle,
+        },
+        // Booking Agent
+        {
+            id: NODE_IDS.BOOKING_AGENT,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: ShoppingCart,
+                label1: "Booking Agent",
+                label2: "Order Management",
+                handles: "target",
+                status: "idle",
+                description: "Creates and manages orders",
+            },
+            position: { x: 440, y: 300 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
@@ -104,11 +120,21 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             data: { label: "A2A" },
             animated: false,
         },
-        // SLIM to Carrier
+        // SLIM to Serviceability Agent
         {
-            id: EDGE_IDS.SLIM_TO_CARRIER,
+            id: EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT,
             source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.CARRIER,
+            target: NODE_IDS.SERVICEABILITY_AGENT,
+            type: EDGE_TYPES.CUSTOM,
+            sourceHandle: "bottom-center",
+            data: { label: "" },
+            animated: false,
+        },
+        // SLIM to Booking Agent
+        {
+            id: EDGE_IDS.SLIM_TO_BOOKING_AGENT,
+            source: NODE_IDS.SLIM_TRANSPORT,
+            target: NODE_IDS.BOOKING_AGENT,
             type: EDGE_TYPES.CUSTOM,
             sourceHandle: "bottom-center",
             data: { label: "" },
@@ -119,8 +145,8 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
         { ids: [NODE_IDS.SUPERVISOR] },
         { ids: [EDGE_IDS.SUPERVISOR_TO_SLIM] },
         { ids: [NODE_IDS.SLIM_TRANSPORT] },
-        { ids: [EDGE_IDS.SLIM_TO_CARRIER] },
-        { ids: [NODE_IDS.CARRIER] },
+        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT] },
+        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT] },
     ],
 }
 

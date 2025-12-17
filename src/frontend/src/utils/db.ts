@@ -41,6 +41,8 @@ export interface UserSession {
   id: string              // 'current' - singleton
   tenantId: string
   userId: string
+  email?: string
+  name?: string
   activeConversationId: string | null
 }
 

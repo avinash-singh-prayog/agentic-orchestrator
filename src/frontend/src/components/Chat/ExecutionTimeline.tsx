@@ -19,7 +19,8 @@ import {
     Loader2,
     ChevronDown,
     ChevronUp,
-    Activity
+    Activity,
+    ShoppingCart
 } from "lucide-react"
 import {
     useStreamingEvents,
@@ -57,13 +58,19 @@ const agentConfig: Record<string, {
         icon: Brain,
         color: "#6ba6ff",
         bgColor: "rgba(107, 166, 255, 0.15)",
-        label: "Supervisor"
+        label: "Supervisor Agent"
     },
     serviceability: {
         icon: MapPin,
         color: "#22d3ee",
         bgColor: "rgba(34, 211, 238, 0.15)",
-        label: "Serviceability"
+        label: "Serviceability Agent"
+    },
+    booking: {
+        icon: ShoppingCart,
+        color: "#f472b6",
+        bgColor: "rgba(244, 114, 182, 0.15)",
+        label: "Booking Agent"
     },
     rate: {
         icon: CircleDollarSign,
@@ -75,7 +82,7 @@ const agentConfig: Record<string, {
         icon: Package,
         color: "#34d399",
         bgColor: "rgba(52, 211, 153, 0.15)",
-        label: "Carrier Agent"
+        label: "Serviceability Agent"
     },
     slim: {
         icon: Zap,
@@ -247,6 +254,7 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                         if (s.includes("carrier")) return "carrier"
                         if (s.includes("rate")) return "rate"
                         if (s.includes("service")) return "serviceability"
+                        if (s.includes("booking")) return "booking"
                         if (s.includes("slim")) return "slim"
                         return "supervisor"
                     }

@@ -10,7 +10,8 @@ export const NODE_IDS = {
   SLIM_TRANSPORT: "slim-transport",
   SERVICEABILITY: "serviceability",
   RATE_AGENT: "rate-agent",
-  CARRIER: "carrier",
+  SERVICEABILITY_AGENT: "serviceability-agent",
+  BOOKING_AGENT: "booking-agent",
   ORCHESTRATOR_GROUP: "orchestrator-group",
 } as const
 
@@ -19,7 +20,8 @@ export const EDGE_IDS = {
   SUPERVISOR_TO_SLIM: "supervisor-to-slim",
   SLIM_TO_SERVICEABILITY: "slim-to-serviceability",
   SLIM_TO_RATE: "slim-to-rate",
-  SLIM_TO_CARRIER: "slim-to-carrier",
+  SLIM_TO_SERVICEABILITY_AGENT: "slim-to-serviceability-agent",
+  SLIM_TO_BOOKING_AGENT: "slim-to-booking-agent",
 } as const
 
 // Node types for ReactFlow

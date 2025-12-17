@@ -1,1 +1,0 @@
-uv run --package carrier-agent uvicorn carrier_agent.app.main:app --host 0.0.0.0 --port 8000 --reload

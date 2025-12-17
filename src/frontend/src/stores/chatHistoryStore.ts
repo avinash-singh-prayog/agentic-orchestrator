@@ -7,6 +7,7 @@
  */
 
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { API_ENDPOINTS } from '@/utils/const'
 import { type AgentActivityEvent } from '@/types/message'
 import {
@@ -62,8 +63,11 @@ interface Message {
 }
 
 interface ChatHistoryState {
+  isAuthenticated: boolean
   tenantId: string | null
   userId: string | null
+  email: string | null
+  name: string | null
   conversations: Conversation[]
   activeConversationId: string | null
   messages: Message[]
@@ -73,7 +77,9 @@ interface ChatHistoryState {
 }
 
 interface ChatHistoryActions {
-  initSession: (tenantId: string, userId: string) => Promise<void>
+  initSession: () => Promise<void>
+  login: (data: { userId: string; tenantId: string; email: string; name?: string }) => Promise<void>
+  logout: () => Promise<void>
   loadConversations: () => Promise<void>
   syncWithBackend: () => Promise<void>
   createNewConversation: () => Promise<string>
@@ -92,8 +98,11 @@ type ChatHistoryStore = ChatHistoryState & ChatHistoryActions
 // ============================================================================
 
 const initialState: ChatHistoryState = {
+  isAuthenticated: false,
   tenantId: null,
   userId: null,
+  email: null,
+  name: null,
   conversations: [],
   activeConversationId: null,
   messages: [],
@@ -130,25 +139,68 @@ const convertDBMessage = (msg: DBMessage): Message => ({
 export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
   ...initialState,
 
-  initSession: async (tenantId, userId) => {
-    set({ tenantId, userId, isLoading: true })
+  initSession: async () => {
+    set({ isLoading: true })
     
-    // Save session to IndexedDB
-    await saveSession({ tenantId, userId, activeConversationId: null })
-    
-    // Load from IndexedDB first (fast)
-    await get().loadConversations()
-    
-    // Restore last active conversation
-    const session = await getSession()
-    if (session?.activeConversationId) {
-      await get().setActiveConversation(session.activeConversationId)
+    try {
+      // Restore session from IndexedDB
+      const session = await getSession()
+      if (session && session.userId && session.tenantId) {
+        set({
+          isAuthenticated: true,
+          userId: session.userId,
+          tenantId: session.tenantId,
+          email: session.email || null,
+          name: session.name || null
+        })
+
+        // Load conversations
+        await get().loadConversations()
+        
+        // Restore active conversation
+        if (session.activeConversationId) {
+          await get().setActiveConversation(session.activeConversationId)
+        }
+        
+        // Sync with backend
+        get().syncWithBackend()
+      }
+    } catch (error) {
+      console.error("Failed to init session:", error)
+    } finally {
+      set({ isLoading: false })
     }
+  },
+
+  login: async (data) => {
+    set({ isLoading: true })
     
-    // Sync with backend in background
+    const { userId, tenantId, email, name } = data
+    
+    // Save to IndexedDB
+    await saveSession({ userId, tenantId, email, name, activeConversationId: null })
+    
+    set({
+      isAuthenticated: true,
+      userId,
+      tenantId,
+      email,
+      name: name || null,
+      isLoading: false
+    })
+    
+    // Load data for this user
+    await get().loadConversations()
     get().syncWithBackend()
+  },
+
+  logout: async () => {
+    // Clear session from DB (but keep data? Or clear? Usually for security we clear session only)
+    // To support multi-user on same device, we might want to keep data but just clear session.
+    // For now, let's just clear session record.
+    await saveSession({ userId: '', tenantId: '', email: '', name: '', activeConversationId: null }) // Or delete
     
-    set({ isLoading: false })
+    set(initialState)
   },
 
   loadConversations: async () => {
@@ -207,18 +259,6 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
         }
       }
       
-      // Remove conversations that don't exist in backend
-      // FIXME: Disabled to prevent deleting local-only conversations before sync
-      /*
-      const backendIds = new Set(data.map(c => c.thread_id))
-      const localConvs = await getDBConversations(tenantId, userId)
-      for (const local of localConvs) {
-        if (!backendIds.has(local.id)) {
-          await deleteDBConversation(local.id)
-        }
-      }
-      */
-      
       // Reload from cache
       await get().loadConversations()
     } catch (error) {
@@ -244,7 +284,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     set({ activeConversationId: threadId, messages: [] })
     
     // Save to session
-    await saveSession({ tenantId, userId, activeConversationId: threadId })
+    await saveSession({ tenantId, userId, activeConversationId: threadId, email: get().email || undefined, name: get().name || undefined })
     
     return threadId
   },
@@ -259,7 +299,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     
     // Save to session
     if (tenantId && userId) {
-      await saveSession({ tenantId, userId, activeConversationId: id })
+      await saveSession({ tenantId, userId, activeConversationId: id, email: get().email || undefined, name: get().name || undefined })
     }
     
     if (id) {
@@ -393,13 +433,17 @@ export const useChatMessages = () =>
   useChatHistoryStore(state => state.messages)
 
 export const useChatSession = () => 
-  useChatHistoryStore(state => ({
+  useChatHistoryStore(useShallow(state => ({
+    isAuthenticated: state.isAuthenticated,
     tenantId: state.tenantId,
-    userId: state.userId
-  }))
+    userId: state.userId,
+    email: state.email,
+    name: state.name
+  })))
 
 export const useIsLoadingHistory = () =>
   useChatHistoryStore(state => state.isLoading || state.isLoadingMessages)
 
 export const useIsSyncing = () =>
   useChatHistoryStore(state => state.isSyncing)
+

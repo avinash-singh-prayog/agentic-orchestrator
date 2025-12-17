@@ -90,7 +90,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div style={containerStyles}>
             {/* Header */}
             <div style={headerStyles}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>History</h3>
+                <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>History</h3>
                 <div style={{ display: 'flex', gap: 4 }}>
                     <button onClick={handleNewChat} style={newChatButtonStyles}>
                         <Plus style={{ width: 14, height: 14 }} />
@@ -113,7 +113,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 ) : conversations.length === 0 ? (
                     <div style={emptyStateStyles}>
                         <MessageSquare style={{ width: 24, height: 24, opacity: 0.3, marginBottom: 8 }} />
-                        <p style={{ fontSize: 12, color: '#64748b' }}>No conversations yet</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No conversations yet</p>
                     </div>
                 ) : (
                     conversations.map(conv => (
@@ -123,10 +123,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                             style={{
                                 ...conversationItemStyles,
                                 background: activeId === conv.id
-                                    ? 'rgba(79, 143, 255, 0.15)'
+                                    ? 'var(--accent-primary-bg)'
                                     : 'transparent',
                                 borderColor: activeId === conv.id
-                                    ? 'rgba(79, 143, 255, 0.3)'
+                                    ? 'var(--accent-primary-border)'
                                     : 'transparent'
                             }}
                         >
@@ -160,8 +160,8 @@ const containerStyles: React.CSSProperties = {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    background: 'rgba(15, 17, 23, 0.95)',
-    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'var(--bg-sidebar)',
+    borderRight: '1px solid var(--border-subtle)',
 }
 
 const collapsedStyles: React.CSSProperties = {
@@ -171,8 +171,8 @@ const collapsedStyles: React.CSSProperties = {
     alignItems: 'center',
     gap: 8,
     padding: '12px 0',
-    background: 'rgba(15, 17, 23, 0.95)',
-    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'var(--bg-sidebar)',
+    borderRight: '1px solid var(--border-subtle)',
 }
 
 const headerStyles: React.CSSProperties = {
@@ -180,7 +180,7 @@ const headerStyles: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 12px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid var(--border-subtle)',
 }
 
 const newChatButtonStyles: React.CSSProperties = {
@@ -190,9 +190,9 @@ const newChatButtonStyles: React.CSSProperties = {
     padding: '6px 10px',
     fontSize: 11,
     fontWeight: 500,
-    color: '#6ba6ff',
-    background: 'rgba(79, 143, 255, 0.1)',
-    border: '1px solid rgba(79, 143, 255, 0.2)',
+    color: 'var(--accent-primary)',
+    background: 'var(--accent-primary-bg)',
+    border: '1px solid var(--accent-primary-border)',
     borderRadius: 6,
     cursor: 'pointer',
 }
@@ -203,7 +203,7 @@ const toggleButtonStyles: React.CSSProperties = {
     justifyContent: 'center',
     width: 28,
     height: 28,
-    color: '#a8b5cf',
+    color: 'var(--text-secondary)',
     background: 'transparent',
     border: 'none',
     borderRadius: 6,
@@ -216,9 +216,9 @@ const iconButtonStyles: React.CSSProperties = {
     justifyContent: 'center',
     width: 36,
     height: 36,
-    color: '#6ba6ff',
-    background: 'rgba(79, 143, 255, 0.1)',
-    border: '1px solid rgba(79, 143, 255, 0.2)',
+    color: 'var(--accent-primary)',
+    background: 'var(--accent-primary-bg)',
+    border: '1px solid var(--accent-primary-border)',
     borderRadius: 8,
     cursor: 'pointer',
 }
@@ -235,7 +235,7 @@ const emptyStateStyles: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'center',
     height: 120,
-    color: '#64748b',
+    color: 'var(--text-tertiary)',
 }
 
 const conversationItemStyles: React.CSSProperties = {
@@ -253,7 +253,7 @@ const conversationItemStyles: React.CSSProperties = {
 const titleStyles: React.CSSProperties = {
     fontSize: 12,
     fontWeight: 500,
-    color: '#e2e8f0',
+    color: 'var(--text-primary)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -261,7 +261,7 @@ const titleStyles: React.CSSProperties = {
 
 const metaStyles: React.CSSProperties = {
     fontSize: 10,
-    color: '#64748b',
+    color: 'var(--text-tertiary)',
     marginTop: 2,
 }
 
@@ -271,7 +271,7 @@ const deleteButtonStyles: React.CSSProperties = {
     justifyContent: 'center',
     width: 24,
     height: 24,
-    color: '#64748b',
+    color: 'var(--text-tertiary)',
     background: 'transparent',
     border: 'none',
     borderRadius: 4,

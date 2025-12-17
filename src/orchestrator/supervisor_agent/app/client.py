@@ -1,7 +1,7 @@
 """
 Supervisor Agent Client.
 
-Creates an A2A client to communicate with the Carrier Agent via SLIM Transporter.
+Creates an A2A client to communicate with the Serviceability Agent via SLIM Transporter.
 Uses message-based A2A pattern per the multi_agent_architecture_guide.
 """
 
@@ -23,19 +23,19 @@ from agent.shared import get_factory
 
 logger = logging.getLogger("supervisor_agent.client")
 
-# Target agent topic (matches CarrierAgentCard.id)
-CARRIER_AGENT_TOPIC = "carrier-agent"
+# Target agent topic (matches ServiceabilityAgentCard.id)
+SERVICEABILITY_AGENT_TOPIC = "serviceability-agent"
 
 
-async def call_carrier_via_slim(prompt: str) -> str:
+async def call_serviceability_via_slim(prompt: str) -> str:
     """
-    Call the Carrier Agent via SLIM Transporter using A2A Protocol.
+    Call the Serviceability Agent via SLIM Transporter using A2A Protocol.
     
     Args:
-        prompt: The user's request to forward to the carrier agent.
+        prompt: The user's request to forward to the serviceability agent.
         
     Returns:
-        The carrier agent's response text.
+        The serviceability agent's response text.
     """
     factory = get_factory()
     
@@ -54,7 +54,7 @@ async def call_carrier_via_slim(prompt: str) -> str:
     # Create A2A client targeting the carrier agent
     client = await factory.create_client(
         "A2A",
-        agent_topic=CARRIER_AGENT_TOPIC,
+        agent_topic=SERVICEABILITY_AGENT_TOPIC,
         transport=transport
     )
     
@@ -70,7 +70,7 @@ async def call_carrier_via_slim(prompt: str) -> str:
         ),
     )
     
-    logger.info(f"Sending message to {CARRIER_AGENT_TOPIC}: {prompt[:50]}...")
+    logger.info(f"Sending message to {SERVICEABILITY_AGENT_TOPIC}: {prompt[:50]}...")
     
     try:
         response = await client.send_message(request)
@@ -80,15 +80,15 @@ async def call_carrier_via_slim(prompt: str) -> str:
             if response.root.result.parts:
                 part = response.root.result.parts[0].root
                 if hasattr(part, "text"):
-                    logger.info(f"Received response from carrier agent")
+                    logger.info(f"Received response from serviceability agent")
                     return part.text
         elif response.root.error:
             error_msg = f"A2A error: {response.root.error.message}"
             logger.error(error_msg)
             raise Exception(error_msg)
         
-        return "No response from carrier agent"
+        return "No response from serviceability agent"
         
     except Exception as e:
-        logger.error(f"Error calling carrier agent: {e}")
-        return f"Error communicating with carrier agent: {e}"
+        logger.error(f"Error calling serviceability agent: {e}")
+        return f"Error communicating with serviceability agent: {e}"

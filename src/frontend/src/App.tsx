@@ -6,22 +6,24 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { useTheme } from "@/contexts/ThemeContext"
+
 import Navigation from "@/components/Navigation/Navigation"
 import MainArea from "@/components/MainArea/MainArea"
 import { ChatArea } from "@/components/Chat"
 import ChatSidebar from "@/components/Chat/ChatSidebar"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import AuthScreen from "@/components/Auth/AuthScreen"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+
 import {
   useStreamingStatus,
   useStreamingEvents,
   useStreamingFinalResponse
 } from "@/stores/orchestratorStreamingStore"
-import { useChatHistoryStore } from "@/stores/chatHistoryStore"
+import { useChatHistoryStore, useChatSession } from "@/stores/chatHistoryStore"
 
 const App: React.FC = () => {
-  const { isLightMode } = useTheme()
-  const [isGraphVisible, setIsGraphVisible] = useState(false)
+
+  const [isGraphVisible, setIsGraphVisible] = useState(true)
   const [syncActiveAgent, setSyncActiveAgent] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(220) // Sidebar width in pixels
   const [graphWidth, setGraphWidth] = useState(450) // Graph width in pixels
@@ -32,6 +34,16 @@ const App: React.FC = () => {
   const streamingEvents = useStreamingEvents()
   const finalResponse = useStreamingFinalResponse()
   const addAssistantMessage = useChatHistoryStore(state => state.addAssistantMessage)
+
+  // Auth & Session
+  const { isAuthenticated } = useChatSession()
+  const initSession = useChatHistoryStore(state => state.initSession)
+  const isLoadingSession = useChatHistoryStore(state => state.isLoading)
+
+  // Initialize session on mount
+  useEffect(() => {
+    initSession()
+  }, [initSession])
 
   const isProcessing = streamingStatus === "streaming" || streamingStatus === "connecting"
 
@@ -124,9 +136,7 @@ const App: React.FC = () => {
     height: "100vh",
     width: "100vw",
     overflow: "hidden",
-    background: isLightMode
-      ? "#f8fafc"
-      : "linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%)",
+    background: "var(--bg-app)",
   }
 
 
@@ -136,7 +146,7 @@ const App: React.FC = () => {
     background: isActive
       ? 'linear-gradient(180deg, rgba(99, 102, 241, 0.5) 0%, rgba(139, 92, 246, 0.5) 100%)'
       : 'transparent',
-    borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+    borderLeft: '1px solid var(--border-subtle)',
     transition: isActive ? 'none' : 'background 0.2s ease',
     position: 'relative',
     zIndex: 10,
@@ -150,7 +160,7 @@ const App: React.FC = () => {
     width: 4,
     height: 40,
     borderRadius: 2,
-    background: 'rgba(255, 255, 255, 0.3)',
+    background: 'var(--border-hover)',
   }
 
   const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; isActive: boolean }> = ({ onMouseDown, isActive }) => (
@@ -172,6 +182,18 @@ const App: React.FC = () => {
       <div style={resizerHandleStyles} />
     </div>
   )
+
+  if (isLoadingSession) {
+    return (
+      <div style={{ ...appStyles, alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 className="animate-spin text-indigo-500" size={32} />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />
+  }
 
   return (
     <div style={appStyles}>
@@ -198,12 +220,12 @@ const App: React.FC = () => {
           // width: isGraphVisible ? `calc(100% - ${graphWidth}px)` : "100%",
           marginRight: isGraphVisible ? graphWidth : 0,
           minWidth: 300,
-          background: isLightMode ? "#ffffff" : "rgba(20, 22, 30, 0.95)",
+          background: "var(--bg-app)",
           flexShrink: 0,
           transition: draggingPanel === 'graph' ? "none" : "margin-right 0.3s ease",
           borderRight: "none",
         }}>
-          <ChatArea onAgentActive={setSyncActiveAgent} />
+          <ChatArea />
         </div>
 
 
@@ -217,10 +239,8 @@ const App: React.FC = () => {
           width: isGraphVisible ? graphWidth : 0,
           overflow: "hidden",
           transition: draggingPanel === 'graph' ? "none" : "width 0.3s ease",
-          background: isLightMode
-            ? "#f1f5f9"
-            : "linear-gradient(180deg, rgba(20, 22, 30, 1) 0%, rgba(26, 29, 40, 1) 100%)",
-          borderLeft: "none",
+          background: "var(--bg-panel)",
+          borderLeft: "1px solid var(--border-subtle)",
         }}>
           {isGraphVisible && (
             <MainArea
@@ -245,7 +265,7 @@ const App: React.FC = () => {
               }}
               onMouseEnter={(e) => {
                 if (!draggingPanel) {
-                  e.currentTarget.style.background = 'rgba(79, 143, 255, 0.5)'
+                  e.currentTarget.style.background = 'var(--accent-primary-border)'
                 }
               }}
               onMouseLeave={(e) => {
@@ -267,8 +287,8 @@ const App: React.FC = () => {
             // transform: "translateY(-50%)",
             width: 24,
             height: 40,
-            background: isLightMode ? "#f1f5f9" : "#1a1d28",
-            border: isLightMode ? "1px solid #e2e8f0" : "1px solid rgba(255, 255, 255, 0.1)",
+            background: "var(--bg-panel)",
+            border: "1px solid var(--border-light)",
             borderRight: "none",
             borderTopLeftRadius: 8,
             borderBottomLeftRadius: 8,
@@ -278,14 +298,14 @@ const App: React.FC = () => {
             cursor: "pointer",
             zIndex: 100,
             transition: draggingPanel === 'graph' ? "none" : "right 0.3s ease",
-            boxShadow: isLightMode ? "-2px 0 8px rgba(0,0,0,0.05)" : "-2px 0 8px rgba(0,0,0,0.3)",
+            boxShadow: "var(--shadow-glow)", // usage of var instead of conditional
           }}
           title={isGraphVisible ? "Collapse Architecture" : "View Architecture"}
         >
           {isGraphVisible ? (
-            <ChevronRight size={16} color={isLightMode ? "#64748b" : "#94a3b8"} />
+            <ChevronRight size={16} color="var(--text-tertiary)" />
           ) : (
-            <ChevronLeft size={16} color={isLightMode ? "#64748b" : "#94a3b8"} />
+            <ChevronLeft size={16} color="var(--text-tertiary)" />
           )}
         </div>
       </div>

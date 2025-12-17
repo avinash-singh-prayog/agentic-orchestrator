@@ -124,22 +124,46 @@ services:
   # WORKER AGENTS
   # ===========================================
 
-  carrier-agent:
+  serviceability-agent:
     build:
       context: .
-      dockerfile: src/orchestrator/carrier_agent/Dockerfile
-    container_name: carrier-agent
+      dockerfile: src/orchestrator/serviceability_agent/Dockerfile
+    container_name: serviceability-agent
     ports:
-      - "${CARRIER_AGENT_PORT:-9003}:8000"
+      - "${SERVICEABILITY_AGENT_PORT:-9003}:8000"
     environment:
-      - CARRIER_AGENT_LLM=${CARRIER_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # External serviceability API (running on host machine)
       - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
-    command: [ "/app/.venv/bin/python", "-m", "carrier_agent.app.main", "dual" ]
+    command: [ "/app/.venv/bin/python", "-m", "serviceability_agent.app.main", "dual" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - slim
+      - otel-collector
+    networks:
+      - orchestrator-net
+
+  booking-agent:
+    build:
+      context: .
+      dockerfile: src/orchestrator/booking_agent/Dockerfile
+    container_name: booking-agent
+    ports:
+      - "${BOOKING_AGENT_PORT:-9005}:8000"
+    environment:
+      - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      # Order V2 API
+      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://sandbox-apis.prayog.io}
+    command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

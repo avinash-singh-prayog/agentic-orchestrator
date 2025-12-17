@@ -5,13 +5,15 @@
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle, Boxes } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, Boxes, LogOut } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
+import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
 const Navigation: React.FC = () => {
     const { isLightMode, toggleTheme } = useTheme()
     const { getHealth } = useAgentAPI()
+    const { logout } = useChatHistoryStore()
     const [healthStatus, setHealthStatus] = useState<"healthy" | "unhealthy" | "loading">("loading")
 
     useEffect(() => {
@@ -128,12 +130,17 @@ const Navigation: React.FC = () => {
                 </div>
 
                 {/* Theme Toggle */}
-                <button onClick={toggleTheme} style={buttonStyles}>
+                <button onClick={toggleTheme} style={buttonStyles} title={isLightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}>
                     {isLightMode ? (
                         <Moon style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     ) : (
                         <Sun style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     )}
+                </button>
+
+                {/* Logout Button */}
+                <button onClick={() => logout()} style={buttonStyles} title="Log Out">
+                    <LogOut style={{ width: 18, height: 18, color: "#ef4444" }} />
                 </button>
             </div>
         </nav>

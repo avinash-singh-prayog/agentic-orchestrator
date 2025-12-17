@@ -79,4 +79,4 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.uv.workspace]
-members = ["src/orchestrator/carrier_agent"]
+members = ["src/orchestrator/serviceability_agent", "src/orchestrator/booking_agent"]

@@ -10,7 +10,7 @@ import uuid
 from typing import AsyncGenerator, Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -31,11 +31,27 @@ except ImportError:
     HAS_OBSERVABILITY = False
 
 
+from app.auth import (
+    ensure_users_table, 
+    UserRegisterRequest, 
+    UserLoginRequest, 
+    UserForgotPasswordRequest,
+    UserResetPasswordRequest,
+    TokenResponse, 
+    create_user, 
+    authenticate_user, 
+    create_password_reset_token,
+    reset_password,
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan for startup/shutdown."""
     # Startup
     set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=True))
+    await ensure_users_table()
     yield
     # Shutdown (cleanup if needed)
 
@@ -54,6 +70,75 @@ app.add_middleware(
 
 # Build base graph (checkpointer added at runtime)
 graph = build_graph()
+
+
+# ============================================================================
+# Auth Endpoints
+# ============================================================================
+
+@app.post("/auth/register", response_model=TokenResponse)
+async def register(user_data: UserRegisterRequest):
+    """Register a new user."""
+    try:
+        user = await create_user(user_data)
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id, "tenant_id": user.tenant_id},
+            expires_delta=None
+        )
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=user
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Registration failed")
+
+@app.post("/auth/login", response_model=TokenResponse)
+async def login(login_data: UserLoginRequest):
+    """Login user."""
+    user = await authenticate_user(login_data)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "tenant_id": user.tenant_id},
+        expires_delta=None
+    )
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user
+    )
+
+
+@app.post("/auth/forgot-password")
+async def forgot_password(request: UserForgotPasswordRequest):
+    """Request password reset token."""
+    token = await create_password_reset_token(request.email)
+    if token:
+        # In production this would send email
+        return {"message": "If email exists, a reset link has been sent."}
+    return {"message": "If email exists, a reset link has been sent."}
+
+
+@app.post("/auth/reset-password")
+async def reset_password_endpoint(request: UserResetPasswordRequest):
+    """Reset password with token."""
+    success = await reset_password(request.token, request.new_password)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token"
+        )
+    return {"message": "Password updated successfully"}
 
 
 # ============================================================================
