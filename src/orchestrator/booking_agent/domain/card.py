@@ -10,7 +10,7 @@ from a2a.types import AgentCard, AgentSkill, AgentCapabilities
 BookingAgentCard = AgentCard(
     name='Booking Agent',
     id='booking-agent',  # This becomes the routable SLIM topic
-    description='AI agent for order creation, management, and cancellation via Order V2 APIs.',
+    description='AI agent for shipment booking and order functions (create, get, cancel) via Order V2 APIs.',
     url='',  # Empty for SLIM transport
     version='1.0.0',
     defaultInputModes=["text"],

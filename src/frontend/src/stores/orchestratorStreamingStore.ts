@@ -68,8 +68,13 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
 
       // Get multi-tenant context from chat history store
       const chatStore = useChatHistoryStore.getState()
-      const tenantId = chatStore.tenantId || '507f1f77bcf86cd799439011'
-      const userId = chatStore.userId || 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+      const tenantId = chatStore.tenantId
+      const userId = chatStore.userId
+
+      if (!tenantId || !userId) {
+        setError("User session not initialized. Please log in.")
+        return
+      }
       let threadId = chatStore.activeConversationId
 
       // Auto-create conversation if needed
