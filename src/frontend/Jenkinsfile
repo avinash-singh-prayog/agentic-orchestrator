@@ -2,13 +2,18 @@ pipeline {
     agent any
     environment {
         // --- CONFIGURATION ---
-        // It is safe to commit Account IDs and Region (they are not secrets)
         AWS_ACCOUNT_ID = '946926531781'
         AWS_REGION     = 'ap-south-1'
-        REPO_NAME      = 'agentic-orchestrator/frontend'
         
-        // This ID matches the credential ID you created in Jenkins
+        // Match this exactly to your ECR repo name
+        REPO_NAME      = 'agentic-orchestrator/frontend' 
+        
+        // The ID of your "Username with Password" (PAT) credentials in Jenkins
         AWS_CREDS_ID   = 'aws-creds' 
+        
+        // ECS Configuration
+        CLUSTER_NAME   = 'prayog-ecs'
+        SERVICE_NAME   = 'agentic-orchestrator-frontend-task-service'
         
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
     }
@@ -16,38 +21,59 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Jenkins automatically checks out the code when using "Pipeline from SCM"
                 checkout scm
             }
         }
         
-        stage('Build & Push') {
+        stage('Build & Push to ECR') {
             steps {
                 script {
-                    // This command tells Jenkins: "Look in your secure store for 'aws-ecr-creds'
-                    // and put the username in 'AWS_KEY' and password in 'AWS_SECRET'"
                     withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
-                        
-                        // We export these secrets ONLY for this specific shell command block
                         sh """
                             export AWS_ACCESS_KEY_ID=${AWS_KEY}
                             export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
                             export AWS_DEFAULT_REGION=${AWS_REGION}
                             
-                            # Login
-                            aws ecr get-login-password | docker login --username AWS --password-stdin ${IMAGE_URI}
+                            # Login to ECR
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                             
-                            # Build
+                            # Build image (Assuming your Dockerfile is in src/frontend)
                             cd src/frontend
                             docker build -t ${IMAGE_URI}:${BUILD_NUMBER} -t ${IMAGE_URI}:latest .
                             
-                            # Push
+                            # Push both tags
                             docker push ${IMAGE_URI}:${BUILD_NUMBER}
                             docker push ${IMAGE_URI}:latest
                         """
                     }
                 }
             }
+        }
+
+        stage('Deploy to ECS') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
+                        sh """
+                            export AWS_ACCESS_KEY_ID=${AWS_KEY}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                            echo "Triggering ECS Deployment for ${SERVICE_NAME}..."
+                            
+                            # This command forces ECS to pull the 'latest' image we just pushed
+                            aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
+                        """
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Cleanup local docker images to save Jenkins disk space
+            sh "docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true"
         }
     }
 }
