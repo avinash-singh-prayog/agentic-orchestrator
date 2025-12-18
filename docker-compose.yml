@@ -109,7 +109,8 @@ services:
     ports:
       - "9004:8000"
     environment:
-      - SUPERVISOR_LLM=openrouter/openai/gpt-4o-mini
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
+      - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
@@ -132,6 +133,7 @@ services:
     ports:
       - "${SERVICEABILITY_AGENT_PORT:-9003}:8000"
     environment:
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
@@ -156,13 +158,14 @@ services:
     ports:
       - "${BOOKING_AGENT_PORT:-9005}:8000"
     environment:
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
       - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      # Order V2 API
-      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://sandbox-apis.prayog.io}
+      # Order V2 API (use host.docker.internal to reach host machine from container)
+      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-http://host.docker.internal:3030}
     command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"

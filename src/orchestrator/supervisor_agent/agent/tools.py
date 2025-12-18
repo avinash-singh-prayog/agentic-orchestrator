@@ -19,7 +19,7 @@ logger = logging.getLogger("supervisor_agent.tools")
 async def call_serviceability_agent(prompt: str) -> str:
     """
     Call the Serviceability Agent to check rates or serviceability.
-    Use this when the user asks about shipping rates, carrier availability, or serviceability.
+    IMPORTANT: The agent is stateless. The `prompt` must be a standalone, fully detailed request (including origin, destination, weight, etc.) extracted from the conversation history. Do NOT send partial info like "5kg".
     """
     logger.info(f"Delegating to Serviceability Agent: {prompt}")
     return await call_serviceability_via_slim(prompt)
@@ -29,7 +29,9 @@ async def call_serviceability_agent(prompt: str) -> str:
 async def call_booking_agent(prompt: str) -> str:
     """
     Call the Booking Agent to create, retrieve, or cancel orders.
-    Use this when the user wants to book a shipment, check order status, or cancel an order.
+    IMPORTANT: The agent is stateless. The `prompt` must be a standalone request with all necessary details.
+    FOR ORDER CREATION: You MUST include the `partner_code` from the serviceability response (e.g., "smile_hubops").
+    Format: "Create order with partner_code=<code>, origin=<pincode>, destination=<pincode>, weight=<kg>, ..."
     """
     logger.info(f"Delegating to Booking Agent: {prompt}")
     return await call_booking_via_slim(prompt)

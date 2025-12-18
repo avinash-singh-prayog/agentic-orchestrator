@@ -125,6 +125,16 @@ class BookingNodes:
         if not intent:
             return {"error": "No order intent to process"}
 
+        # Check retry limit to prevent infinite loops
+        retry_count = state.get("retry_count", 0)
+        MAX_RETRIES = 3
+        if retry_count >= MAX_RETRIES:
+            logger.warning(f"Max retries ({MAX_RETRIES}) reached for order creation")
+            return {
+                "error": f"Order creation failed after {MAX_RETRIES} attempts. Please try again later or contact support.",
+                "messages": [AIMessage(content=f"I was unable to create the order after {MAX_RETRIES} attempts. The service may be temporarily unavailable. Please try again later.")],
+            }
+
         try:
             # Generate order ID
             import uuid
@@ -168,6 +178,7 @@ class BookingNodes:
             logger.error(f"Failed to create order: {e}")
             return {
                 "error": str(e),
+                "retry_count": retry_count + 1,
                 "messages": [AIMessage(content=f"Error creating order: {str(e)}")],
             }
 

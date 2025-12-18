@@ -11,7 +11,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import health_router, agent_router
+from .routers import health_router, agent_router, orders_router
 from ..config.settings import settings
 
 # Configure logging
@@ -40,8 +40,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health_router, prefix="/booking/v1")
-app.include_router(agent_router, prefix="/booking/v1")
+app.include_router(health_router, prefix="/booking-agent/v1")
+app.include_router(agent_router, prefix="/booking-agent/v1")
+app.include_router(orders_router, prefix="/booking-agent/v1")
 
 
 def main() -> None:

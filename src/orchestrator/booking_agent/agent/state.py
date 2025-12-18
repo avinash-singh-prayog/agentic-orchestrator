@@ -33,3 +33,7 @@ class BookingAgentState(MessagesState):
 
     # Error message if any step fails
     error: Optional[str] = None
+
+    # Retry count for error recovery (max 3 attempts)
+    retry_count: int = 0
+

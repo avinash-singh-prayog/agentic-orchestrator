@@ -20,7 +20,9 @@ from ..domain.models import ShipmentRequest, RateQuote, LabelResponse, PartnerCo
 
 logger = logging.getLogger("serviceability_agent.nodes")
 
-SERVICEABILITY_AGENT_LLM = os.getenv("SERVICEABILITY_AGENT_LLM", "openrouter/openai/gpt-4o-mini")
+# Commented out: openai/gpt-4o-mini - use openai/gpt-oss-120b:free instead
+# SERVICEABILITY_AGENT_LLM = os.getenv("SERVICEABILITY_AGENT_LLM", "openrouter/openai/gpt-4o-mini")
+SERVICEABILITY_AGENT_LLM = os.getenv("SERVICEABILITY_AGENT_LLM")  # Must be set in environment
 
 EXTRACTION_SYSTEM_PROMPT = """You are a shipping assistant that extracts shipment details from user messages.
 

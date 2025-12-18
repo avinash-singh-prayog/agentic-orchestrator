@@ -23,8 +23,8 @@ class BookingAgentSettings(BaseSettings):
     # Order V2 API Settings
     # ==========================================================================
     
-    # Base URL for Order V2 API
-    order_api_url: str = "https://sandbox-apis.prayog.io"
+    # Base URL for Order V2 API - MUST be set via BOOKING_AGENT_ORDER_API_URL env var
+    order_api_url: str
     
     # API timeout in seconds
     order_api_timeout: int = 30
@@ -45,8 +45,9 @@ class BookingAgentSettings(BaseSettings):
     # LLM Settings
     # ==========================================================================
     
-    # LLM model for order extraction
-    llm_model: str = "openrouter/openai/gpt-4o-mini"
+    # LLM model for order extraction - Use openai/gpt-oss-120b:free instead of gpt-4o-mini
+    # Default removed - must be set via BOOKING_AGENT_LLM_MODEL env var
+    llm_model: str = ""  # Configured via environment
     
     # LLM temperature
     llm_temperature: float = 0.1

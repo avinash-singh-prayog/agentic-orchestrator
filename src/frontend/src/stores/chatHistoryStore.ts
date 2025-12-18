@@ -307,17 +307,15 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
         // Load from IndexedDB cache first (instant)
         const cachedMessages = await getDBMessages(id)
         
-        // Check if this conversation exists in our local list
-        const isLocalConversation = conversations.some(c => c.id === id)
+        // Get conversation info to check message_count
+        const conv = conversations.find(c => c.id === id)
+        const hasMessagesOnServer = conv && conv.messageCount > 0
         
         if (cachedMessages.length > 0) {
           // Use cache - has messages
           set({ messages: cachedMessages.map(convertDBMessage), isLoadingMessages: false })
-        } else if (isLocalConversation) {
-          // Local conversation with no messages (new/empty) - don't call API
-          set({ messages: [], isLoadingMessages: false })
-        } else if (tenantId && userId) {
-          // Unknown conversation - fetch from API (synced from another device)
+        } else if (hasMessagesOnServer && tenantId && userId) {
+          // Has messages on server but not in cache - fetch from API
           const response = await fetch(
             `${API_URL}${API_ENDPOINTS.CONVERSATION(id)}?tenant_id=${tenantId}&user_id=${userId}`
           )
@@ -334,9 +332,11 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
             const messages = await getDBMessages(id)
             set({ messages: messages.map(convertDBMessage) })
           } else {
+            console.error('Failed to fetch messages:', response.status)
             set({ messages: [] })
           }
         } else {
+          // No messages on server (new conversation)
           set({ messages: [] })
         }
       } catch (error) {

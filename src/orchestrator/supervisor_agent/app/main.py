@@ -181,11 +181,14 @@ class MessageInfo(BaseModel):
 # ============================================================================
 
 def build_config(tenant_id: str, user_id: str, thread_id: str) -> dict:
-    """Build LangGraph config with multi-tenant namespace."""
+    """Build LangGraph config with multi-tenant metadata."""
     return {
         "configurable": {
             "thread_id": thread_id,
-            "checkpoint_ns": f"{tenant_id}:{user_id}"
+        },
+        "metadata": {
+            "tenant_id": tenant_id,
+            "user_id": user_id
         }
     }
 
@@ -206,6 +209,7 @@ async def run_agent(request: ChatRequest):
     # Run with checkpointer for persistence
     async with get_checkpointer() as checkpointer:
         graph_with_memory = build_graph(checkpointer=checkpointer)
+        # Ensure config with metadata is passed
         result = await graph_with_memory.ainvoke(initial_state, config)
     
     last_msg = result["messages"][-1].content
@@ -220,6 +224,7 @@ async def stream_events(
 ) -> AsyncGenerator[str, None]:
     """Stream events from the LangGraph workflow with context persistence."""
     initial_state = {"messages": [HumanMessage(content=prompt)]}
+    # Config is built here
     config = build_config(tenant_id, user_id, thread_id)
     
     # Send initial event with thread_id
@@ -235,8 +240,12 @@ async def stream_events(
     last_content = ""
     
     async with get_checkpointer() as checkpointer:
+        # Checkpointer is attached here
         graph_with_memory = build_graph(checkpointer=checkpointer)
         
+        # Config passed here. 
+        # CAUTION: 'version="v2"' required for astream_events to yield proper events? 
+        # But checking if metadata is lost.
         async for event in graph_with_memory.astream_events(initial_state, config, version="v2"):
             event_type = event.get("event", "")
             
@@ -266,11 +275,11 @@ async def stream_events(
                 }) + "\n"
                 
                 # 2. Agent Starting (Keeps graph active on Agent)
-                sender = "Carrier Agent"
-                if "rate" in tool_name.lower():
-                    sender = "Rate Agent"
-                elif "service" in tool_name.lower():
+                sender = "Unknown Agent"
+                if "rate" in tool_name.lower() or "service" in tool_name.lower():
                     sender = "Serviceability Agent"
+                elif "book" in tool_name.lower():
+                    sender = "Booking Agent"
                 elif "slim" in tool_name.lower():
                     sender = "SLIM Transport"
                     
@@ -288,11 +297,11 @@ async def stream_events(
                 tool_output = event.get("data", {}).get("output", "")
                 
                 # Determine sender based on tool name
-                sender = "Carrier Agent"
-                if "rate" in tool_name.lower():
-                    sender = "Rate Agent"
-                elif "service" in tool_name.lower():
+                sender = "Unknown Agent"
+                if "rate" in tool_name.lower() or "service" in tool_name.lower():
                     sender = "Serviceability Agent"
+                elif "book" in tool_name.lower():
+                    sender = "Booking Agent"
                 elif "slim" in tool_name.lower():
                     sender = "SLIM Transport"
                 
@@ -360,14 +369,15 @@ async def list_conversations(tenant_id: str, user_id: str):
     from agent.memory import DATABASE_URL
     from psycopg import AsyncConnection
     
-    namespace = f"{tenant_id}:{user_id}"
+    # Query unique thread_ids from checkpoints table using metadata
+    import json
+    metadata_filter = json.dumps({"tenant_id": tenant_id, "user_id": user_id})
     conversations = []
     
-    # Query unique thread_ids from checkpoints table
     query = """
         SELECT DISTINCT thread_id
         FROM checkpoints 
-        WHERE checkpoint_ns = %s OR checkpoint_ns = ''
+        WHERE metadata @> %s::jsonb
         ORDER BY thread_id DESC
         LIMIT 50
     """
@@ -375,7 +385,7 @@ async def list_conversations(tenant_id: str, user_id: str):
     try:
         async with await AsyncConnection.connect(DATABASE_URL) as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query, (namespace,))
+                await cur.execute(query, (metadata_filter,))
                 rows = await cur.fetchall()
                 
                 # Now get details for each thread
@@ -383,14 +393,11 @@ async def list_conversations(tenant_id: str, user_id: str):
                     for row in rows:
                         thread_id = row[0]
                         
-                        # Try to get checkpoint - try with namespace first, then empty
-                        config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": namespace}}
+                        # Get checkpoint
+                        config = {"configurable": {"thread_id": thread_id}}
                         checkpoint_tuple = await checkpointer.aget_tuple(config)
                         
-                        if not checkpoint_tuple:
-                            # Try with empty namespace
-                            config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
-                            checkpoint_tuple = await checkpointer.aget_tuple(config)
+
                         
                         if checkpoint_tuple:
                             checkpoint = checkpoint_tuple.checkpoint
@@ -423,17 +430,17 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
     """Get all messages in a conversation, including tool activity."""
     from langchain_core.messages import ToolMessage
     
-    namespace = f"{tenant_id}:{user_id}"
-    
     async with get_checkpointer() as checkpointer:
-        # Try with namespace first
-        config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": namespace}}
+        # Get via thread_id
+        config = {"configurable": {"thread_id": thread_id}}
         checkpoint_tuple = await checkpointer.aget_tuple(config)
         
-        # If not found, try with empty namespace (legacy conversations)
-        if not checkpoint_tuple:
-            config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
-            checkpoint_tuple = await checkpointer.aget_tuple(config)
+        # Verify ownership via metadata (metadata is stored in checkpoint_tuple.metadata, NOT checkpoint.get("metadata"))
+        if checkpoint_tuple:
+            meta = checkpoint_tuple.metadata or {}
+            # Check if user_id matches for ownership verification
+            if meta.get("user_id") and meta.get("user_id") != user_id:
+                raise HTTPException(status_code=403, detail="Access denied")
         
         if not checkpoint_tuple:
             raise HTTPException(status_code=404, detail="Conversation not found")
@@ -455,14 +462,14 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
                         "state": "pending"
                     })
             
-            # 2. Capture Tool Outputs (from Tool)
+                # 2. Capture Tool Outputs (from Tool)
             elif isinstance(msg, ToolMessage):
                 tool_name = msg.name or "unknown"
-                sender = "Carrier Agent"
-                if "rate" in tool_name.lower():
-                    sender = "Rate Agent"
-                elif "service" in tool_name.lower():
+                sender = "Unknown Agent"
+                if "rate" in tool_name.lower() or "service" in tool_name.lower():
                     sender = "Serviceability Agent"
+                elif "book" in tool_name.lower():
+                    sender = "Booking Agent"
                 elif "slim" in tool_name.lower():
                     sender = "SLIM Transport"
                     
@@ -510,22 +517,35 @@ async def delete_conversation(thread_id: str, tenant_id: str, user_id: str):
     from agent.memory import DATABASE_URL
     from psycopg import AsyncConnection
     
-    namespace = f"{tenant_id}:{user_id}"
-    
+    import json
+    metadata_filter = json.dumps({"tenant_id": tenant_id, "user_id": user_id})
+
     try:
         async with await AsyncConnection.connect(DATABASE_URL) as conn:
-            # Delete from all checkpoint tables (both namespaced and legacy)
+            # Delete from all checkpoint tables where metadata matches
+            # Note: checkpoint_writes and checkpoint_blobs don't have metadata column usually? 
+            # They refer to thread_id. If thread_id is unique to user (UUID generated by client/server), 
+            # we can delete by thread_id IF we verify ownership first.
+            
+            # Verify ownership first
             await conn.execute(
-                "DELETE FROM checkpoint_writes WHERE thread_id = %s AND (checkpoint_ns = %s OR checkpoint_ns = '')",
-                (thread_id, namespace)
+                "SELECT 1 FROM checkpoints WHERE thread_id = %s AND metadata @> %s::jsonb LIMIT 1",
+                (thread_id, metadata_filter)
+            )
+            if not await conn.fetchone():
+                 raise HTTPException(status_code=404, detail="Conversation not found or access denied")
+
+            await conn.execute(
+                "DELETE FROM checkpoint_writes WHERE thread_id = %s",
+                (thread_id,)
             )
             await conn.execute(
-                "DELETE FROM checkpoint_blobs WHERE thread_id = %s AND (checkpoint_ns = %s OR checkpoint_ns = '')",
-                (thread_id, namespace)
+                "DELETE FROM checkpoint_blobs WHERE thread_id = %s",
+                (thread_id,)
             )
-            result = await conn.execute(
-                "DELETE FROM checkpoints WHERE thread_id = %s AND (checkpoint_ns = %s OR checkpoint_ns = '')",
-                (thread_id, namespace)
+            await conn.execute(
+                "DELETE FROM checkpoints WHERE thread_id = %s",
+                (thread_id,)
             )
             await conn.commit()
             

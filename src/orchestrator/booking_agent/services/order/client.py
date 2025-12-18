@@ -55,22 +55,22 @@ class OrderClient(IOrderService):
     async def create_order(
         self,
         order: OrderRequest,
-        sync: bool = False,
     ) -> OrderResponse:
         """
-        Create a new order via Order V2 API.
+        Create a new order via Order V2 API (async).
+        
+        The V2 API processes orders asynchronously and returns an 
+        immediate acknowledgement with the order ID.
         
         Args:
             order: Order request details
-            sync: Process synchronously if True
             
         Returns:
-            OrderResponse with created order data
+            OrderResponse with acknowledgement data
         """
-        url = f"{self.base_url}/v2/orders"
-        params = {"sync": str(sync).lower()} if sync else {}
+        url = f"{self.base_url}/order-delivery/v2/orders"
         
-        logger.info(f"Creating order: {order.orderId}")
+        logger.info(f"Creating order (async): {order.orderId}")
         
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -78,17 +78,16 @@ class OrderClient(IOrderService):
                     url,
                     json=order.model_dump(mode="json", exclude_none=True),
                     headers=self._get_headers(),
-                    params=params,
                 )
                 
                 data = response.json()
                 
                 if response.status_code in (200, 201, 202):
-                    logger.info(f"Order created successfully: {order.orderId}")
+                    logger.info(f"Order acknowledged: {order.orderId}")
                     return OrderResponse(
                         success=True,
                         statusCode=response.status_code,
-                        message=data.get("message", "Order created successfully"),
+                        message=data.get("message", "Order accepted for processing"),
                         data=data.get("data"),
                     )
                 else:
@@ -111,7 +110,7 @@ class OrderClient(IOrderService):
         Returns:
             OrderResponse with order data
         """
-        url = f"{self.base_url}/v2/orders/{order_id}"
+        url = f"{self.base_url}/order-delivery/v2/orders/{order_id}"
         
         logger.info(f"Fetching order: {order_id}")
         
@@ -161,7 +160,7 @@ class OrderClient(IOrderService):
         Returns:
             OrderResponse with list of orders
         """
-        url = f"{self.base_url}/v2/orders"
+        url = f"{self.base_url}/order-delivery/v2/orders"
         params: Dict[str, Any] = {"page": page, "limit": limit}
         
         if order_status:
@@ -213,7 +212,7 @@ class OrderClient(IOrderService):
         Returns:
             OrderResponse with cancellation status
         """
-        url = f"{self.base_url}/v2/orders/{order_id}/cancel"
+        url = f"{self.base_url}/order-delivery/v2/orders/{order_id}/cancel"
         
         logger.info(f"Cancelling order: {order_id}")
         

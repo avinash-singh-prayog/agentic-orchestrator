@@ -16,8 +16,9 @@ from .tools import SUPERVISOR_TOOLS
 
 logger = logging.getLogger("supervisor_agent.nodes")
 
-# LLM Config
-SUPERVISOR_LLM = os.getenv("SUPERVISOR_LLM", "openrouter/openai/gpt-4o-mini")
+# LLM Config - Use openai/gpt-oss-120b:free instead of gpt-4o-mini
+# SUPERVISOR_LLM = os.getenv("SUPERVISOR_LLM", "openrouter/openai/gpt-4o-mini")
+SUPERVISOR_LLM = os.getenv("SUPERVISOR_LLM")  # Must be set in environment
 
 class SupervisorNodes:
     def __init__(self):
@@ -36,14 +37,23 @@ class SupervisorNodes:
         Your goal is to help the user by orchestrating specialized worker agents.
         
         Available Workers:
-        - "call_serviceability_agent": Serviceability Agent. Use this to check rates, serviceability, or carrier availability.
-        - "call_booking_agent": Booking Agent. Use this to create orders, check order status, or cancel orders.
+        - "call_serviceability_agent": Serviceability Agent. Checks rates, serviceability, or carrier availability. REQUIRED: Origin PC, Dest PC, Weight.
+        - "call_booking_agent": Booking Agent. Creates orders, checks status, or cancels orders. REQUIRED: Order details INCLUDING partner_code.
+        
+        CRITICAL RULES:
+        1. **Worker Agents are STATELESS**: They do not remember previous messages. You MUST include ALL relevant context (locations, weight, order IDs, partner_code, etc.) in the `prompt` argument EVERY TIME you call a worker.
+        2. **Context Resolution**: If the user replies with just "5kg" or "New York", you must combine this with previous messages (e.g., "Check rates from 10001 to 20002") to form a COMPLETE request like "Check rates from 10001 to 20002 for 5kg" before calling the agent.
+        3. **Don't ask redundant questions**: If you have the info in history, USE IT.
+        4. **PARTNER CODE FOR BOOKING**: When the user wants to book/create an order after seeing serviceability results:
+           - The serviceability response contains `partner_code` for each carrier (e.g., "smile_hubops", "delhivery").
+           - You MUST extract and include the `partner_code` in your booking request.
+           - Format: "Create order with partner_code=<code>, origin=<details>, destination=<details>, weight=<weight>"
         
         Routing Guidelines:
-        - If user asks about shipping RATES or SERVICEABILITY or CARRIER availability → call_serviceability_agent
-        - If user wants to CREATE an ORDER, BOOK a shipment, check ORDER STATUS, or CANCEL an order → call_booking_agent
+        - If user asks about shipping RATES, SERVICEABILITY, or CARRIER availability → call_serviceability_agent
+        - If user wants to CREATE an ORDER, BOOK a shipment, check ORDER STATUS, or CANCEL an order → call_booking_agent (include partner_code!)
         - If it's a general greeting or question, answer directly.
-        """);
+        """)
         
         # Include system prompt if not present
         if not isinstance(messages[0], SystemMessage):

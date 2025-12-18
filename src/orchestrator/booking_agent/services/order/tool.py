@@ -20,12 +20,15 @@ from ...domain.models import (
     PaymentType,
     PaymentStatus,
     CancelInitiator,
+    Partner,
+    OrderMetadata,
 )
 
 
 class CreateOrderInput(BaseModel):
     """Input for creating an order."""
     order_id: str = Field(..., description="Unique order identifier")
+    partner_code: str = Field(default="smile_hubops", description="Partner/carrier code")
     origin_name: str = Field(..., description="Sender/pickup contact name")
     origin_phone: str = Field(..., description="Sender phone number")
     origin_city: str = Field(..., description="Origin city")
@@ -79,6 +82,7 @@ async def create_order_tool(
     item_price: float,
     payment_type: str,
     payment_amount: float,
+    partner_code: str = "smile_hubops",
 ) -> dict:
     """
     Create a new shipping order.
@@ -86,7 +90,12 @@ async def create_order_tool(
     Use this tool when the user wants to book a shipment or create an order.
     Requires origin and destination addresses, package weight, and payment details.
     """
-    # Build order request
+    # Build addresses - all 4 types
+    origin_street_addr = origin_street or f"{origin_city} Main Road"
+    dest_street_addr = dest_street or f"{dest_city} Main Road"
+    origin_address_name = f"{origin_street_addr}, {origin_city}, {origin_pincode}, {origin_state}, India"
+    dest_address_name = f"{dest_street_addr}, {dest_city}, {dest_pincode}, {dest_state}, India"
+    
     addresses = [
         Address(
             type=AddressType.PICKUP,
@@ -95,8 +104,9 @@ async def create_order_tool(
             city=origin_city,
             state=origin_state,
             zip=origin_pincode,
-            street=origin_street or f"{origin_city} Main Road",
+            street=origin_street_addr,
             country="India",
+            addressName=origin_address_name,
         ),
         Address(
             type=AddressType.DELIVERY,
@@ -105,20 +115,45 @@ async def create_order_tool(
             city=dest_city,
             state=dest_state,
             zip=dest_pincode,
-            street=dest_street or f"{dest_city} Main Road",
+            street=dest_street_addr,
             country="India",
+            addressName=dest_address_name,
+        ),
+        Address(
+            type=AddressType.BILLING,
+            name=dest_name,
+            phone=dest_phone,
+            city=dest_city,
+            state=dest_state,
+            zip=dest_pincode,
+            street=dest_street_addr,
+            country="India",
+            addressName=dest_address_name,
+        ),
+        Address(
+            type=AddressType.RETURN,
+            name=origin_name,
+            phone=origin_phone,
+            city=origin_city,
+            state=origin_state,
+            zip=origin_pincode,
+            street=origin_street_addr,
+            country="India",
+            addressName=origin_address_name,
         ),
     ]
     
+    # Convert numeric values to strings for Order V2 API
     shipment = Shipment(
-        awbNumber=f"AWB-{order_id}",
-        physicalWeight=weight_grams,
+        awbNumber=f"AW{order_id}",
+        physicalWeight=str(weight_grams),
         items=[
             PackageItem(
                 name=item_name,
                 quantity=item_quantity,
-                unitPrice=item_price,
-                weight=weight_grams,
+                unitPrice=str(item_price),
+                weight=str(weight_grams),
+                description=item_name,
             )
         ],
     )
@@ -132,20 +167,26 @@ async def create_order_tool(
     
     payment = Payment(
         type=payment_type_enum,
-        finalAmount=payment_amount,
+        finalAmount=str(payment_amount),
         currency="INR",
         status=PaymentStatus.PENDING if payment_type_enum == PaymentType.COD else PaymentStatus.PAID,
     )
     
+    # Build partner and metadata
+    partner = Partner(code=partner_code)
+    metadata = OrderMetadata(source="agentic-orchestrator")
+    
     order = OrderRequest(
         orderId=order_id,
+        partner=partner,
+        metadata=metadata,
         addresses=addresses,
         parentShipment=shipment,
         payment=payment,
     )
     
     client = OrderClient()
-    response = await client.create_order(order, sync=True)
+    response = await client.create_order(order)
     
     return response.model_dump()
 

@@ -53,12 +53,27 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     const handleSelectConversation = async (id: string) => {
         await setActiveConversation(id)
     }
+    const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null)
 
-    const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
+    const handleDeleteClick = (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
-        if (confirm('Delete this conversation?')) {
-            await deleteConversation(id)
+        e.preventDefault()
+        setPendingDeleteId(id)
+    }
+
+    const handleConfirmDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation()
+        e.preventDefault()
+        if (pendingDeleteId) {
+            await deleteConversation(pendingDeleteId)
+            setPendingDeleteId(null)
         }
+    }
+
+    const handleCancelDelete = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        e.preventDefault()
+        setPendingDeleteId(null)
     }
 
     const formatDate = (date: Date) => {
@@ -136,13 +151,32 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                     {formatDate(conv.updatedAt)} · {conv.messageCount} messages
                                 </p>
                             </div>
-                            <button
-                                onClick={(e) => handleDeleteConversation(e, conv.id)}
-                                style={deleteButtonStyles}
-                                title="Delete conversation"
-                            >
-                                <Trash2 style={{ width: 12, height: 12 }} />
-                            </button>
+                            {pendingDeleteId === conv.id ? (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                    <button
+                                        onClick={handleConfirmDelete}
+                                        style={{ ...deleteButtonStyles, color: 'var(--color-red-500)', opacity: 1 }}
+                                        title="Confirm delete"
+                                    >
+                                        ✓
+                                    </button>
+                                    <button
+                                        onClick={handleCancelDelete}
+                                        style={{ ...deleteButtonStyles, opacity: 1 }}
+                                        title="Cancel"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={(e) => handleDeleteClick(e, conv.id)}
+                                    style={deleteButtonStyles}
+                                    title="Delete conversation"
+                                >
+                                    <Trash2 style={{ width: 12, height: 12 }} />
+                                </button>
+                            )}
                         </div>
                     ))
                 )}

@@ -15,6 +15,8 @@ class AddressType(str, Enum):
     """Address type enumeration."""
     PICKUP = "PICKUP"
     DELIVERY = "DELIVERY"
+    BILLING = "BILLING"
+    RETURN = "RETURN"
 
 
 class ParcelCategory(str, Enum):
@@ -77,15 +79,19 @@ class RefundMethod(str, Enum):
 
 
 class Address(BaseModel):
-    """Address for pickup or delivery."""
-    type: AddressType = Field(..., description="Address type: PICKUP or DELIVERY")
+    """Address for pickup, delivery, billing, or return."""
+    type: AddressType = Field(..., description="Address type")
     name: str = Field(..., description="Contact name")
     phone: str = Field(..., description="Contact phone number")
     city: str = Field(..., description="City name")
     state: str = Field(..., description="State/Province")
     country: str = Field(default="India", description="Country name")
+    countryCode: str = Field(default="IN", description="ISO country code")
     zip: str = Field(..., description="Postal/ZIP code")
     street: str = Field(..., description="Street address")
+    addressName: Optional[str] = Field(default=None, description="Full address name")
+    latitude: str = Field(default="0", description="Latitude coordinate")
+    longitude: str = Field(default="0", description="Longitude coordinate")
 
 
 # =============================================================================
@@ -98,16 +104,22 @@ class Dimensions(BaseModel):
     length: float = Field(..., gt=0, description="Length in cm")
     width: float = Field(..., gt=0, description="Width in cm")
     height: float = Field(..., gt=0, description="Height in cm")
+    unit: str = Field(default="cm", description="Dimension unit")
 
 
 class PackageItem(BaseModel):
     """Individual item in a shipment."""
     name: str = Field(..., description="Item name")
     quantity: int = Field(..., ge=1, description="Item quantity")
-    unitPrice: float = Field(..., ge=0, description="Price per unit")
-    weight: float = Field(..., ge=0, description="Item weight in grams")
-    sku: Optional[str] = Field(default=None, description="Stock Keeping Unit")
-    hsnCode: Optional[str] = Field(default=None, description="HSN code for tax")
+    unitPrice: str = Field(default="0", description="Price per unit")
+    weight: str = Field(default="0", description="Item weight in grams")
+    sku: Optional[str] = Field(default="", description="Stock Keeping Unit")
+    hsnCode: Optional[str] = Field(default="", description="HSN code for tax")
+    itemId: Optional[str] = Field(default=None, description="Item ID")
+    description: Optional[str] = Field(default=None, description="Item description/category")
+    shipmentId: Optional[int] = Field(default=None, description="Associated shipment ID")
+    taxes: List[dict] = Field(default_factory=list, description="Item taxes")
+    discounts: List[dict] = Field(default_factory=list, description="Item discounts")
 
 
 class Packaging(BaseModel):
@@ -119,12 +131,18 @@ class Packaging(BaseModel):
 class Shipment(BaseModel):
     """Shipment details (parent or child)."""
     awbNumber: str = Field(..., description="Air Waybill number")
-    physicalWeight: float = Field(..., gt=0, description="Physical weight in grams")
-    volumetricWeight: Optional[float] = Field(default=None, description="Volumetric weight in grams")
+    physicalWeight: str = Field(..., description="Physical weight in grams")
+    volumetricWeight: str = Field(default="0", description="Volumetric weight in grams")
     dimensions: Optional[Dimensions] = None
     items: List[PackageItem] = Field(default_factory=list, description="Items in shipment")
     packaging: Optional[Packaging] = None
-    note: Optional[str] = Field(default=None, description="Special instructions")
+    note: str = Field(default="", description="Special instructions")
+    isChild: bool = Field(default=False, description="Is child shipment")
+    isParent: bool = Field(default=True, description="Is parent shipment")
+    orderId: Optional[int] = Field(default=None, description="Associated order ID")
+    shipmentStatus: str = Field(default="CONFIRMED", description="Shipment status")
+    thirdPartyAwbNumber: str = Field(default="", description="Third party AWB number")
+    documentType: str = Field(default="", description="Document type")
 
 
 # =============================================================================
@@ -135,7 +153,7 @@ class Shipment(BaseModel):
 class Payment(BaseModel):
     """Payment details."""
     type: PaymentType = Field(..., description="Payment type")
-    finalAmount: float = Field(..., ge=0, description="Total amount")
+    finalAmount: str = Field(..., description="Total amount as string")
     currency: str = Field(default="INR", description="Currency code")
     status: PaymentStatus = Field(default=PaymentStatus.PENDING, description="Payment status")
 
@@ -147,6 +165,23 @@ class RefundInstructions(BaseModel):
 
 
 # =============================================================================
+# Partner and Metadata Models
+# =============================================================================
+
+
+class Partner(BaseModel):
+    """Partner/Carrier information."""
+    id: str = Field(default="", description="Partner ID")
+    code: str = Field(..., description="Partner code (e.g. smile_hubops)")
+
+
+class OrderMetadata(BaseModel):
+    """Order metadata."""
+    source: str = Field(default="agentic-orchestrator", description="Source system")
+    createdBy: str = Field(default="", description="User ID who created the order")
+
+
+# =============================================================================
 # Order Request Models
 # =============================================================================
 
@@ -154,16 +189,28 @@ class RefundInstructions(BaseModel):
 class OrderRequest(BaseModel):
     """Request model for creating an order."""
     orderId: str = Field(..., description="Unique order identifier")
+    partner: Partner = Field(..., description="Partner/carrier information")
+    metadata: OrderMetadata = Field(default_factory=OrderMetadata, description="Order metadata")
     referenceId: Optional[str] = Field(default=None, description="External reference ID")
     parcelCategory: ParcelCategory = Field(default=ParcelCategory.COURIER)
-    orderDate: Optional[datetime] = Field(default=None, description="Order creation date")
+    orderDate: datetime = Field(default_factory=datetime.now, description="Order creation date")
     expectedDeliveryDate: Optional[datetime] = Field(default=None, description="Expected delivery date")
     orderType: OrderType = Field(default=OrderType.FORWARD)
-    autoManifest: bool = Field(default=True, description="Auto-manifest the order")
-    addresses: List[Address] = Field(..., min_length=2, description="Pickup and delivery addresses")
+    orderStatus: str = Field(default="CONFIRMED", description="Order status")
+    autoManifest: bool = Field(default=False, description="Auto-manifest the order")
+    returnable: bool = Field(default=False, description="Whether order is returnable")
+    deliveryMode: str = Field(default="SURFACE", description="Delivery mode: SURFACE, EXPRESS, etc.")
+    serviceType: str = Field(default="standard", description="Service type")
+    documentType: str = Field(default="", description="Document type")
+    assignAWBFromSeries: bool = Field(default=False, description="Assign AWB from series")
+    addresses: List[Address] = Field(..., min_length=2, description="All addresses (PICKUP, DELIVERY, BILLING, RETURN)")
     parentShipment: Shipment = Field(..., description="Main shipment details")
     childShipments: List[Shipment] = Field(default_factory=list, description="Child shipments")
     payment: Payment = Field(..., description="Payment details")
+    taxes: List[dict] = Field(default_factory=list, description="Order taxes")
+    discounts: List[dict] = Field(default_factory=list, description="Order discounts")
+    documents: List[dict] = Field(default_factory=list, description="Order documents")
+    eWaybills: List[dict] = Field(default_factory=list, description="E-waybill information")
 
 
 class CancelRequest(BaseModel):
