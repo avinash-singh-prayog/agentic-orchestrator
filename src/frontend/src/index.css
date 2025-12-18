@@ -1,40 +1,93 @@
 @import "tailwindcss";
 
 /* ===========================
-   TailwindCSS v4 Theme Configuration
-   =========================== */
+  TailwindCSS v4 Theme Configuration
+  Modern Lighter Dark Theme
+  =========================== */
 
 @theme {
-  /* Colors */
-  --color-slate-950: #0a0a0f;
-  --color-slate-900: #12121a;
-  --color-slate-800: #1e2030;
-  --color-slate-700: #2d3148;
-  --color-slate-600: #3f4466;
-  --color-slate-500: #94a3b8;
-  --color-slate-400: #94a3b8;
-  --color-slate-300: #cbd5e1;
+  /* Colors - Lighter Dark Palette */
+  --color-slate-950: #14161e;
+  --color-slate-900: #1a1d28;
+  --color-slate-800: #232738;
+  --color-slate-700: #2f3549;
+  --color-slate-600: #4a5168;
+  --color-slate-500: #8b9cb8;
+  --color-slate-400: #a8b5cf;
+  --color-slate-300: #d1dae8;
 
-  /* Brand Colors */
-  --color-blue-500: #3b82f6;
-  --color-blue-600: #2563eb;
-  --color-purple-500: #8b5cf6;
-  --color-purple-600: #7c3aed;
-  --color-emerald-500: #10b981;
-  --color-teal-500: #14b8a6;
-  --color-amber-500: #f59e0b;
-  --color-orange-500: #f97316;
-  --color-red-500: #ef4444;
-  --color-cyan-500: #06b6d4;
-  --color-pink-500: #ec4899;
+  /* Brand Colors - Brighter accents */
+  --color-blue-500: #4f8fff;
+  --color-blue-600: #3b7cf6;
+  --color-purple-500: #9d7cf6;
+  --color-purple-600: #8b5cf6;
+  --color-emerald-500: #22c997;
+  --color-teal-500: #2dd4bf;
+  --color-amber-500: #fbbf24;
+  --color-orange-500: #fb923c;
+  --color-red-500: #f87171;
+  --color-cyan-500: #22d3ee;
+  --color-pink-500: #f472b6;
 
   /* Fonts */
   --font-inter: "Inter", system-ui, sans-serif;
 }
 
 /* ===========================
-   Base Styles
-   =========================== */
+  Theming Variables
+  =========================== */
+
+:root {
+  /* Default (Dark System) */
+  --bg-app: linear-gradient(135deg, #14161e 0%, #1a1d28 50%, #14161e 100%);
+  --bg-sidebar: rgba(15, 17, 23, 0.95);
+  --bg-panel: rgba(20, 22, 30, 0.95);
+  --bg-card: rgba(35, 39, 56, 0.6);
+  --bg-card-hover: rgba(35, 39, 56, 0.8);
+  --bg-input: rgba(35, 39, 56, 0.8);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.2);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #a8b5cf;
+  --text-tertiary: #64748b;
+
+  --accent-primary: #4f8fff;
+  --accent-primary-bg: rgba(79, 143, 255, 0.15);
+  --accent-primary-border: rgba(79, 143, 255, 0.4);
+
+  --shadow-glow: 0 0 20px rgba(79, 143, 255, 0.25);
+}
+
+/* Light Theme Override */
+body[data-theme="light"] {
+  --bg-app: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-panel: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-input: #ffffff;
+
+  --border-subtle: #e2e8f0;
+  --border-light: #cbd5e1;
+  --border-hover: #94a3b8;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+
+  --accent-primary: #3b82f6;
+  --accent-primary-bg: rgba(59, 130, 246, 0.1);
+  --accent-primary-border: rgba(59, 130, 246, 0.3);
+
+  --shadow-glow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* ===========================
+  Base Styles
+  =========================== */
 
 * {
   box-sizing: border-box;
@@ -50,10 +103,11 @@ body {
 
 body {
   font-family: var(--font-inter);
-  background: linear-gradient(135deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
-  color: #f1f5f9;
+  background: var(--bg-app);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -62,8 +116,8 @@ body {
 }
 
 /* ===========================
-   Custom Scrollbar
-   =========================== */
+  Custom Scrollbar
+  =========================== */
 
 ::-webkit-scrollbar {
   width: 6px;
@@ -75,17 +129,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: var(--text-tertiary);
   border-radius: 3px;
+  opacity: 0.5;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: var(--text-secondary);
 }
 
 /* ===========================
-   ReactFlow Overrides
-   =========================== */
+  ReactFlow Overrides
+  =========================== */
 
 .react-flow__node {
   border-radius: 16px !important;
@@ -96,39 +151,41 @@ body {
 }
 
 .react-flow__controls {
-  background: rgba(30, 32, 48, 0.9) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-light) !important;
   border-radius: 12px !important;
   backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-glow);
 }
 
 .react-flow__controls-button {
   background: transparent !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  fill: #f1f5f9 !important;
+  border-color: var(--border-light) !important;
+  fill: var(--text-primary) !important;
 }
 
 .react-flow__controls-button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--border-subtle) !important;
 }
 
 .react-flow__background pattern circle {
-  fill: rgba(148, 163, 184, 0.1);
+  fill: var(--text-tertiary);
+  opacity: 0.2;
 }
 
 /* ===========================
-   Animations
-   =========================== */
+  Animations
+  =========================== */
 
 @keyframes pulse-glow {
 
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 20px rgba(79, 143, 255, 0.25), 0 0 40px rgba(79, 143, 255, 0.15);
   }
 
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 60px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 30px rgba(79, 143, 255, 0.45), 0 0 60px rgba(79, 143, 255, 0.25);
   }
 }
 
@@ -137,12 +194,12 @@ body {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 0 rgba(79, 143, 255, 0.4);
   }
 
   50% {
     transform: scale(1.02);
-    box-shadow: 0 0 30px 5px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 30px 5px rgba(79, 143, 255, 0.35);
   }
 }
 
@@ -230,21 +287,28 @@ body {
 }
 
 /* ===========================
-   Gradient Utilities
-   =========================== */
+  Gradient Utilities
+  =========================== */
 
 .gradient-text {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #4f8fff, #9d7cf6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .glass {
-  background: rgba(15, 15, 21, 0.85);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+}
+
+.glass-subtle {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
 }
 
 /* ===========================
@@ -252,13 +316,13 @@ body {
    =========================== */
 
 .message-user {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #4f8fff, #9d7cf6);
   border-radius: 20px 20px 4px 20px;
 }
 
 .message-assistant {
-  background: rgba(30, 32, 48, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(35, 39, 56, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px 20px 20px 4px;
 }
 
@@ -267,8 +331,8 @@ body {
    =========================== */
 
 .input-modern {
-  background: rgba(26, 26, 37, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(35, 39, 56, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 1rem 1.25rem;
   color: #f8fafc;
@@ -277,10 +341,31 @@ body {
 
 .input-modern:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: #4f8fff;
+  box-shadow: 0 0 0 3px rgba(79, 143, 255, 0.2);
 }
 
 .input-modern::placeholder {
-  color: #64748b;
+  color: #8b9cb8;
+}
+
+/* ===========================
+   Additional Utilities
+   =========================== */
+
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(79, 143, 255, 0.3);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(157, 124, 246, 0.3);
 }

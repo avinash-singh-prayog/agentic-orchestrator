@@ -29,13 +29,13 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         borderRadius: "16px",
         display: "flex",
         flexDirection: "column",
-        background: "linear-gradient(145deg, #1a1d2e 0%, #12141f 100%)",
+        background: "linear-gradient(145deg, #232738 0%, #1a1d28 100%)",
         border: status === "processing"
-            ? "2px solid rgba(59, 130, 246, 0.6)"
-            : "1px solid rgba(255, 255, 255, 0.1)",
+            ? "2px solid rgba(79, 143, 255, 0.6)"
+            : "1px solid rgba(255, 255, 255, 0.12)",
         boxShadow: status === "processing"
-            ? "0 0 30px rgba(59, 130, 246, 0.3), 0 10px 40px rgba(0, 0, 0, 0.4)"
-            : "0 4px 20px rgba(0, 0, 0, 0.3)",
+            ? "0 0 30px rgba(79, 143, 255, 0.35), 0 10px 40px rgba(0, 0, 0, 0.4)"
+            : "0 4px 20px rgba(0, 0, 0, 0.25)",
         transition: "all 0.3s ease",
         position: "relative",
     }
@@ -49,13 +49,13 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         justifyContent: "center",
         marginBottom: 10,
         background: status === "processing"
-            ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
+            ? "linear-gradient(135deg, #4f8fff, #9d7cf6)"
             : status === "completed"
-                ? "linear-gradient(135deg, #10b981, #14b8a6)"
-                : "linear-gradient(135deg, #374151, #1f2937)",
+                ? "linear-gradient(135deg, #22c997, #2dd4bf)"
+                : "linear-gradient(135deg, #4a5168, #2f3549)",
         boxShadow: status === "processing"
-            ? "0 4px 15px rgba(59, 130, 246, 0.4)"
-            : "0 2px 8px rgba(0, 0, 0, 0.3)",
+            ? "0 4px 15px rgba(79, 143, 255, 0.45)"
+            : "0 2px 8px rgba(0, 0, 0, 0.25)",
     }
 
     const statusDotStyles: React.CSSProperties = {
@@ -65,18 +65,18 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         width: 10,
         height: 10,
         borderRadius: "50%",
-        background: status === "processing" ? "#3b82f6"
-            : status === "completed" ? "#10b981"
-                : status === "error" ? "#ef4444"
-                    : "#6b7280",
+        background: status === "processing" ? "#4f8fff"
+            : status === "completed" ? "#22c997"
+                : status === "error" ? "#f87171"
+                    : "#8b9cb8",
         animation: status === "processing" ? "pulse 2s infinite" : "none",
     }
 
     const handleStyles: React.CSSProperties = {
         width: 12,
         height: 12,
-        border: "2px solid rgba(59, 130, 246, 0.5)",
-        background: "#1a1d2e",
+        border: "2px solid rgba(79, 143, 255, 0.5)",
+        background: "#232738",
     }
 
     return (
@@ -93,7 +93,7 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
             <span style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#f1f5f9",
+                color: "#f8fafc",
                 lineHeight: 1.2,
                 marginBottom: 2,
             }}>
@@ -101,7 +101,7 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
             </span>
             <span style={{
                 fontSize: 11,
-                color: "#94a3b8",
+                color: "#a8b5cf",
                 fontWeight: 500,
             }}>
                 {nodeData.label2}

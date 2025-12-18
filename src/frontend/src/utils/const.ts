@@ -10,7 +10,8 @@ export const NODE_IDS = {
   SLIM_TRANSPORT: "slim-transport",
   SERVICEABILITY: "serviceability",
   RATE_AGENT: "rate-agent",
-  CARRIER: "carrier",
+  SERVICEABILITY_AGENT: "serviceability-agent",
+  BOOKING_AGENT: "booking-agent",
   ORCHESTRATOR_GROUP: "orchestrator-group",
 } as const
 
@@ -19,7 +20,8 @@ export const EDGE_IDS = {
   SUPERVISOR_TO_SLIM: "supervisor-to-slim",
   SLIM_TO_SERVICEABILITY: "slim-to-serviceability",
   SLIM_TO_RATE: "slim-to-rate",
-  SLIM_TO_CARRIER: "slim-to-carrier",
+  SLIM_TO_SERVICEABILITY_AGENT: "slim-to-serviceability-agent",
+  SLIM_TO_BOOKING_AGENT: "slim-to-booking-agent",
 } as const
 
 // Node types for ReactFlow
@@ -49,11 +51,18 @@ export const AGENT_STATUS = {
   ERROR: "error",
 } as const
 
-// API endpoints
+// API endpoints - match Supervisor Agent API
 export const API_ENDPOINTS = {
-  PROMPT: "/agent/prompt",
-  PROMPT_STREAM: "/agent/prompt/stream",
+  // Supervisor Agent endpoints
+  PROMPT: "/supervisor/v1/agent/run",           // Sync mode
+  PROMPT_STREAM: "/supervisor/v1/agent/stream", // Streaming mode (SSE)
   HEALTH: "/health",
+  
+  // Conversation history endpoints
+  CONVERSATIONS: "/supervisor/v1/conversations",
+  CONVERSATION: (threadId: string) => `/supervisor/v1/conversations/${threadId}`,
+  
+  // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",
   PENDING_APPROVALS: "/admin/pending-approvals",
   APPROVE: "/admin/approve",

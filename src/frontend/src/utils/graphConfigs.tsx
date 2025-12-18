@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react"
-import { Brain, MapPin, CircleDollarSign, Package, Zap } from "lucide-react"
+import { Brain, Package, Zap, ShoppingCart } from "lucide-react"
 import { NODE_IDS, EDGE_IDS, NODE_TYPES, EDGE_TYPES } from "./const"
 
 export interface GraphConfig {
@@ -31,19 +31,19 @@ const transportStyle = {
 const groupStyle = {
     width: 740,
     height: 500,
-    backgroundColor: "var(--group-background)",
-    border: "1px dashed var(--group-border)",
+    backgroundColor: "rgba(26, 29, 40, 0.4)",
+    border: "1px dashed rgba(139, 156, 184, 0.2)",
     borderRadius: "16px",
 }
 
 export const ORCHESTRATOR_CONFIG: GraphConfig = {
-    title: "Logistics Orchestrator Network",
+    title: "Agentic Orchestrator Network",
     nodes: [
         // Group container
         {
             id: NODE_IDS.ORCHESTRATOR_GROUP,
             type: "group",
-            data: { label: "Logistics Orchestrator" },
+            data: { label: "Agentic Orchestrator" },
             position: { x: 50, y: 50 },
             style: groupStyle,
             draggable: false,
@@ -54,7 +54,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             type: NODE_TYPES.CUSTOM,
             data: {
                 icon: Brain,
-                label1: "Supervisor",
+                label1: "Supervisor Agent",
                 label2: "Orchestrator Agent",
                 handles: "source",
                 status: "idle",
@@ -79,49 +79,33 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
         },
         // Serviceability Agent
         {
-            id: NODE_IDS.SERVICEABILITY,
-            type: NODE_TYPES.CUSTOM,
-            data: {
-                icon: MapPin,
-                label1: "Serviceability",
-                label2: "Route Validation",
-                handles: "target",
-                status: "idle",
-                description: "Validates shipping routes",
-            },
-            position: { x: 60, y: 300 },
-            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
-            ...nodeStyle,
-        },
-        // Rate Agent
-        {
-            id: NODE_IDS.RATE_AGENT,
-            type: NODE_TYPES.CUSTOM,
-            data: {
-                icon: CircleDollarSign,
-                label1: "Rate Agent",
-                label2: "Quote Aggregation",
-                handles: "target",
-                status: "idle",
-                description: "Aggregates carrier quotes",
-            },
-            position: { x: 280, y: 300 },
-            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
-            ...nodeStyle,
-        },
-        // Carrier Agent
-        {
-            id: NODE_IDS.CARRIER,
+            id: NODE_IDS.SERVICEABILITY_AGENT,
             type: NODE_TYPES.CUSTOM,
             data: {
                 icon: Package,
-                label1: "Carrier Agent",
-                label2: "Booking Execution",
+                label1: "Serviceability Agent",
+                label2: "Logistics Fulfillment",
                 handles: "target",
                 status: "idle",
-                description: "Executes shipment bookings",
+                description: "Checks rates and serviceability",
             },
-            position: { x: 500, y: 300 },
+            position: { x: 120, y: 300 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...nodeStyle,
+        },
+        // Booking Agent
+        {
+            id: NODE_IDS.BOOKING_AGENT,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: ShoppingCart,
+                label1: "Booking Agent",
+                label2: "Order Management",
+                handles: "target",
+                status: "idle",
+                description: "Creates and manages orders",
+            },
+            position: { x: 440, y: 300 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
@@ -136,33 +120,23 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             data: { label: "A2A" },
             animated: false,
         },
-        // SLIM to Serviceability
+        // SLIM to Serviceability Agent
         {
-            id: EDGE_IDS.SLIM_TO_SERVICEABILITY,
+            id: EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT,
             source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.SERVICEABILITY,
-            type: EDGE_TYPES.CUSTOM,
-            sourceHandle: "bottom-left",
-            data: { label: "" },
-            animated: false,
-        },
-        // SLIM to Rate Agent
-        {
-            id: EDGE_IDS.SLIM_TO_RATE,
-            source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.RATE_AGENT,
+            target: NODE_IDS.SERVICEABILITY_AGENT,
             type: EDGE_TYPES.CUSTOM,
             sourceHandle: "bottom-center",
             data: { label: "" },
             animated: false,
         },
-        // SLIM to Carrier
+        // SLIM to Booking Agent
         {
-            id: EDGE_IDS.SLIM_TO_CARRIER,
+            id: EDGE_IDS.SLIM_TO_BOOKING_AGENT,
             source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.CARRIER,
+            target: NODE_IDS.BOOKING_AGENT,
             type: EDGE_TYPES.CUSTOM,
-            sourceHandle: "bottom-right",
+            sourceHandle: "bottom-center",
             data: { label: "" },
             animated: false,
         },
@@ -171,8 +145,8 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
         { ids: [NODE_IDS.SUPERVISOR] },
         { ids: [EDGE_IDS.SUPERVISOR_TO_SLIM] },
         { ids: [NODE_IDS.SLIM_TRANSPORT] },
-        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY, EDGE_IDS.SLIM_TO_RATE, EDGE_IDS.SLIM_TO_CARRIER] },
-        { ids: [NODE_IDS.SERVICEABILITY, NODE_IDS.RATE_AGENT, NODE_IDS.CARRIER] },
+        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT] },
+        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT] },
     ],
 }
 

@@ -39,24 +39,15 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         edges: ["supervisor-to-slim"],
     }
 
-    if (senderLower.includes("serviceability") || senderLower === "serviceability_agent") {
+    if (
+        senderLower.includes("service") ||
+        senderLower.includes("rate") ||
+        senderLower.includes("serviceability") ||
+        senderLower === "serviceability_agent"
+    ) {
         return {
-            nodes: [...basePath.nodes, "serviceability"],
-            edges: [...basePath.edges, "slim-to-serviceability"],
-        }
-    }
-
-    if (senderLower.includes("rate") || senderLower === "rate_agent") {
-        return {
-            nodes: [...basePath.nodes, "rate-agent"],
-            edges: [...basePath.edges, "slim-to-rate"],
-        }
-    }
-
-    if (senderLower.includes("carrier") || senderLower === "carrier_agent") {
-        return {
-            nodes: [...basePath.nodes, "carrier"],
-            edges: [...basePath.edges, "slim-to-carrier"],
+            nodes: [...basePath.nodes, "serviceability-agent"],
+            edges: [...basePath.edges, "slim-to-serviceability-agent"],
         }
     }
 
@@ -159,7 +150,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
         position: "relative",
         height: "100%",
         width: "100%",
-        background: "linear-gradient(135deg, #0a0a0f 0%, #0f0f15 50%, #0a0a0f 100%)",
+        background: "var(--bg-app)",
     }
 
     return (
@@ -183,7 +174,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                     variant={BackgroundVariant.Dots}
                     gap={24}
                     size={1}
-                    color="rgba(148, 163, 184, 0.08)"
+                    color="var(--text-tertiary)"
                 />
                 <Controls showInteractive={false} />
             </ReactFlow>
@@ -199,23 +190,23 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                     gap: 10,
                     padding: "10px 16px",
                     borderRadius: 12,
-                    background: "rgba(15, 15, 21, 0.95)",
-                    border: "1px solid rgba(59, 130, 246, 0.4)",
+                    background: "var(--bg-panel)",
+                    border: "1px solid var(--accent-primary-border)",
                     backdropFilter: "blur(12px)",
-                    boxShadow: "0 4px 20px rgba(59, 130, 246, 0.15)",
+                    boxShadow: "var(--shadow-glow)",
                 }}>
                     <div style={{
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+                        background: "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))",
                         animation: "pulse 1.5s infinite",
                     }} />
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>
+                        <span style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 1 }}>
                             Active Agent
                         </span>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#60a5fa" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent-primary)" }}>
                             {activeAgentName}
                         </span>
                     </div>

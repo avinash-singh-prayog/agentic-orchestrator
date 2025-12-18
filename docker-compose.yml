@@ -1,42 +1,99 @@
 services:
   # ===========================================
-  # INFRASTRUCTURE SERVICES
-  # ===========================================
-
-  # PostgreSQL - LangGraph Checkpointer persistence
-  postgres:
-    image: postgres:15-alpine
-    container_name: orchestrator-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-orchestrator}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-orchestrator}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U orchestrator" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - orchestrator-net
-
-  # ===========================================
   # OBSERVABILITY STACK
   # ===========================================
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.108.0
-    container_name: otel-collector
-    command: [ "--config", "/etc/otel-collector-config.yaml" ]
-    volumes:
-      - ./config/docker/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+  clickhouse-server:
+    image: clickhouse/clickhouse-server
+    container_name: clickhouse-server
     ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
-      - "8888:8888" # Prometheus metrics
+      - "9000:9000"
+      - "8123:8123"
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - orchestrator-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./config/docker/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: [ "--config", "/etc/otel-collector-config.yaml" ]
+    depends_on:
+      clickhouse-server:
+        condition: service_healthy
+    networks:
+      - orchestrator-net
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      clickhouse-server:
+        condition: service_healthy
+    networks:
+      - orchestrator-net
+
+  mce-api-layer:
+    image: ghcr.io/agntcy/obs-api:0.1.1
+    ports:
+      - "8080:8080"
+    environment:
+      - CLICKHOUSE_URL=clickhouse-server
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=admin
+      - CLICKHOUSE_PASS=admin
+      - CLICKHOUSE_DB=default
+      - SERVER_PORT=8080
+      - PORT=8080
+    depends_on:
+      clickhouse-server:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/keepAlive" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - orchestrator-net
+
+  metrics-computation-engine:
+    image: ghcr.io/agntcy/mce:1.2.1
+    ports:
+      - "8001:8000"
+    environment:
+      - API_BASE_URL=http://mce-api-layer:8080
+      - LLM_BASE_MODEL_URL=${AZURE_API_BASE:-${OPENAI_ENDPOINT}}
+      - LLM_MODEL_NAME=${AZURE_API_VERSION:-${OPENAI_MODEL_NAME}}
+      - LLM_API_KEY=${AZURE_API_KEY:-${OPENAI_API_KEY}}
+    depends_on:
+      mce-api-layer:
+        condition: service_healthy
     networks:
       - orchestrator-net
 
@@ -44,39 +101,26 @@ services:
   # SUPERVISOR AGENT
   # ===========================================
 
-  supervisor:
+  supervisor-agent:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.supervisor
-    container_name: orchestrator-supervisor
+      context: src/orchestrator/supervisor_agent
+      dockerfile: Dockerfile
+    container_name: supervisor-agent
     ports:
-      - "${SUPERVISOR_PORT:-8000}:8000"
+      - "9004:8000"
     environment:
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=HTTP
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-orchestrator}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-orchestrator_secret}
-      - POSTGRES_DB=${POSTGRES_DB:-orchestrator}
+      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - ENABLE_TRACING=${ENABLE_TRACING:-true}
-      - MAX_AUTO_APPROVAL_LIMIT=${MAX_AUTO_APPROVAL_LIMIT:-5000}
-      - PYTHONPATH=/app/src
+      - DATABASE_URL=${DATABASE_URL:-postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod}
     depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - slim
+      - otel-collector
     networks:
       - orchestrator-net
-
   # ===========================================
   # WORKER AGENTS
   # ===========================================
@@ -84,75 +128,81 @@ services:
   serviceability-agent:
     build:
       context: .
-      dockerfile: docker/Dockerfile.worker
+      dockerfile: src/orchestrator/serviceability_agent/Dockerfile
     container_name: serviceability-agent
     ports:
-      - "${SERVICEABILITY_AGENT_PORT:-9001}:9001"
+      - "${SERVICEABILITY_AGENT_PORT:-9003}:8000"
     environment:
-      - AGENT_TYPE=serviceability
-      - AGENT_PORT=9001
-      - SERVICE_AGENT_LLM=${SERVICE_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
+      - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - PYTHONPATH=/app/src
+      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      # External serviceability API (running on host machine)
+      - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
+    command: [ "/app/.venv/bin/python", "-m", "serviceability_agent.app.main", "dual" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - slim
+      - otel-collector
     networks:
       - orchestrator-net
 
-  rate-agent:
+  booking-agent:
     build:
       context: .
-      dockerfile: docker/Dockerfile.worker
-    container_name: rate-agent
+      dockerfile: src/orchestrator/booking_agent/Dockerfile
+    container_name: booking-agent
     ports:
-      - "${RATE_AGENT_PORT:-9002}:9002"
+      - "${BOOKING_AGENT_PORT:-9005}:8000"
     environment:
-      - AGENT_TYPE=rate
-      - AGENT_PORT=9002
-      - RATE_AGENT_LLM=${RATE_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
+      # Using gpt-oss-120b:free instead of gpt-4o-mini
+      - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=HTTP
       - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - PYTHONPATH=/app/src
+      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      # Order V2 API (use host.docker.internal to reach host machine from container)
+      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
+    command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - slim
+      - otel-collector
     networks:
       - orchestrator-net
 
-  carrier-agent:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.worker
-    container_name: carrier-agent
+  slim:
+    image: ghcr.io/agntcy/slim:0.6.1
+    container_name: orchestrator-slim
+    command: [ "/slim", "--config", "/etc/slim.yaml" ]
     ports:
-      - "${CARRIER_AGENT_PORT:-9003}:9003"
-    environment:
-      - AGENT_TYPE=carrier
-      - AGENT_PORT=9003
-      - CARRIER_AGENT_LLM=${CARRIER_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DEFAULT_MESSAGE_TRANSPORT=HTTP
-      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - PYTHONPATH=/app/src
+      - "46357:46357"
+      - "46358:46358"
+    volumes:
+      - ./config/slim/slim.yaml:/etc/slim.yaml:ro
     networks:
       - orchestrator-net
-
   # ===========================================
   # FRONTEND UI
   # ===========================================
 
-  # frontend:
-  #   build:
-  #     context: ./src/frontend
-  #     dockerfile: Dockerfile
-  #   container_name: orchestrator-frontend
-  #   ports:
-  #     - "${FRONTEND_PORT:-3000}:80"
-  #   depends_on:
-  #     supervisor:
-  #       condition: service_healthy
-  #   environment:
-  #     - VITE_ORCHESTRATOR_API_URL=http://localhost:8000
-  #   networks:
-  #     - orchestrator-net
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: orchestrator-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - supervisor-agent
+    environment:
+      - VITE_ORCHESTRATOR_API_URL=http://supervisor-agent:9004
+    networks:
+      - orchestrator-net
 
 networks:
   orchestrator-net:

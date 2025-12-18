@@ -1,0 +1,30 @@
+# Copyright AGNTCY Contributors (https://github.com/agntcy)
+# SPDX-License-Identifier: Apache-2.0
+
+# SLIM Transporter Configuration
+# Agents register themselves with the dataplane server
+
+tracing:
+  log_level: info
+  display_thread_names: true
+  display_thread_ids: true
+
+runtime:
+  n_cores: 0
+  thread_name: "slim-data-plane"
+  drain_timeout: 10s
+
+services:
+  slim/0:
+    dataplane:
+      servers:
+        - endpoint: "0.0.0.0:46357"
+          tls:
+            insecure: true
+      # No clients needed - agents register themselves via AppSession/AppContainer
+      clients: []
+    controller:
+      servers:
+        - endpoint: "0.0.0.0:46358"
+          tls:
+            insecure: true

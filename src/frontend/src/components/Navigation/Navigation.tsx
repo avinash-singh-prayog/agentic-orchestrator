@@ -5,13 +5,15 @@
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle, Boxes } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, Boxes, LogOut } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
+import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
 const Navigation: React.FC = () => {
     const { isLightMode, toggleTheme } = useTheme()
     const { getHealth } = useAgentAPI()
+    const { logout } = useChatHistoryStore()
     const [healthStatus, setHealthStatus] = useState<"healthy" | "unhealthy" | "loading">("loading")
 
     useEffect(() => {
@@ -36,9 +38,14 @@ const Navigation: React.FC = () => {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 24px",
-        background: "linear-gradient(90deg, rgba(10, 10, 15, 0.98), rgba(18, 18, 26, 0.95))",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        background: isLightMode
+            ? "rgba(255, 255, 255, 0.85)"
+            : "linear-gradient(90deg, rgba(20, 22, 30, 0.98), rgba(26, 29, 40, 0.95))",
+        borderBottom: isLightMode
+            ? "1px solid rgba(0, 0, 0, 0.06)"
+            : "1px solid rgba(255, 255, 255, 0.1)",
         backdropFilter: "blur(20px)",
+        transition: "background 0.3s ease, border-color 0.3s ease",
     }
 
     const logoBoxStyles: React.CSSProperties = {
@@ -48,8 +55,10 @@ const Navigation: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-        boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
+        background: "linear-gradient(135deg, #4f8fff, #9d7cf6)",
+        boxShadow: isLightMode
+            ? "0 4px 15px rgba(79, 143, 255, 0.25)"
+            : "0 4px 15px rgba(79, 143, 255, 0.35)",
     }
 
     const healthBadgeStyles: React.CSSProperties = {
@@ -58,8 +67,8 @@ const Navigation: React.FC = () => {
         gap: 8,
         padding: "6px 14px",
         borderRadius: 20,
-        background: "rgba(30, 32, 48, 0.8)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        background: isLightMode ? "rgba(241, 245, 249, 0.8)" : "rgba(35, 39, 56, 0.8)",
+        border: isLightMode ? "1px solid #e2e8f0" : "1px solid rgba(255, 255, 255, 0.12)",
     }
 
     const buttonStyles: React.CSSProperties = {
@@ -69,8 +78,8 @@ const Navigation: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(30, 32, 48, 0.6)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        background: isLightMode ? "rgba(241, 245, 249, 0.8)" : "rgba(35, 39, 56, 0.6)",
+        border: isLightMode ? "1px solid #e2e8f0" : "1px solid rgba(255, 255, 255, 0.12)",
         cursor: "pointer",
         transition: "all 0.2s ease",
     }
@@ -86,13 +95,13 @@ const Navigation: React.FC = () => {
                     <span style={{
                         fontSize: 16,
                         fontWeight: 700,
-                        background: "linear-gradient(135deg, #3b82f6, #a78bfa)",
+                        background: "linear-gradient(135deg, #4f8fff, #c4b5fd)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}>
-                        Logistics Orchestrator
+                        Agentic Orchestrator
                     </span>
-                    <span style={{ fontSize: 11, color: "#64748b" }}>
+                    <span style={{ fontSize: 11, color: isLightMode ? "#64748b" : "#8b9cb8" }}>
                         Multi-Agent System
                     </span>
                 </div>
@@ -121,12 +130,17 @@ const Navigation: React.FC = () => {
                 </div>
 
                 {/* Theme Toggle */}
-                <button onClick={toggleTheme} style={buttonStyles}>
+                <button onClick={toggleTheme} style={buttonStyles} title={isLightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}>
                     {isLightMode ? (
                         <Moon style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     ) : (
                         <Sun style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     )}
+                </button>
+
+                {/* Logout Button */}
+                <button onClick={() => logout()} style={buttonStyles} title="Log Out">
+                    <LogOut style={{ width: 18, height: 18, color: "#ef4444" }} />
                 </button>
             </div>
         </nav>

@@ -2,6 +2,7 @@
  * Chat Area Component
  * 
  * Premium styled chat interface with proper streaming and sync support.
+ * Syncs with chatHistoryStore for conversation persistence.
  */
 
 import React, { useState, useRef, useEffect } from "react"
@@ -9,7 +10,8 @@ import { Send, Loader2, Sparkles } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
-import StreamingFeed from "./StreamingFeed"
+import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
+import ExecutionTimeline from "./ExecutionTimeline"
 import type { Message } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
 
@@ -17,21 +19,42 @@ interface ChatAreaProps {
     onAgentActive?: (agent: string | null) => void
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
+const ChatArea: React.FC<ChatAreaProps> = () => {
     const [input, setInput] = useState("")
     const [messages, setMessages] = useState<Message[]>([])
-    const [useStreaming, setUseStreaming] = useState(true)
     const inputRef = useRef<HTMLInputElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    const { sendMessage, loading: apiLoading } = useAgentAPI()
+    const { loading: apiLoading } = useAgentAPI()
     const { startStreaming, reset } = useStreamingActions()
     const streamingStatus = useStreamingStatus()
     const finalResponse = useStreamingFinalResponse()
     const streamingEvents = useStreamingEvents()
 
+    // Get messages from chat history store
+    const historyMessages = useChatMessages()
+    const activeConversationId = useActiveConversationId()
+
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
-    const isStreamActive = streamingStatus !== "idle"
+    const isStreamActive = streamingStatus === "streaming" || streamingStatus === "connecting"
+
+    // Sync local messages with history store when active conversation changes
+    useEffect(() => {
+        if (activeConversationId && historyMessages.length > 0) {
+            // Convert history messages to local format
+            const convertedMessages: Message[] = historyMessages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: new Date(msg.timestamp),
+                activity: msg.activity
+            }))
+            setMessages(convertedMessages)
+        } else {
+            // Clear messages when no active conversation OR new/empty conversation
+            setMessages([])
+        }
+    }, [activeConversationId, historyMessages])
 
     // Scroll to bottom
     useEffect(() => {
@@ -40,7 +63,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
 
     // Add final streaming response as assistant message when complete
     useEffect(() => {
-        if (streamingStatus === "completed" && finalResponse && useStreaming) {
+        if (streamingStatus === "completed" && finalResponse) {
             const assistantMessage: Message = {
                 id: uuidv4(),
                 role: "assistant",
@@ -55,11 +78,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                 return [...prev, assistantMessage]
             })
         }
-    }, [streamingStatus, finalResponse, useStreaming])
+    }, [streamingStatus, finalResponse])
 
     // Create final message from last streaming event if no explicit final response
     useEffect(() => {
-        if (streamingStatus === "completed" && !finalResponse && streamingEvents.length > 0 && useStreaming) {
+        if (streamingStatus === "completed" && !finalResponse && streamingEvents.length > 0) {
             const lastEvent = streamingEvents[streamingEvents.length - 1]
             const assistantMessage: Message = {
                 id: uuidv4(),
@@ -75,7 +98,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                 return [...prev, assistantMessage]
             })
         }
-    }, [streamingStatus, finalResponse, streamingEvents, useStreaming])
+    }, [streamingStatus, finalResponse, streamingEvents])
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return
@@ -92,35 +115,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         setInput("")
         reset()
 
-        if (useStreaming) {
-            await startStreaming(prompt)
-        } else {
-            // Sync mode - show animation for Supervisor during processing
-            onAgentActive?.("Supervisor")
-            try {
-                const response = await sendMessage(prompt)
-                if (response) {
-                    const assistantMessage: Message = {
-                        id: uuidv4(),
-                        role: "assistant",
-                        content: response,
-                        timestamp: new Date(),
-                    }
-                    setMessages((prev) => [...prev, assistantMessage])
-                }
-            } catch (err) {
-                console.error("Send error:", err)
-                const errorMessage: Message = {
-                    id: uuidv4(),
-                    role: "assistant",
-                    content: "Sorry, an error occurred. Please try again.",
-                    timestamp: new Date(),
-                }
-                setMessages((prev) => [...prev, errorMessage])
-            } finally {
-                onAgentActive?.(null)
-            }
-        }
+        await startStreaming(prompt)
     }
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -134,12 +129,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "linear-gradient(180deg, #0a0a0f 0%, #0f0f15 100%)",
+        background: "var(--bg-app)",
     }
 
     const headerStyles: React.CSSProperties = {
         padding: "16px 20px",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        borderBottom: "1px solid var(--border-subtle)",
     }
 
     const exampleButtonStyles: React.CSSProperties = {
@@ -147,9 +142,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         padding: "12px 16px",
         textAlign: "left",
         fontSize: 13,
-        color: "#cbd5e1",
-        background: "rgba(30, 32, 48, 0.6)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        color: "var(--text-secondary)",
+        background: "var(--bg-card)",
+        border: "1px solid var(--border-light)",
         borderRadius: 12,
         cursor: "pointer",
         transition: "all 0.2s ease",
@@ -159,9 +154,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         flex: 1,
         padding: "14px 48px 14px 16px",
         fontSize: 14,
-        color: "#f8fafc",
-        background: "rgba(26, 26, 37, 0.9)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        color: "var(--text-primary)",
+        background: "var(--bg-input)",
+        border: "1px solid var(--border-light)",
         borderRadius: 14,
         outline: "none",
     }
@@ -177,7 +172,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 10,
-        background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+        background: "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))",
         border: "none",
         cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
         opacity: input.trim() && !isLoading ? 1 : 0.5,
@@ -189,8 +184,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
         <div style={containerStyles}>
             {/* Header */}
             <div style={headerStyles}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, color: "#f1f5f9", marginBottom: 2 }}>Chat</h2>
-                <p style={{ fontSize: 12, color: "#64748b" }}>Ask about shipping routes, rates, or bookings</p>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>Chat</h2>
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Ask about shipping routes, rates, or bookings</p>
             </div>
 
             {/* Messages */}
@@ -204,14 +199,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15))",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            background: "var(--accent-primary-bg)",
+                            border: "1px solid var(--border-light)",
                             marginBottom: 20,
                         }}>
-                            <Sparkles style={{ width: 32, height: 32, color: "#60a5fa" }} />
+                            <Sparkles style={{ width: 32, height: 32, color: "var(--accent-primary)" }} />
                         </div>
-                        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#f1f5f9", marginBottom: 8 }}>How can I help?</h2>
-                        <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>How can I help?</h2>
+                        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
                             I coordinate with specialized agents to help with shipping logistics.
                         </p>
 
@@ -226,24 +221,40 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         {messages.map((msg) => (
-                            <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }} className="message-appear">
-                                <div style={{
-                                    maxWidth: "85%",
-                                    padding: "12px 16px",
-                                    borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                                    background: msg.role === "user"
-                                        ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
-                                        : "rgba(30, 32, 48, 0.9)",
-                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                                    color: "#f1f5f9",
-                                }}>
-                                    <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.content}</p>
+                            <React.Fragment key={msg.id}>
+                                {/* Show stored activity BEFORE assistant message (that generated it) */}
+                                {msg.role === 'assistant' && msg.activity && msg.activity.length > 0 && (
+                                    <ExecutionTimeline
+                                        events={msg.activity}
+                                        isLive={false}
+                                        defaultCollapsed={true}
+                                    />
+                                )}
+
+                                <div style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }} className="message-appear">
+                                    <div style={{
+                                        maxWidth: "85%",
+                                        padding: "12px 16px",
+                                        borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                                        background: msg.role === "user"
+                                            ? "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))"
+                                            : "var(--bg-card)",
+                                        border: msg.role === "user" ? "none" : "1px solid var(--border-light)",
+                                        color: "#f8fafc", // Keep white text on colored bubbles
+                                    }}>
+                                        <p style={{
+                                            fontSize: 14,
+                                            lineHeight: 1.5,
+                                            whiteSpace: "pre-wrap",
+                                            color: msg.role === "user" ? "#f8fafc" : "var(--text-primary)"
+                                        }}>{msg.content}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            </React.Fragment>
                         ))}
 
-                        {/* Streaming feed - show during active streaming */}
-                        {useStreaming && isStreamActive && streamingStatus !== "completed" && <StreamingFeed />}
+                        {/* Live Agent Activity - shows during streaming */}
+                        {isStreamActive && <ExecutionTimeline isLive={true} />}
 
                         <div ref={messagesEndRef} />
                     </div>
@@ -251,24 +262,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
             </div>
 
             {/* Input area */}
-            <div style={{ padding: 16, borderTop: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 15, 21, 0.8)" }}>
+            <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-subtle)", background: "var(--bg-panel)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <button
-                        onClick={() => setUseStreaming(!useStreaming)}
-                        style={{
-                            padding: "8px 12px",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            borderRadius: 8,
-                            border: useStreaming ? "1px solid rgba(59, 130, 246, 0.4)" : "1px solid rgba(255, 255, 255, 0.1)",
-                            background: useStreaming ? "rgba(59, 130, 246, 0.15)" : "rgba(30, 32, 48, 0.6)",
-                            color: useStreaming ? "#60a5fa" : "#94a3b8",
-                            cursor: "pointer",
-                        }}
-                    >
-                        {useStreaming ? "Stream" : "Sync"}
-                    </button>
-
                     <div style={{ flex: 1, position: "relative" }}>
                         <input
                             ref={inputRef}
@@ -277,7 +272,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ onAgentActive }) => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={handleKeyPress}
                             placeholder="Type your message..."
-                            style={inputStyles}
+                            style={{ ...inputStyles, width: "100%" }}
                             disabled={isLoading}
                         />
                         <button onClick={handleSend} disabled={!input.trim() || isLoading} style={sendButtonStyles}>

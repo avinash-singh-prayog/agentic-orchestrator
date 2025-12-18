@@ -25,12 +25,12 @@ const TransportNode: React.FC<NodeProps> = ({ data }) => {
         display: "flex",
         alignItems: "center",
         gap: 16,
-        background: "linear-gradient(90deg, #1e40af 0%, #7c3aed 50%, #1e40af 100%)",
+        background: "linear-gradient(90deg, #3b7cf6 0%, #8b5cf6 50%, #3b7cf6 100%)",
         backgroundSize: isActive ? "200% 100%" : "100% 100%",
-        border: "1px solid rgba(255, 255, 255, 0.2)",
+        border: "1px solid rgba(255, 255, 255, 0.25)",
         boxShadow: isActive
-            ? "0 0 40px rgba(124, 58, 237, 0.4), 0 10px 30px rgba(0, 0, 0, 0.3)"
-            : "0 4px 20px rgba(0, 0, 0, 0.3)",
+            ? "0 0 40px rgba(139, 92, 246, 0.45), 0 10px 30px rgba(0, 0, 0, 0.25)"
+            : "0 4px 20px rgba(0, 0, 0, 0.25)",
         animation: isActive ? "shimmer 2s linear infinite" : "none",
         position: "relative",
     }
@@ -42,15 +42,15 @@ const TransportNode: React.FC<NodeProps> = ({ data }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(255, 255, 255, 0.15)",
+        background: "rgba(255, 255, 255, 0.18)",
         backdropFilter: "blur(8px)",
     }
 
     const handleStyles: React.CSSProperties = {
         width: 12,
         height: 12,
-        border: "2px solid rgba(255, 255, 255, 0.4)",
-        background: "#7c3aed",
+        border: "2px solid rgba(255, 255, 255, 0.45)",
+        background: "#8b5cf6",
     }
 
     return (

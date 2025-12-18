@@ -1,0 +1,265 @@
+"""
+Booking Agent Nodes.
+
+Business logic nodes for order operations.
+"""
+
+import json
+import logging
+import os
+from typing import Any, Dict
+
+from langchain_community.chat_models import ChatLiteLLM
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+from ..config.settings import settings
+from .state import BookingAgentState
+from .tools import BOOKING_TOOLS
+from ..domain.models import ExtractedOrderIntent
+
+logger = logging.getLogger("booking_agent.nodes")
+
+BOOKING_AGENT_LLM = os.getenv("BOOKING_AGENT_LLM", settings.llm_model)
+
+EXTRACTION_SYSTEM_PROMPT = """You are an order assistant that extracts order intent from user messages.
+
+Determine the user's intent and extract relevant details:
+
+Actions:
+- "create": User wants to create/book a new order
+- "get": User wants to check order status or details
+- "cancel": User wants to cancel an existing order
+- "list": User wants to see their orders
+
+Extract the following information if present:
+- action: The action to perform (create, get, cancel, list)
+- order_id: Order ID if referencing existing order (string or null)
+- origin_pincode: Origin postal code (string or null)
+- dest_pincode: Destination postal code (string or null)
+- weight_kg: Package weight in kg (number or null)
+- payment_type: PREPAID, COD, or TOPAY (string or null)
+- item_description: Description of items (string or null)
+- cancel_reason: Reason for cancellation if applicable (string or null)
+
+Respond ONLY with valid JSON:
+{
+  "action": "create|get|cancel|list",
+  "order_id": "string or null",
+  "origin_pincode": "string or null",
+  "dest_pincode": "string or null", 
+  "weight_kg": number or null,
+  "payment_type": "string or null",
+  "item_description": "string or null",
+  "cancel_reason": "string or null"
+}"""
+
+
+class BookingNodes:
+    """Business logic nodes for order operations."""
+
+    def __init__(self):
+        self.llm = ChatLiteLLM(
+            model=BOOKING_AGENT_LLM,
+            temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+        )
+        self.tools = {t.name: t for t in BOOKING_TOOLS}
+
+    async def parse_request(self, state: BookingAgentState) -> Dict[str, Any]:
+        """Parse order intent from user message using LLM."""
+        last_msg = state["messages"][-1].content if state["messages"] else ""
+        logger.info(f"Parsing request from: {last_msg[:100]}...")
+
+        try:
+            intent = await self._extract_with_llm(last_msg)
+            if intent:
+                logger.info(f"LLM extracted intent: {intent.action}")
+                return {"intent": intent}
+            else:
+                return {
+                    "error": "Could not parse order request.",
+                    "messages": [AIMessage(content="I couldn't understand your order request. Please provide more details.")],
+                }
+        except Exception as e:
+            logger.error(f"LLM extraction error: {e}")
+            return {
+                "error": f"Failed to process request: {str(e)}",
+                "messages": [AIMessage(content=f"Sorry, I encountered an error: {str(e)}")],
+            }
+
+    async def _extract_with_llm(self, message: str) -> ExtractedOrderIntent | None:
+        """Extract order intent using LLM."""
+        try:
+            messages = [
+                SystemMessage(content=EXTRACTION_SYSTEM_PROMPT),
+                HumanMessage(content=message),
+            ]
+            response = await self.llm.ainvoke(messages)
+            content = response.content.strip()
+            
+            # Handle markdown code blocks
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
+                
+            data = json.loads(content)
+            return ExtractedOrderIntent(
+                action=data.get("action", "get"),
+                order_id=data.get("order_id"),
+                origin_pincode=data.get("origin_pincode"),
+                dest_pincode=data.get("dest_pincode"),
+                weight_kg=data.get("weight_kg"),
+                payment_type=data.get("payment_type"),
+                item_description=data.get("item_description"),
+                cancel_reason=data.get("cancel_reason"),
+            )
+        except Exception as e:
+            logger.error(f"LLM extraction failed: {e}")
+            return None
+
+    async def create_order(self, state: BookingAgentState) -> Dict[str, Any]:
+        """Create a new order using the create_order tool."""
+        intent = state.get("intent")
+        if not intent:
+            return {"error": "No order intent to process"}
+
+        # Check retry limit to prevent infinite loops
+        retry_count = state.get("retry_count", 0)
+        MAX_RETRIES = 3
+        if retry_count >= MAX_RETRIES:
+            logger.warning(f"Max retries ({MAX_RETRIES}) reached for order creation")
+            return {
+                "error": f"Order creation failed after {MAX_RETRIES} attempts. Please try again later or contact support.",
+                "messages": [AIMessage(content=f"I was unable to create the order after {MAX_RETRIES} attempts. The service may be temporarily unavailable. Please try again later.")],
+            }
+
+        try:
+            # Generate order ID
+            import uuid
+            order_id = f"ORD-{str(uuid.uuid4())[:8].upper()}"
+            
+            # Use defaults for missing values
+            origin_pincode = intent.origin_pincode or "400001"
+            dest_pincode = intent.dest_pincode or "110001"
+            weight_kg = intent.weight_kg or 1.0
+            weight_grams = weight_kg * 1000
+            payment_type = intent.payment_type or "PREPAID"
+            item_description = intent.item_description or "General Goods"
+            
+            # Call the create order tool
+            create_tool = self.tools.get("create_order")
+            result = await create_tool.ainvoke({
+                "order_id": order_id,
+                "origin_name": "Sender",
+                "origin_phone": "9876543210",
+                "origin_city": "Mumbai",
+                "origin_state": "Maharashtra",
+                "origin_pincode": origin_pincode,
+                "origin_street": "Origin Street",
+                "dest_name": "Receiver",
+                "dest_phone": "9876543211",
+                "dest_city": "Delhi",
+                "dest_state": "Delhi",
+                "dest_pincode": dest_pincode,
+                "dest_street": "Destination Street",
+                "weight_grams": weight_grams,
+                "item_name": item_description,
+                "item_quantity": 1,
+                "item_price": 100.0,
+                "payment_type": payment_type,
+                "payment_amount": 100.0,
+            })
+            
+            return {"order_response": result}
+            
+        except Exception as e:
+            logger.error(f"Failed to create order: {e}")
+            return {
+                "error": str(e),
+                "retry_count": retry_count + 1,
+                "messages": [AIMessage(content=f"Error creating order: {str(e)}")],
+            }
+
+    async def get_order(self, state: BookingAgentState) -> Dict[str, Any]:
+        """Get order details using the get_order tool."""
+        intent = state.get("intent")
+        if not intent or not intent.order_id:
+            return {
+                "error": "No order ID provided",
+                "messages": [AIMessage(content="Please provide an order ID to check its status.")],
+            }
+
+        try:
+            get_tool = self.tools.get("get_order")
+            result = await get_tool.ainvoke({"order_id": intent.order_id})
+            return {"order_response": result}
+            
+        except Exception as e:
+            logger.error(f"Failed to get order: {e}")
+            return {
+                "error": str(e),
+                "messages": [AIMessage(content=f"Error fetching order: {str(e)}")],
+            }
+
+    async def cancel_order(self, state: BookingAgentState) -> Dict[str, Any]:
+        """Cancel an order using the cancel_order tool."""
+        intent = state.get("intent")
+        if not intent or not intent.order_id:
+            return {
+                "error": "No order ID provided",
+                "messages": [AIMessage(content="Please provide an order ID to cancel.")],
+            }
+
+        try:
+            cancel_tool = self.tools.get("cancel_order")
+            result = await cancel_tool.ainvoke({
+                "order_id": intent.order_id,
+                "reason": intent.cancel_reason or "Customer request",
+                "initiated_by": "CUSTOMER",
+            })
+            return {"order_response": result}
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel order: {e}")
+            return {
+                "error": str(e),
+                "messages": [AIMessage(content=f"Error cancelling order: {str(e)}")],
+            }
+
+    async def generate_response(self, state: BookingAgentState) -> Dict[str, Any]:
+        """Generate a dynamic response using the LLM based on operation results."""
+        user_msg = state["messages"][0].content
+        intent = state.get("intent")
+        order_response = state.get("order_response", {})
+        error = state.get("error")
+        
+        logger.info(f"Generate response for action: {intent.action if intent else 'unknown'}")
+        
+        # Build context for LLM
+        context = {
+            "action": intent.action if intent else "unknown",
+            "order_response": order_response,
+            "error": error,
+        }
+        
+        system_prompt = """You are a helpful order management assistant.
+        Generate a natural, concise response based on the operation result.
+        
+        - If an order was created, confirm with the order ID and key details.
+        - If fetching order status, summarize the order state.
+        - If cancelling, confirm the cancellation.
+        - If there was an error, explain it helpfully.
+        
+        Operation Result:
+        {data}
+        """
+        
+        messages = [
+            SystemMessage(content=system_prompt.format(data=json.dumps(context, indent=2))),
+            HumanMessage(content=user_msg),
+        ]
+        
+        response = await self.llm.ainvoke(messages)
+        return {"messages": [response]}

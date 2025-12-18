@@ -2,11 +2,13 @@
  * Orchestrator Streaming Store
  * 
  * Zustand store for managing streaming state from the orchestrator API.
+ * Integrates with chat history store for multi-tenant context.
  */
 
 import { create } from "zustand"
 import type { OrchestratorStreamStep, StreamingState } from "@/types/streaming"
 import { API_ENDPOINTS } from "@/utils/const"
+import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
 interface OrchestratorStreamingActions {
   addEvent: (event: OrchestratorStreamStep) => void
@@ -64,6 +66,25 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
     startStreaming: async (prompt, context) => {
       const { reset, addEvent, setFinalResponse, setError } = get()
 
+      // Get multi-tenant context from chat history store
+      const chatStore = useChatHistoryStore.getState()
+      const tenantId = chatStore.tenantId
+      const userId = chatStore.userId
+
+      if (!tenantId || !userId) {
+        setError("User session not initialized. Please log in.")
+        return
+      }
+      let threadId = chatStore.activeConversationId
+
+      // Auto-create conversation if needed
+      if (!threadId) {
+        threadId = await chatStore.createNewConversation()
+      }
+
+      // Add user message to local history
+      await chatStore.addUserMessage(prompt)
+
       reset()
       set({ status: "connecting" })
 
@@ -75,6 +96,9 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           },
           body: JSON.stringify({
             prompt,
+            tenant_id: tenantId,
+            user_id: userId,
+            thread_id: threadId,
             ...context,
           }),
         })
@@ -83,6 +107,34 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
+        // Check content-type to determine response format
+        const contentType = response.headers.get("content-type") || ""
+        
+        // NDJSON streaming (application/x-ndjson or text/event-stream)
+        const isStreaming = contentType.includes("ndjson") || 
+                           contentType.includes("event-stream") ||
+                           contentType.includes("octet-stream")
+        
+        // Handle sync JSON response (only if explicitly application/json)
+        if (contentType.includes("application/json") && !isStreaming) {
+          const data = await response.json()
+          if (data.response) {
+            // Add a single event showing the supervisor response
+            addEvent({
+              order_id: "",
+              sender: "Supervisor",
+              receiver: "",
+              message: "Processing your request...",
+              timestamp: new Date().toISOString(),
+              state: "PROCESSING",
+            })
+            
+            setFinalResponse(data.response)
+            return
+          }
+        }
+
+        // Handle streaming response (NDJSON)
         set({ status: "streaming" })
 
         const reader = response.body?.getReader()
