@@ -35,14 +35,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         deleteConversation
     } = useChatHistoryStore()
 
-    // Initialize session on mount (use placeholder IDs for now)
-    // In production, these would come from auth context
+    // Initialize session on mount - restores from IndexedDB
     useEffect(() => {
         if (!tenantId || !userId) {
-            // TODO: Get from auth context
-            const defaultTenantId = '507f1f77bcf86cd799439011' // Placeholder
-            const defaultUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' // Placeholder
-            initSession(defaultTenantId, defaultUserId)
+            initSession()
         }
     }, [tenantId, userId, initSession])
 

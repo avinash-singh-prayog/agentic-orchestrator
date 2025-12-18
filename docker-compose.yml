@@ -165,7 +165,7 @@ services:
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Order V2 API (use host.docker.internal to reach host machine from container)
-      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-http://host.docker.internal:3030}
+      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
     command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -190,20 +190,19 @@ services:
   # FRONTEND UI
   # ===========================================
 
-  # frontend:
-  #   build:
-  #     context: ./src/frontend
-  #     dockerfile: Dockerfile
-  #   container_name: orchestrator-frontend
-  #   ports:
-  #     - "${FRONTEND_PORT:-3000}:80"
-  #   depends_on:
-  #     supervisor:
-  #       condition: service_healthy
-  #   environment:
-  #     - VITE_ORCHESTRATOR_API_URL=http://localhost:8000
-  #   networks:
-  #     - orchestrator-net
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: orchestrator-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - supervisor-agent
+    environment:
+      - VITE_ORCHESTRATOR_API_URL=http://supervisor-agent:9004
+    networks:
+      - orchestrator-net
 
 networks:
   orchestrator-net:
