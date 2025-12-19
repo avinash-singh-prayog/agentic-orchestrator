@@ -51,7 +51,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan for startup/shutdown."""
     # Startup
     set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=True))
-    await ensure_users_table()
+    try:
+        import asyncio
+        # Run ensure_users_table with a timeout to prevent hanging if DB is unreachable
+        await asyncio.wait_for(ensure_users_table(), timeout=5.0)
+    except Exception as e:
+        print(f"WARNING: Database initialization failed (Health check will still work): {e}")
     yield
     # Shutdown (cleanup if needed)
 
@@ -194,7 +199,7 @@ def build_config(tenant_id: str, user_id: str, thread_id: str) -> dict:
     }
 
 
-@router.post("/supervisor/v1/agent/run", response_model=ChatResponse)
+@router.post("/v1/agent/run", response_model=ChatResponse)
 async def run_agent(request: ChatRequest):
     """Run the supervisor agent workflow (sync mode) with context persistence."""
     session_start()
@@ -338,7 +343,7 @@ async def stream_events(
         }) + "\n"
 
 
-@router.post("/supervisor/v1/agent/stream")
+@router.post("/v1/agent/stream")
 async def stream_agent(request: ChatRequest):
     """Stream the supervisor agent workflow with SSE and context persistence."""
     session_start()
@@ -360,7 +365,7 @@ async def stream_agent(request: ChatRequest):
 # Conversation History Endpoints
 # ============================================================================
 
-@router.get("/supervisor/v1/conversations", response_model=List[ConversationInfo])
+@router.get("/v1/conversations", response_model=List[ConversationInfo])
 async def list_conversations(tenant_id: str, user_id: str):
     """
     List all conversations for a tenant/user.
@@ -426,7 +431,7 @@ async def list_conversations(tenant_id: str, user_id: str):
     return conversations
 
 
-@router.get("/supervisor/v1/conversations/{thread_id}", response_model=List[MessageInfo])
+@router.get("/v1/conversations/{thread_id}", response_model=List[MessageInfo])
 async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
     """Get all messages in a conversation, including tool activity."""
     from langchain_core.messages import ToolMessage
@@ -512,7 +517,7 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
         return processed_messages
 
 
-@router.delete("/supervisor/v1/conversations/{thread_id}")
+@router.delete("/v1/conversations/{thread_id}")
 async def delete_conversation(thread_id: str, tenant_id: str, user_id: str):
     """Delete a conversation and all its checkpoints."""
     from agent.memory import DATABASE_URL

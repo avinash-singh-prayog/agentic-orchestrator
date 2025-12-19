@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChatHistoryStore } from '@/stores/chatHistoryStore';
 import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL || 'http://localhost:9004';
 
 type AuthView = 'login' | 'register' | 'forgot-password' | 'reset-password';
 

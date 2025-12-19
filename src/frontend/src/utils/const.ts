@@ -54,13 +54,13 @@ export const AGENT_STATUS = {
 // API endpoints - match Supervisor Agent API
 export const API_ENDPOINTS = {
   // Supervisor Agent endpoints
-  PROMPT: "/supervisor-agent/supervisor/v1/agent/run",           // Sync mode
-  PROMPT_STREAM: "/supervisor-agent/supervisor/v1/agent/stream", // Streaming mode (SSE)
+  PROMPT: "/supervisor-agent/v1/agent/run",           // Sync mode
+  PROMPT_STREAM: "/supervisor-agent/v1/agent/stream", // Streaming mode (SSE)
   HEALTH: "/supervisor-agent/health",
   
   // Conversation history endpoints
-  CONVERSATIONS: "/supervisor-agent/supervisor/v1/conversations",
-  CONVERSATION: (threadId: string) => `/supervisor-agent/supervisor/v1/conversations/${threadId}`,
+  CONVERSATIONS: "/supervisor-agent/v1/conversations",
+  CONVERSATION: (threadId: string) => `/supervisor-agent/v1/conversations/${threadId}`,
   
   // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",

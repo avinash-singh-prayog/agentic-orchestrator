@@ -107,7 +107,7 @@ services:
       dockerfile: Dockerfile
     container_name: supervisor-agent
     ports:
-      - "9004:8000"
+      - "9004:9004"
     environment:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
