@@ -15,7 +15,7 @@ RUN uv venv && uv pip install -r pyproject.toml
 COPY . .
 
 # Expose port
-EXPOSE 8000
+EXPOSE 9004
 
 # Run the application
-CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9004"]
