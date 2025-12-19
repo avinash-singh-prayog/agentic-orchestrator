@@ -42,16 +42,16 @@ const AuthScreen: React.FC = () => {
             let body = {};
 
             if (view === 'login') {
-                endpoint = '/auth/login';
+                endpoint = '/supervisor-agent/auth/login';
                 body = { email, password };
             } else if (view === 'register') {
-                endpoint = '/auth/register';
+                endpoint = '/supervisor-agent/auth/register';
                 body = { email, password, name };
             } else if (view === 'forgot-password') {
-                endpoint = '/auth/forgot-password';
+                endpoint = '/supervisor-agent/auth/forgot-password';
                 body = { email };
             } else if (view === 'reset-password') {
-                endpoint = '/auth/reset-password';
+                endpoint = '/supervisor-agent/auth/reset-password';
                 body = { token, new_password: password };
             }
 

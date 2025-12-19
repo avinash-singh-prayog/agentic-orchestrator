@@ -17,7 +17,7 @@ The Supervisor Agent is the orchestration layer that receives user requests and 
 
 Execute the supervisor agent with a natural language prompt. The agent will analyze the request and delegate to appropriate worker agents.
 
-**Endpoint:** `POST /supervisor/v1/agent/run`
+**Endpoint:** `POST /supervisor-agent/supervisor/v1/agent/run`
 
 **Request Body:**
 ```json
@@ -35,7 +35,7 @@ Execute the supervisor agent with a natural language prompt. The agent will anal
 
 **Example - Check Shipping Rates:**
 ```bash
-curl -X POST http://localhost:9004/supervisor/v1/agent/run \
+curl -X POST http://localhost:9004/supervisor-agent/supervisor/v1/agent/run \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Check shipping rates for 5kg from 193501 India to 10001 US"
@@ -51,7 +51,7 @@ curl -X POST http://localhost:9004/supervisor/v1/agent/run \
 
 **Example - Check Serviceability:**
 ```bash
-curl -X POST http://localhost:9004/supervisor/v1/agent/run \
+curl -X POST http://localhost:9004/supervisor-agent/supervisor/v1/agent/run \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Can you ship from Mumbai 400001 to Delhi 110001?"
@@ -64,7 +64,7 @@ curl -X POST http://localhost:9004/supervisor/v1/agent/run \
 
 Check if the supervisor agent is running and healthy.
 
-**Endpoint:** `GET /health`
+**Endpoint:** `GET /supervisor-agent/health`
 
 **Response:**
 ```json
@@ -75,7 +75,7 @@ Check if the supervisor agent is running and healthy.
 
 **Example:**
 ```bash
-curl http://localhost:9004/health
+curl http://localhost:9004/supervisor-agent/health
 ```
 
 ---

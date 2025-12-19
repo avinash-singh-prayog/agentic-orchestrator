@@ -10,7 +10,7 @@ import uuid
 from typing import AsyncGenerator, Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, APIRouter
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Supervisor Agent", lifespan=lifespan)
+router = APIRouter(prefix="/supervisor-agent")
 
 # Add CORS middleware for frontend
 app.add_middleware(
@@ -76,7 +77,7 @@ graph = build_graph()
 # Auth Endpoints
 # ============================================================================
 
-@app.post("/auth/register", response_model=TokenResponse)
+@router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserRegisterRequest):
     """Register a new user."""
     try:
@@ -97,7 +98,7 @@ async def register(user_data: UserRegisterRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Registration failed")
 
-@app.post("/auth/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse)
 async def login(login_data: UserLoginRequest):
     """Login user."""
     user = await authenticate_user(login_data)
@@ -119,7 +120,7 @@ async def login(login_data: UserLoginRequest):
     )
 
 
-@app.post("/auth/forgot-password")
+@router.post("/auth/forgot-password")
 async def forgot_password(request: UserForgotPasswordRequest):
     """Request password reset token."""
     token = await create_password_reset_token(request.email)
@@ -129,7 +130,7 @@ async def forgot_password(request: UserForgotPasswordRequest):
     return {"message": "If email exists, a reset link has been sent."}
 
 
-@app.post("/auth/reset-password")
+@router.post("/auth/reset-password")
 async def reset_password_endpoint(request: UserResetPasswordRequest):
     """Reset password with token."""
     success = await reset_password(request.token, request.new_password)
@@ -193,7 +194,7 @@ def build_config(tenant_id: str, user_id: str, thread_id: str) -> dict:
     }
 
 
-@app.post("/supervisor/v1/agent/run", response_model=ChatResponse)
+@router.post("/supervisor/v1/agent/run", response_model=ChatResponse)
 async def run_agent(request: ChatRequest):
     """Run the supervisor agent workflow (sync mode) with context persistence."""
     session_start()
@@ -337,7 +338,7 @@ async def stream_events(
         }) + "\n"
 
 
-@app.post("/supervisor/v1/agent/stream")
+@router.post("/supervisor/v1/agent/stream")
 async def stream_agent(request: ChatRequest):
     """Stream the supervisor agent workflow with SSE and context persistence."""
     session_start()
@@ -359,7 +360,7 @@ async def stream_agent(request: ChatRequest):
 # Conversation History Endpoints
 # ============================================================================
 
-@app.get("/supervisor/v1/conversations", response_model=List[ConversationInfo])
+@router.get("/supervisor/v1/conversations", response_model=List[ConversationInfo])
 async def list_conversations(tenant_id: str, user_id: str):
     """
     List all conversations for a tenant/user.
@@ -425,7 +426,7 @@ async def list_conversations(tenant_id: str, user_id: str):
     return conversations
 
 
-@app.get("/supervisor/v1/conversations/{thread_id}", response_model=List[MessageInfo])
+@router.get("/supervisor/v1/conversations/{thread_id}", response_model=List[MessageInfo])
 async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
     """Get all messages in a conversation, including tool activity."""
     from langchain_core.messages import ToolMessage
@@ -511,7 +512,7 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
         return processed_messages
 
 
-@app.delete("/supervisor/v1/conversations/{thread_id}")
+@router.delete("/supervisor/v1/conversations/{thread_id}")
 async def delete_conversation(thread_id: str, tenant_id: str, user_id: str):
     """Delete a conversation and all its checkpoints."""
     from agent.memory import DATABASE_URL
@@ -564,7 +565,10 @@ async def delete_conversation(thread_id: str, tenant_id: str, user_id: str):
 # Health Check
 # ============================================================================
 
-@app.get("/health")
+@router.get("/health")
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+app.include_router(router)
