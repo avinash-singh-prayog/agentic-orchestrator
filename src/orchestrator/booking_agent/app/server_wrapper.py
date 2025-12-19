@@ -30,7 +30,7 @@ from .container import Container
 logger = logging.getLogger("booking_agent.server")
 
 # Initialize factory with tracing
-factory = AgntcyFactory("orchestrator.booking_agent", enable_tracing=True)
+factory = AgntcyFactory("orchestrator.booking_agent", enable_tracing=False)
 
 
 class BookingAgentExecutor(AgentExecutor):

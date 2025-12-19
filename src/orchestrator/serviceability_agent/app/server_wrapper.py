@@ -31,7 +31,7 @@ from .container import Container
 logger = logging.getLogger("serviceability_agent.server")
 
 # Initialize factory with tracing
-factory = AgntcyFactory("orchestrator.serviceability_agent", enable_tracing=True)
+factory = AgntcyFactory("orchestrator.serviceability_agent", enable_tracing=False)
 
 
 class ServiceabilityAgentExecutor(AgentExecutor):

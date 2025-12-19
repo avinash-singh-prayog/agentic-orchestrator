@@ -50,7 +50,7 @@ from app.auth import (
 async def lifespan(app: FastAPI):
     """Application lifespan for startup/shutdown."""
     # Startup
-    set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=True))
+    set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=False))
     try:
         import asyncio
         # Run ensure_users_table with a timeout to prevent hanging if DB is unreachable
