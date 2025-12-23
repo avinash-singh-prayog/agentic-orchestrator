@@ -129,8 +129,8 @@ services:
 
   serviceability-agent:
     build:
-      context: .
-      dockerfile: src/orchestrator/serviceability_agent/Dockerfile
+      context: src/orchestrator/serviceability_agent
+      dockerfile: Dockerfile
     container_name: serviceability-agent
     ports:
       - "${SERVICEABILITY_AGENT_PORT:-9003}:9003"
@@ -143,7 +143,7 @@ services:
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # External serviceability API (running on host machine)
       - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
-    command: [ "/app/.venv/bin/python", "-m", "serviceability_agent.app.main", "dual" ]
+    command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
       # depends_on:
@@ -154,8 +154,8 @@ services:
 
   booking-agent:
     build:
-      context: .
-      dockerfile: src/orchestrator/booking_agent/Dockerfile
+      context: src/orchestrator/booking_agent
+      dockerfile: Dockerfile
     container_name: booking-agent
     ports:
       - "${BOOKING_AGENT_PORT:-9005}:9005"
@@ -168,7 +168,7 @@ services:
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Order V2 API (use host.docker.internal to reach host machine from container)
       - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
-    command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
+    command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
       # depends_on:

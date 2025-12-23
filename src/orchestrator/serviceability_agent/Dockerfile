@@ -1,6 +1,3 @@
-# Build context should be the repo root (.)
-# Usage: docker build -f src/orchestrator/serviceability_agent/Dockerfile .
-
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -8,14 +5,17 @@ WORKDIR /app
 # Install uv for fast package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy the agent directory as a Python package
-COPY src/orchestrator/serviceability_agent /app/serviceability_agent
+# Copy dependency files first for better cache utilization
+COPY pyproject.toml .
 
-# Create virtual environment and install project and dependencies
-RUN uv venv && uv pip install /app/serviceability_agent
+# Copy application code (needed for package install)
+COPY . .
+
+# Create virtual environment and install project with dependencies
+RUN uv venv && uv pip install .
 
 # Expose port
 EXPOSE 9003
 
-# Default command (can be overridden in docker-compose)
-CMD ["/app/.venv/bin/python", "-m", "serviceability_agent.app.main"]
+# Run the application
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9003"]
