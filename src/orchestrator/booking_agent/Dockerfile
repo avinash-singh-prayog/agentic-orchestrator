@@ -5,14 +5,14 @@ WORKDIR /app
 # Install uv for fast package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy dependency files
+# Copy dependency files first for better cache utilization
 COPY pyproject.toml .
 
-# Create virtual environment and install dependencies
-RUN uv venv && uv pip install -r pyproject.toml
-
-# Copy application code
+# Copy application code (needed for package install)
 COPY . .
+
+# Create virtual environment and install project with dependencies
+RUN uv venv && uv pip install .
 
 # Expose port
 EXPOSE 9005
