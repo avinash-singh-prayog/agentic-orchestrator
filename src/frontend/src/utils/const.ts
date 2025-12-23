@@ -58,6 +58,14 @@ export const API_ENDPOINTS = {
   PROMPT_STREAM: "/supervisor-agent/v1/agent/stream", // Streaming mode (SSE)
   HEALTH: "/supervisor-agent/health",
   
+  // Auth endpoints
+  AUTH: {
+    LOGIN: "/supervisor-agent/auth/login",
+    REGISTER: "/supervisor-agent/auth/register",
+    FORGOT_PASSWORD: "/supervisor-agent/auth/forgot-password",
+    RESET_PASSWORD: "/supervisor-agent/auth/reset-password",
+  },
+  
   // Conversation history endpoints
   CONVERSATIONS: "/supervisor-agent/v1/conversations",
   CONVERSATION: (threadId: string) => `/supervisor-agent/v1/conversations/${threadId}`,

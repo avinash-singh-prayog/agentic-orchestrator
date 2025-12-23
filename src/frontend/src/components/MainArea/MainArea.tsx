@@ -190,7 +190,10 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                     size={1}
                     color="var(--text-tertiary)"
                 />
-                <Controls showInteractive={false} />
+                <Controls
+                    showInteractive={false}
+                    className="custom-controls"
+                />
             </ReactFlow>
 
             {/* Processing indicator with active agent */}
