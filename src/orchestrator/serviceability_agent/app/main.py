@@ -45,7 +45,7 @@ app.add_middleware(
 
 # Include routers
 # Include routers
-app.include_router(health_router, prefix="/serviceability-agent/v1")
+app.include_router(health_router, prefix="/serviceability-agent")
 app.include_router(agent_router, prefix="/serviceability-agent/v1")
 app.include_router(serviceability_router, prefix="/serviceability-agent/v1")
 
