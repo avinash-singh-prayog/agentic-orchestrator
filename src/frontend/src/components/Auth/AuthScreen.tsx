@@ -4,7 +4,10 @@ import { API_ENDPOINTS } from '@/utils/const'
 import axios from 'axios'
 import { Loader2, Mail, Lock, User, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL
+if (!API_URL) {
+    throw new Error('VITE_ORCHESTRATOR_API_URL is not defined')
+}
 
 type AuthView = 'login' | 'register' | 'forgot-password' | 'reset-password'
 
