@@ -1,0 +1,95 @@
+{
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES"
+    ],
+    "containerDefinitions": [
+        {
+            "cpu": 256,
+            "environment": [],
+            "environmentFiles": [],
+            "essential": true,
+            "image": "946926531781.dkr.ecr.ap-south-1.amazonaws.com/agentic-orchestrator/slim-transporter:latest",
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ecs-slim-transporter-service-td",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "ap-south-1",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "memory": 512,
+            "memoryReservation": 512,
+            "mountPoints": [],
+            "name": "prayog-slim-transporter-container",
+            "portMappings": [
+                {
+                    "appProtocol": "http",
+                    "containerPort": 46357,
+                    "hostPort": 46357,
+                    "name": "slim-transporter-container-46357-tcp",
+                    "protocol": "tcp"
+                },
+                {
+                    "appProtocol": "http",
+                    "containerPort": 46358,
+                    "hostPort": 46358,
+                    "name": "slim-transporter-container-46358-tcp",
+                    "protocol": "tcp"
+                }
+            ],
+            "systemControls": [],
+            "ulimits": [],
+            "volumesFrom": []
+        }
+    ],
+    "enableFaultInjection": false,
+    "executionRoleArn": "arn:aws:iam::946926531781:role/ecsTaskExecutionRole",
+    "family": "ecs-slim-transporter-service-td",
+    "networkMode": "awsvpc",
+    "placementConstraints": [],
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "requiresCompatibilities": [
+        "MANAGED_INSTANCES"
+    ],
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "taskRoleArn": "arn:aws:iam::946926531781:role/ecsTaskExecutionRole",
+    "volumes": [],
+    "tags": []
+}

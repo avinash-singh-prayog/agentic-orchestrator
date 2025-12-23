@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+    environment {
+        // --- CONFIGURATION ---
+        AWS_ACCOUNT_ID = '946926531781'
+        AWS_REGION     = 'ap-south-1'
+        
+        // ECR repository name for SLIM
+        REPO_NAME      = 'agentic-orchestrator/slim-transporter'
+        
+        // Jenkins credentials ID for AWS
+        AWS_CREDS_ID   = 'aws-creds'
+        
+        // ECS Configuration
+        CLUSTER_NAME   = 'prayog-ecs'
+        SERVICE_NAME   = 'slim-transporter-service'
+        
+        IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build & Push to ECR') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
+                        sh """
+                            export AWS_ACCESS_KEY_ID=${AWS_KEY}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+                            
+                            # Login to ECR
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                            
+                            # Build image from config/docker/slim directory
+                            cd config/docker/slim
+                            docker build -t ${IMAGE_URI}:${BUILD_NUMBER} -t ${IMAGE_URI}:latest .
+                            
+                            # Push both tags
+                            docker push ${IMAGE_URI}:${BUILD_NUMBER}
+                            docker push ${IMAGE_URI}:latest
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to ECS') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
+                        sh """
+                            export AWS_ACCESS_KEY_ID=${AWS_KEY}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                            echo "Triggering ECS Deployment for ${SERVICE_NAME}..."
+                            
+                            # Force ECS to pull the new 'latest' image
+                            aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
+                        """
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "SLIM Transporter deployed successfully!"
+        }
+        failure {
+            echo "Deployment failed. Check logs for details."
+        }
+        always {
+            // Cleanup local docker images to save Jenkins disk space
+            sh "docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true"
+        }
+    }
+}

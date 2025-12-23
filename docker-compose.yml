@@ -114,11 +114,13 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+      # Disable OpenTelemetry completely to avoid connection errors
+      - OTEL_SDK_DISABLED=true
+      # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - DATABASE_URL=${DATABASE_URL:-postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod}
     depends_on:
       - slim
-      - otel-collector
+      # - otel-collector
     networks:
       - orchestrator-net
   # ===========================================
@@ -136,7 +138,7 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+      # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # External serviceability API (running on host machine)
@@ -146,7 +148,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - slim
-      - otel-collector
+      # - otel-collector
     networks:
       - orchestrator-net
 
@@ -161,7 +163,7 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
+      # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=http://orchestrator-slim:46357
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Order V2 API (use host.docker.internal to reach host machine from container)
@@ -171,7 +173,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - slim
-      - otel-collector
+      # - otel-collector
     networks:
       - orchestrator-net
 

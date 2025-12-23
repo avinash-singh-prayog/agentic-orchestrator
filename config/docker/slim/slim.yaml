@@ -1,0 +1,24 @@
+# SLIM Transporter Configuration
+# Production configuration for AWS ECS deployment
+
+server:
+  host: 0.0.0.0
+  port: 46357
+
+transport:
+  type: slim
+  
+security:
+  tls:
+    enabled: false  # Enable if using TLS termination at container level
+    # cert_file: /etc/slim/tls/cert.pem
+    # key_file: /etc/slim/tls/key.pem
+
+logging:
+  level: info
+  format: json
+
+health:
+  enabled: true
+  port: 46358
+  path: /health
