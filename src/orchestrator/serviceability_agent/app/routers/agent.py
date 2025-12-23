@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...app.container import Container
+from app.container import Container
 
 logger = logging.getLogger("serviceability_agent.agent")
 

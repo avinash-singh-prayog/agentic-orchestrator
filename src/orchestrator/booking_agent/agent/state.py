@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from langgraph.graph import MessagesState
 
-from ..domain.models import (
+from domain.models import (
     OrderRequest,
     OrderResponse,
     ExtractedOrderIntent,

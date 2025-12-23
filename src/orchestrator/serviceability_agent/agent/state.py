@@ -8,7 +8,7 @@ from typing import Annotated, List, Optional
 
 from langgraph.graph import MessagesState
 
-from ..domain.models import (
+from domain.models import (
     LabelResponse,
     RateQuote,
     ShipmentRequest,

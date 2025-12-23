@@ -9,9 +9,9 @@ from typing import Literal
 
 from langgraph.graph import END, StateGraph
 
-from .state import ServiceabilityAgentState
-from .nodes import ServiceabilityNodes
-from ..config.settings import settings
+from agent.state import ServiceabilityAgentState
+from agent.nodes import ServiceabilityNodes
+from config.settings import settings
 
 logger = logging.getLogger("serviceability_agent.graph")
 

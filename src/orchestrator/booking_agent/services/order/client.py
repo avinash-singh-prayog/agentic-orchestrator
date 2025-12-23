@@ -9,14 +9,14 @@ from typing import Optional, Dict, Any
 
 import httpx
 
-from ...config.settings import settings
-from ...domain.models import (
+from config.settings import settings
+from domain.models import (
     OrderRequest,
     OrderResponse,
     CancelRequest,
 )
-from ...domain.interfaces import IOrderService
-from ...domain.exceptions import OrderAPIError, OrderNotFoundError
+from domain.interfaces import IOrderService
+from domain.exceptions import OrderAPIError, OrderNotFoundError
 
 
 logger = logging.getLogger("booking_agent.order_client")

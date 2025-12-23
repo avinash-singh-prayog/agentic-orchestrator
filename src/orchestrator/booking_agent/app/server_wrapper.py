@@ -24,8 +24,8 @@ from agntcy_app_sdk.semantic.a2a.protocol import A2AProtocol
 from agntcy_app_sdk.app_sessions import AppContainer
 
 # Internal Imports
-from ..domain.card import BookingAgentCard
-from .container import Container
+from domain.card import BookingAgentCard
+from app.container import Container
 
 logger = logging.getLogger("booking_agent.server")
 

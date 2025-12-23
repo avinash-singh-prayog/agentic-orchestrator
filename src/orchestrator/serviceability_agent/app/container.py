@@ -4,9 +4,9 @@ Dependency Injection Container.
 Wires together all dependencies for the carrier service.
 """
 
-from ..agent.graph import ServiceabilityGraph
-from ..services.serviceability.client import ServiceabilityClient
-from ..agent import tools as agent_tools
+from agent.graph import ServiceabilityGraph
+from services.serviceability.client import ServiceabilityClient
+from agent import tools as agent_tools
 
 
 class Container:

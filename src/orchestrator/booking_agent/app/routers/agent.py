@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ..container import Container
+from app.container import Container
 
 router = APIRouter(tags=["Agent"])
 

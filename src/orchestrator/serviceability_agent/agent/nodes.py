@@ -13,10 +13,10 @@ from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
 
-from ..config.settings import settings
-from .state import ServiceabilityAgentState
-from .tools import check_serviceability_tool
-from ..domain.models import ShipmentRequest, RateQuote, LabelResponse, PartnerCode
+from config.settings import settings
+from agent.state import ServiceabilityAgentState
+from agent.tools import check_serviceability_tool
+from domain.models import ShipmentRequest, RateQuote, LabelResponse, PartnerCode
 
 logger = logging.getLogger("serviceability_agent.nodes")
 

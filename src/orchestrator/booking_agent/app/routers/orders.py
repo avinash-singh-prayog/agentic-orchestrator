@@ -10,8 +10,8 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Header
 from pydantic import BaseModel, Field
 
-from ...services.order.client import OrderClient
-from ...domain.models import (
+from services.order.client import OrderClient
+from domain.models import (
     OrderRequest,
     CancelRequest,
     Address,
@@ -25,7 +25,7 @@ from ...domain.models import (
     Partner,
     OrderMetadata,
 )
-from ...domain.exceptions import OrderAPIError, OrderNotFoundError
+from domain.exceptions import OrderAPIError, OrderNotFoundError
 
 logger = logging.getLogger("booking_agent.orders")
 

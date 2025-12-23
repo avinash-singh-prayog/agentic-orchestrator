@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ...app.container import Container
+from app.container import Container
 
 logger = logging.getLogger("serviceability_agent.serviceability")
 

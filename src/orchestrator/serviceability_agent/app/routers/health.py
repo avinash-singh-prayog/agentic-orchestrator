@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ...domain.models import PartnerCode
+from domain.models import PartnerCode
 
 router = APIRouter(tags=["Health"])
 

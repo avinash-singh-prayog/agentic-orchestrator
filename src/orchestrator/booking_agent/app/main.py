@@ -11,8 +11,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import health_router, agent_router, orders_router
-from ..config.settings import settings
+from app.routers import health_router, agent_router, orders_router
+from config.settings import settings
 
 # Configure logging
 logging.basicConfig(

@@ -8,8 +8,8 @@ from typing import Optional
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from .client import OrderClient
-from ...domain.models import (
+from services.order.client import OrderClient
+from domain.models import (
     OrderRequest,
     CancelRequest,
     Address,

@@ -12,10 +12,10 @@ from typing import Any, Dict
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from ..config.settings import settings
-from .state import BookingAgentState
-from .tools import BOOKING_TOOLS
-from ..domain.models import ExtractedOrderIntent
+from config.settings import settings
+from agent.state import BookingAgentState
+from agent.tools import BOOKING_TOOLS
+from domain.models import ExtractedOrderIntent
 
 logger = logging.getLogger("booking_agent.nodes")
 

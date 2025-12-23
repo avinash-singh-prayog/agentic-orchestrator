@@ -5,7 +5,7 @@ Manages shared resources and graph instance.
 """
 
 from typing import Optional
-from ..agent.graph import BookingGraph
+from agent.graph import BookingGraph
 
 
 class Container:

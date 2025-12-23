@@ -9,7 +9,7 @@ import httpx
 import logging
 from typing import Optional, Dict, Any, List
 
-from ...domain.models import ServiceabilityResponse, ServiceabilityRequest, Location, Package, Weight, Dimensions
+from domain.models import ServiceabilityResponse, ServiceabilityRequest, Location, Package, Weight, Dimensions
 
 logger = logging.getLogger("serviceability_agent.serviceability.client")
 

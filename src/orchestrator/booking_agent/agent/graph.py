@@ -9,9 +9,9 @@ from typing import Literal
 
 from langgraph.graph import END, StateGraph
 
-from .state import BookingAgentState
-from .nodes import BookingNodes
-from ..config.settings import settings
+from agent.state import BookingAgentState
+from agent.nodes import BookingNodes
+from config.settings import settings
 
 logger = logging.getLogger("booking_agent.graph")
 
