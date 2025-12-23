@@ -40,7 +40,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health_router, prefix="/booking-agent/v1")
+app.include_router(health_router, prefix="/booking-agent")
 app.include_router(agent_router, prefix="/booking-agent/v1")
 app.include_router(orders_router, prefix="/booking-agent/v1")
 
