@@ -17,17 +17,21 @@ interface OrchestratorStreamingActions {
   setStreaming: (isStreaming: boolean) => void
   setComplete: (isComplete: boolean) => void
   startStreaming: (prompt: string, context?: Record<string, unknown>) => Promise<void>
+  stopStreaming: () => void
   reset: () => void
 }
 
-type OrchestratorStreamingStore = StreamingState & OrchestratorStreamingActions
+type OrchestratorStreamingStore = StreamingState & OrchestratorStreamingActions & {
+    abortController: AbortController | null
+}
 
-const initialState: StreamingState = {
+const initialState: StreamingState & { abortController: AbortController | null } = {
   status: "idle",
   events: [],
   finalResponse: null,
   error: null,
   currentOrderId: null,
+  abortController: null,
 }
 
 const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL || "http://localhost:8000"
@@ -63,13 +67,29 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
       set(initialState)
     },
 
+    stopStreaming: () => {
+      const { abortController } = get()
+      if (abortController) {
+        abortController.abort()
+      }
+      set({ status: "idle", abortController: null })
+    },
+
     startStreaming: async (prompt, context) => {
-      const { reset, addEvent, setFinalResponse, setError } = get()
+      const { reset, addEvent, setFinalResponse, setError, stopStreaming } = get()
+      
+      // Stop any existing stream
+      stopStreaming()
+
+      // Create new abort controller
+      const abortController = new AbortController()
+      set({ abortController })
 
       // Get multi-tenant context from chat history store
       const chatStore = useChatHistoryStore.getState()
       const tenantId = chatStore.tenantId
       const userId = chatStore.userId
+      const signal = abortController.signal
 
       if (!tenantId || !userId) {
         setError("User session not initialized. Please log in.")
@@ -86,7 +106,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
       await chatStore.addUserMessage(prompt)
 
       reset()
-      set({ status: "connecting" })
+      set({ status: "connecting", abortController }) // Re-set abortController as reset() might clear it
 
       try {
         const response = await fetch(`${API_URL}${API_ENDPOINTS.PROMPT_STREAM}`, {
@@ -101,6 +121,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
             thread_id: threadId,
             ...context,
           }),
+          signal,
         })
 
         if (!response.ok) {
@@ -243,6 +264,7 @@ export const useStreamingActions = () => {
   const store = useOrchestratorStreamingStore
   return {
     startStreaming: store.getState().startStreaming,
+    stopStreaming: store.getState().stopStreaming,
     reset: store.getState().reset,
   }
 }

@@ -58,11 +58,18 @@ async def lifespan(app: FastAPI):
     set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=False))
     try:
         import asyncio
-        # Run ensure_users_table with a timeout to prevent hanging if DB is unreachable
-        await asyncio.wait_for(ensure_users_table(), timeout=5.0)
+        from agent.memory import checkpointer_lifespan
+        
+        # Initialize checkpointer context
+        async with checkpointer_lifespan():
+            # Run other init tasks
+            await asyncio.wait_for(ensure_users_table(), timeout=5.0)
+            yield
     except Exception as e:
-        print(f"WARNING: Database initialization failed (Health check will still work): {e}")
-    yield
+        print(f"CRITICAL: Application startup failed: {e}")
+        # Yielding here allows the app to start even if init fails (for health checks),
+        # but checkpointer will be None, causing fallback behavior.
+        yield
     # Shutdown (cleanup if needed)
 
 
@@ -347,102 +354,144 @@ async def stream_events(
     
     last_content = ""
     
-    async with get_checkpointer() as checkpointer:
-        # Checkpointer is attached here
-        graph_with_memory = build_graph(checkpointer=checkpointer)
-        
-        # Config passed here. 
-        # CAUTION: 'version="v2"' required for astream_events to yield proper events? 
-        # But checking if metadata is lost.
-        async for event in graph_with_memory.astream_events(initial_state, config, version="v2"):
-            event_type = event.get("event", "")
+    import asyncio
+    from langchain_core.messages import ToolMessage
+    
+    try:
+        async with get_checkpointer() as checkpointer:
+            # Checkpointer is attached here
+            graph_with_memory = build_graph(checkpointer=checkpointer)
             
-            # Track node transitions
-            if event_type == "on_chain_start":
-                node_name = event.get("name", "")
-                if node_name == "supervisor":
+            # --- State Repair Start ---
+            # Check if likely hanging tool call exists
+            current_state = await graph_with_memory.aget_state(config)
+            if current_state.values:
+                messages = current_state.values.get("messages", [])
+                if messages:
+                    last_msg = messages[-1]
+                    if isinstance(last_msg, AIMessage) and last_msg.tool_calls:
+                        # Inspect logic: If we are here, it means we are starting a NEW run.
+                        # If the last message in DB is AI with tools, it means the tool execution 
+                        # was interrupted (cancelled) and never wrote back the ToolMessage.
+                        # We MUST inject a ToolMessage to satisfy the LLM's conversation validity constraints.
+                        
+                        repair_messages = []
+                        for tool_call in last_msg.tool_calls:
+                            repair_messages.append(ToolMessage(
+                                tool_call_id=tool_call["id"],
+                                content="Action cancelled by user.",
+                                name=tool_call["name"]
+                            ))
+                        
+                        if repair_messages:
+                            await graph_with_memory.aupdate_state(config, {"messages": repair_messages})
+                            print(f"INFO: Repaired dangling tool calls for thread {thread_id}")
+            # --- State Repair End ---
+            
+            # Config passed here. 
+            async for event in graph_with_memory.astream_events(initial_state, config, version="v2"):
+                event_type = event.get("event", "")
+                
+                # Track node transitions
+                if event_type == "on_chain_start":
+                    node_name = event.get("name", "")
+                    if node_name == "supervisor":
+                        yield json.dumps({
+                            "content": {
+                                "sender": "Supervisor",
+                                "message": "Executing supervisor node...",
+                                "node": node_name
+                            }
+                        }) + "\n"
+                
+                # Capture tool calls
+                elif event_type == "on_tool_start":
+                    tool_name = event.get("name", "unknown")
+                    
+                    # 1. Handoff from Supervisor
                     yield json.dumps({
                         "content": {
                             "sender": "Supervisor",
-                            "message": "Executing supervisor node...",
-                            "node": node_name
+                            "message": f"Delegating to {tool_name}...",
+                            "node": "tools"
                         }
                     }) + "\n"
-            
-            # Capture tool calls
-            elif event_type == "on_tool_start":
-                tool_name = event.get("name", "unknown")
-                
-                # 1. Handoff from Supervisor
-                yield json.dumps({
-                    "content": {
-                        "sender": "Supervisor",
-                        "message": f"Delegating to {tool_name}...",
-                        "node": "tools"
-                    }
-                }) + "\n"
-                
-                # 2. Agent Starting (Keeps graph active on Agent)
-                sender = "Unknown Agent"
-                if "rate" in tool_name.lower() or "service" in tool_name.lower():
-                    sender = "Serviceability Agent"
-                elif "book" in tool_name.lower():
-                    sender = "Booking Agent"
-                elif "slim" in tool_name.lower():
-                    sender = "SLIM Transport"
                     
-                yield json.dumps({
-                    "content": {
-                        "sender": sender,
-                        "message": "Processing request...",
-                        "node": "tools"
-                    }
-                }) + "\n"
-            
-            # Capture tool results
-            elif event_type == "on_tool_end":
-                tool_name = event.get("name", "unknown")
-                tool_output = event.get("data", {}).get("output", "")
-                
-                # Determine sender based on tool name
-                sender = "Unknown Agent"
-                if "rate" in tool_name.lower() or "service" in tool_name.lower():
-                    sender = "Serviceability Agent"
-                elif "book" in tool_name.lower():
-                    sender = "Booking Agent"
-                elif "slim" in tool_name.lower():
-                    sender = "SLIM Transport"
-                
-                if tool_output:
+                    # 2. Agent Starting (Keeps graph active on Agent)
+                    sender = "Unknown Agent"
+                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
+                        sender = "Serviceability Agent"
+                    elif "book" in tool_name.lower():
+                        sender = "Booking Agent"
+                    elif "slim" in tool_name.lower():
+                        sender = "SLIM Transport"
+                        
                     yield json.dumps({
                         "content": {
                             "sender": sender,
-                            "message": str(tool_output)[:200] + "...",
-                            "node": "carrier"
+                            "message": "Processing request...",
+                            "node": "tools"
                         }
                     }) + "\n"
-            
-            # Capture final AI messages
-            elif event_type == "on_chain_end":
-                output = event.get("data", {}).get("output", {})
-                if isinstance(output, dict) and "messages" in output:
-                    messages = output["messages"]
-                    if messages:
-                        last_msg = messages[-1]
-                        if hasattr(last_msg, "content") and last_msg.content:
-                            last_content = last_msg.content
-    
-    # Final response
-    if last_content:
-        yield json.dumps({
-            "content": {
-                "sender": "Supervisor",
-                "message": last_content,
-                "node": "supervisor",
-                "final": True,
-                "thread_id": thread_id
-            }
-        }) + "\n"
+                
+                # Capture tool results
+                elif event_type == "on_tool_end":
+                    tool_name = event.get("name", "unknown")
+                    tool_output = event.get("data", {}).get("output", "")
+                    
+                    # Determine sender based on tool name
+                    sender = "Unknown Agent"
+                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
+                        sender = "Serviceability Agent"
+                    elif "book" in tool_name.lower():
+                        sender = "Booking Agent"
+                    elif "slim" in tool_name.lower():
+                        sender = "SLIM Transport"
+                    
+                    if tool_output:
+                        yield json.dumps({
+                            "content": {
+                                "sender": sender,
+                                "message": str(tool_output)[:200] + "...",
+                                "node": "carrier"
+                            }
+                        }) + "\n"
+                
+                # Capture final AI messages
+                elif event_type == "on_chain_end":
+                    output = event.get("data", {}).get("output", {})
+                    if isinstance(output, dict) and "messages" in output:
+                        messages = output["messages"]
+                        if messages:
+                            last_msg = messages[-1]
+                            if hasattr(last_msg, "content") and last_msg.content:
+                                last_content = last_msg.content
+        
+        # Final response
+        if last_content:
+            yield json.dumps({
+                "content": {
+                    "sender": "Supervisor",
+                    "message": last_content,
+                    "node": "supervisor",
+                    "final": True,
+                    "thread_id": thread_id
+                }
+            }) + "\n"
+
+    except asyncio.CancelledError:
+        print(f"INFO: Request cancelled by client. Thread ID: {thread_id}")
+        # Optionally perform cleanup here if needed, but the 'async with checkpointer' 
+        # exit should handle connection release.
+        # Reraise is important for FastAPI to know it was cancelled? 
+        # Actually generator cancellation raises GeneratorExit or CancelledError inside.
+        raise
+    except Exception as e:
+        print(f"ERROR: Stream failed: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't swallow unexpected errors
+        raise
 
 
 @router.post("/v1/agent/stream")

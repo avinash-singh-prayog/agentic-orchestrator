@@ -45,6 +45,23 @@ const App: React.FC = () => {
     initSession()
   }, [initSession])
 
+  // Responsive Layout Handler
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width < 768) {
+        setSidebarWidth(50) // Collapse sidebar
+        setIsGraphVisible(false) // Hide graph
+      }
+    }
+
+    // Initial check
+    handleResize()
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const isProcessing = streamingStatus === "streaming" || streamingStatus === "connecting"
 
   // Get current active agent from streaming events

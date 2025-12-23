@@ -11,7 +11,8 @@ from .nodes import SupervisorNodes
 def should_continue(state: SupervisorAgentState):
     messages = state["messages"]
     last_message = messages[-1]
-    if last_message.tool_calls:
+    # CAUTION: last_message can be ToolMessage (which has no tool_calls) or AIMessage
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
     return END
 

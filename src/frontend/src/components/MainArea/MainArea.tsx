@@ -110,7 +110,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
 
     // Update animation paths based on active agent
     useEffect(() => {
-        if (!activeAgentName && !isProcessing) {
+        if (!activeAgentName || !isProcessing) {
             // Reset when neither streaming nor processing
             setActiveNodes(new Set())
             setActiveEdges(new Set())
@@ -121,10 +121,6 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
             const path = getAnimationPath(activeAgentName)
             setActiveNodes(new Set(path.nodes))
             setActiveEdges(new Set(path.edges))
-        } else if (isProcessing) {
-            // Sync mode starting - just show supervisor
-            setActiveNodes(new Set(["supervisor"]))
-            setActiveEdges(new Set())
         }
     }, [activeAgentName, isProcessing])
 

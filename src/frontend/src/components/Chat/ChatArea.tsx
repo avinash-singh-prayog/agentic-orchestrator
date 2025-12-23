@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Loader2, Sparkles } from "lucide-react"
+import { Send, Sparkles, Square } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
@@ -22,11 +22,11 @@ interface ChatAreaProps {
 const ChatArea: React.FC<ChatAreaProps> = () => {
     const [input, setInput] = useState("")
     const [messages, setMessages] = useState<Message[]>([])
-    const inputRef = useRef<HTMLInputElement>(null)
+    const inputRef = useRef<HTMLTextAreaElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const { loading: apiLoading } = useAgentAPI()
-    const { startStreaming, reset } = useStreamingActions()
+    const { startStreaming, stopStreaming, reset } = useStreamingActions()
     const streamingStatus = useStreamingStatus()
     const finalResponse = useStreamingFinalResponse()
     const streamingEvents = useStreamingEvents()
@@ -113,15 +113,34 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         setMessages((prev) => [...prev, userMessage])
         const prompt = input.trim()
         setInput("")
-        reset()
 
+        // Reset height
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto'
+        }
+
+        reset()
         await startStreaming(prompt)
+    }
+
+    const handleStop = () => {
+        stopStreaming()
     }
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             handleSend()
+        }
+    }
+
+    const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setInput(e.target.value)
+
+        // Auto-resize
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto'
+            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
         }
     }
 
@@ -265,23 +284,40 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-subtle)", background: "var(--bg-panel)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ flex: 1, position: "relative" }}>
-                        <input
-                            ref={inputRef}
-                            type="text"
+                        <textarea
+                            ref={inputRef as any}
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyPress={handleKeyPress}
+                            onChange={handleInput}
+                            onKeyDown={handleKeyPress}
                             placeholder="Type your message..."
-                            style={{ ...inputStyles, width: "100%" }}
+                            rows={1}
+                            style={{
+                                ...inputStyles,
+                                width: "100%",
+                                resize: "none",
+                                minHeight: 48,
+                                maxHeight: 120,
+                                paddingTop: 14,
+                                fontFamily: "inherit"
+                            }}
                             disabled={isLoading}
                         />
-                        <button onClick={handleSend} disabled={!input.trim() || isLoading} style={sendButtonStyles}>
-                            {isLoading ? (
-                                <Loader2 style={{ width: 16, height: 16, color: "white", animation: "spin 1s linear infinite" }} />
-                            ) : (
+
+                        {isLoading ? (
+                            <button onClick={handleStop} style={{
+                                ...sendButtonStyles,
+                                background: "var(--bg-card)",
+                                border: "1px solid var(--border-light)",
+                                cursor: "pointer",
+                                opacity: 1
+                            }} title="Stop generating">
+                                <Square style={{ width: 10, height: 10, fill: "#ef4444", color: "#ef4444" }} />
+                            </button>
+                        ) : (
+                            <button onClick={handleSend} disabled={!input.trim()} style={sendButtonStyles}>
                                 <Send style={{ width: 16, height: 16, color: "white" }} />
-                            )}
-                        </button>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

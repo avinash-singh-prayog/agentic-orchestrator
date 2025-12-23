@@ -22,14 +22,39 @@ if not _raw_db_url:
 DATABASE_URL = _raw_db_url.strip('"').strip("'")
 
 
+
+
+# Global singleton instance
+_checkpointer_instance = None
+
+@asynccontextmanager
+async def checkpointer_lifespan():
+    """Application lifespan manager for the global checkpointer."""
+    global _checkpointer_instance
+    # Initialize checkpointer with connection pool
+    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+        await checkpointer.setup()
+        _checkpointer_instance = checkpointer
+        try:
+            yield
+        finally:
+            # Checkpointer (and pool) closes when this context exits
+            _checkpointer_instance = None
+
+
 @asynccontextmanager
 async def get_checkpointer():
     """
-    Get async PostgreSQL checkpointer for LangGraph.
+    Get the shared global checkpointer instance.
     
     Yields:
-        AsyncPostgresSaver: Configured checkpointer instance
+        AsyncPostgresSaver: The global checkpointer
     """
-    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-        await checkpointer.setup()  # Create tables if not exist
-        yield checkpointer
+    if _checkpointer_instance is None:
+        # Fallback or initialization race condition protection
+        # For safety in tests or scripts without lifespan, we could create one temporarily
+        async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+            # await checkpointer.setup() # Assume setup done or distinct
+            yield checkpointer
+    else:
+        yield _checkpointer_instance
