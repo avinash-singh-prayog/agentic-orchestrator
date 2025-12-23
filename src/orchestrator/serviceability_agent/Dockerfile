@@ -17,5 +17,6 @@ RUN uv venv && uv pip install .
 # Expose port
 EXPOSE 9003
 
-# Run the application
-CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9003"]
+# Run the application in dual mode (HTTP + SLIM)
+# This enables both HTTP API server and SLIM listener for inter-agent communication
+CMD ["sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual"]
