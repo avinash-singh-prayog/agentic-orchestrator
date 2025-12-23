@@ -1,0 +1,16 @@
+[Unit]
+Description=SLIM Transporter
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ec2-user/slim-transporter
+ExecStart=/usr/bin/docker compose up
+ExecStop=/usr/bin/docker compose down
+Restart=always
+RestartSec=10
+User=ec2-user
+
+[Install]
+WantedBy=multi-user.target

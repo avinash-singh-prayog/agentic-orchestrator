@@ -112,14 +112,14 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Disable OpenTelemetry completely to avoid connection errors
       - OTEL_SDK_DISABLED=true
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - DATABASE_URL=${DATABASE_URL:-postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod}
-    depends_on:
-      - slim
+      # depends_on:
+      #   - slim
       # - otel-collector
     networks:
       - orchestrator-net
@@ -139,15 +139,15 @@ services:
       - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # External serviceability API (running on host machine)
       - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
     command: [ "/app/.venv/bin/python", "-m", "serviceability_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - slim
+      # depends_on:
+      #   - slim
       # - otel-collector
     networks:
       - orchestrator-net
@@ -164,30 +164,32 @@ services:
       - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - SLIM_ENDPOINT=http://orchestrator-slim:46357
+      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Order V2 API (use host.docker.internal to reach host machine from container)
       - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
     command: [ "/app/.venv/bin/python", "-m", "booking_agent.app.main", "dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - slim
+      # depends_on:
+      #   - slim
       # - otel-collector
     networks:
       - orchestrator-net
 
-  slim:
-    image: ghcr.io/agntcy/slim:0.6.1
-    container_name: orchestrator-slim
-    command: [ "/slim", "--config", "/etc/slim.yaml" ]
-    ports:
-      - "46357:46357"
-      - "46358:46358"
-    volumes:
-      - ./config/slim/slim.yaml:/etc/slim.yaml:ro
-    networks:
-      - orchestrator-net
+  # SLIM commented out - using remote EC2 instance
+  # To use local SLIM, uncomment this and update .env: SLIM_ENDPOINT=http://3.7.70.176:46357
+  # slim:
+  #   image: ghcr.io/agntcy/slim:0.6.1
+  #   container_name: orchestrator-slim
+  #   command: [ "/slim", "--config", "/etc/slim.yaml" ]
+  #   ports:
+  #     - "46357:46357"
+  #     - "46358:46358"
+  #   volumes:
+  #     - ./config/slim/slim.yaml:/etc/slim.yaml:ro
+  #   networks:
+  #     - orchestrator-net
   # ===========================================
   # FRONTEND UI
   # ===========================================

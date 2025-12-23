@@ -1,0 +1,16 @@
+services:
+  slim:
+    image: ghcr.io/agntcy/slim:0.6.1
+    container_name: orchestrator-slim
+    restart: unless-stopped
+    command: [ "/slim", "--config", "/etc/slim.yaml" ]
+    ports:
+      - "46357:46357"
+      - "46358:46358"
+    volumes:
+      - ./slim.yaml:/etc/slim.yaml:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

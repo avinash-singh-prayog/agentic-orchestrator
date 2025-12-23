@@ -1,0 +1,15 @@
+# SLIM Transporter Configuration
+tracing:
+  log_level: info
+
+services:
+  slim/0:
+    node_id: "transporter-01"
+    dataplane:
+      servers:
+        - endpoint: "0.0.0.0:46357"
+          tls:
+            insecure: true
+        - endpoint: "0.0.0.0:46358"
+          tls:
+            insecure: true
