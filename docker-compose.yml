@@ -133,7 +133,7 @@ services:
       dockerfile: src/orchestrator/serviceability_agent/Dockerfile
     container_name: serviceability-agent
     ports:
-      - "${SERVICEABILITY_AGENT_PORT:-9003}:8000"
+      - "${SERVICEABILITY_AGENT_PORT:-9003}:9003"
     environment:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
@@ -158,7 +158,7 @@ services:
       dockerfile: src/orchestrator/booking_agent/Dockerfile
     container_name: booking-agent
     ports:
-      - "${BOOKING_AGENT_PORT:-9005}:8000"
+      - "${BOOKING_AGENT_PORT:-9005}:9005"
     environment:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
