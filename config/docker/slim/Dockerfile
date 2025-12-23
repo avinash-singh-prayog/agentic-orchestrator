@@ -2,12 +2,12 @@
 # Base image from AGNTCY
 FROM ghcr.io/agntcy/slim:0.6.1
 
-# Copy configuration file
+# Copy configuration file to the expected path
 COPY slim.yaml /etc/slim.yaml
 
-# Expose SLIM ports
-# 46357: Primary transport port
-# 46358: Secondary/health port
+# Expose both SLIM ports
+# 46357: Primary transport
+# 46358: Secondary (health/metrics)
 EXPOSE 46357 46358
 
 # Run SLIM with the config

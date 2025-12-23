@@ -14,6 +14,7 @@ pipeline {
         // ECS Configuration
         CLUSTER_NAME   = 'prayog-ecs'
         SERVICE_NAME   = 'slim-transporter-service'
+        TASK_FAMILY    = 'ecs-slim-transporter-service-td'
         
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
     }
@@ -59,10 +60,27 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
                             export AWS_DEFAULT_REGION=${AWS_REGION}
 
-                            echo "Triggering ECS Deployment for ${SERVICE_NAME}..."
+                            cd config/docker/slim
+
+                            # Update the image tag in the JSON file dynamically
+                            sed -i.bak "s|:latest|:${BUILD_NUMBER}|g" task-definition.json
+
+                            # Register the new task definition version
+                            echo "Registering new task definition..."
+                            NEW_TASK_INFO=\$(aws ecs register-task-definition --cli-input-json file://task-definition.json)
+                            NEW_REVISION=\$(echo \$NEW_TASK_INFO | jq -r '.taskDefinition.revision')
                             
-                            # Force ECS to pull the new 'latest' image
-                            aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
+                            echo "Registered new task definition: ${TASK_FAMILY}:\$NEW_REVISION"
+
+                            # Update the service to use the new revision
+                            echo "Updating ECS service ${SERVICE_NAME}..."
+                            aws ecs update-service \\
+                                --cluster ${CLUSTER_NAME} \\
+                                --service ${SERVICE_NAME} \\
+                                --task-definition ${TASK_FAMILY}:\$NEW_REVISION
+
+                            # Restore original task-definition.json
+                            mv task-definition.json.bak task-definition.json
                         """
                     }
                 }
