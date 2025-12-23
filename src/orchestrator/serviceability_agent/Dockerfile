@@ -2,29 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install uv
+# Install uv for fast package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy workspace configuration and lockfile from root
-COPY pyproject.toml uv.lock ./
+# Copy dependency files
+COPY pyproject.toml .
 
-# Copy the specific package configuration
-COPY src/orchestrator/serviceability_agent/pyproject.toml src/orchestrator/serviceability_agent/
-COPY src/orchestrator/serviceability_agent/README.md src/orchestrator/serviceability_agent/
+# Create virtual environment and install dependencies
+RUN uv venv && uv pip install -r pyproject.toml
 
-# Sync dependencies for the specific package
-# This leverages the lockfile from the root
-RUN uv sync --frozen --package serviceability-agent
-
-# Copy the source code
-COPY src/orchestrator/serviceability_agent src/orchestrator/serviceability_agent
-
-# Set pythonpath to find the module
-ENV PYTHONPATH=/app/src/orchestrator
+# Copy application code
+COPY . .
 
 # Expose port
-EXPOSE 8000
+EXPOSE 9003
 
 # Run the application
-# Note: We use the venv created by uv sync at the root /app/.venv
-CMD ["/app/.venv/bin/uvicorn", "serviceability_agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9003"]
