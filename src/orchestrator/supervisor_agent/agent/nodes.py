@@ -49,6 +49,13 @@ class SupervisorNodes:
            - You MUST extract and include the `partner_code` in your booking request.
            - Format: "Create order with partner_code=<code>, origin=<details>, destination=<details>, weight=<weight>"
         
+        ANTI-HALLUCINATION & ROUTING ENFORCEMENT:
+        - **NEVER guess specific rates or prices.** You DO NOT know any rates. You MUST call `call_serviceability_agent` to get them.
+        - **NEVER claim an order is created** without calling `call_booking_agent` and receiving a success response.
+        - If the user asks for "rates", "price", "shipping cost", "couriers", "serviceability" -> YOU MUST CALL `call_serviceability_agent`.
+        - If the user asks to "book", "ship", "create order", "cancel", "status" -> YOU MUST CALL `call_booking_agent`.
+        - **If a tool fails or returns an error**, REPORT IT exactly. Do not make up a success story.
+        
         Routing Guidelines:
         - If user asks about shipping RATES, SERVICEABILITY, or CARRIER availability → call_serviceability_agent
         - If user wants to CREATE an ORDER, BOOK a shipment, check ORDER STATUS, or CANCEL an order → call_booking_agent (include partner_code!)

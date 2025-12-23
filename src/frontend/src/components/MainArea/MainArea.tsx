@@ -178,10 +178,10 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 fitView
-                fitViewOptions={{ padding: 0.25 }}
-                minZoom={0.4}
+                fitViewOptions={{ padding: 0.1 }}
+                minZoom={0.5}
                 maxZoom={1.5}
-                defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
                 proOptions={{ hideAttribution: true }}
             >
                 <Background

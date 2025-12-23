@@ -144,6 +144,24 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         }
     }
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        e.preventDefault()
+        const text = e.clipboardData.getData("text/plain")
+        // Normalize newlines: limit consecutive newlines to 2, trim start/end
+        const normalized = text.replace(/\n{3,}/g, "\n\n").trim()
+
+        const newValue = input + normalized
+        setInput(newValue)
+
+        // Trigger resize after state update
+        setTimeout(() => {
+            if (inputRef.current) {
+                inputRef.current.style.height = 'auto'
+                inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+            }
+        }, 0)
+    }
+
     const containerStyles: React.CSSProperties = {
         display: "flex",
         flexDirection: "column",
@@ -288,6 +306,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                             ref={inputRef as any}
                             value={input}
                             onChange={handleInput}
+                            onPaste={handlePaste}
                             onKeyDown={handleKeyPress}
                             placeholder="Type your message..."
                             rows={1}
