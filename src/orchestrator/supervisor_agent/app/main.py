@@ -43,7 +43,12 @@ from app.auth import (
     create_password_reset_token,
     reset_password,
     create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    # Database error classes
+    DatabaseError,
+    DatabaseConnectionError,
+    DatabaseQueryError,
+    DatabaseTimeoutError
 )
 
 @asynccontextmanager
@@ -84,7 +89,7 @@ graph = build_graph()
 
 @router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserRegisterRequest):
-    """Register a new user."""
+    """Register a new user with comprehensive error handling."""
     try:
         user = await create_user(user_data)
         access_token = create_access_token(
@@ -98,31 +103,128 @@ async def register(user_data: UserRegisterRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "database_connection_error",
+                "message": "Unable to connect to database. Please try again later.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseTimeoutError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "database_timeout",
+                "message": "Database operation timed out. Please try again.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseQueryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "database_query_error",
+                "message": "A database error occurred during registration.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "database_error",
+                "message": "An unexpected database error occurred.",
+                "details": str(e.message)
+            }
+        )
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Registration failed")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "internal_error",
+                "message": "Registration failed due to an unexpected error."
+            }
+        )
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(login_data: UserLoginRequest):
-    """Login user."""
-    user = await authenticate_user(login_data)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    """Login user with comprehensive error handling."""
+    try:
+        user = await authenticate_user(login_data)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id, "tenant_id": user.tenant_id},
+            expires_delta=None
         )
-    
-    access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "tenant_id": user.tenant_id},
-        expires_delta=None
-    )
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=user
-    )
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=user
+        )
+    except DatabaseConnectionError as e:
+        # 503 Service Unavailable - DB connection failed
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "database_connection_error",
+                "message": "Unable to connect to database. Please try again later.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseTimeoutError as e:
+        # 503 Service Unavailable - DB operation timed out
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "database_timeout",
+                "message": "Database operation timed out. Please try again.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseQueryError as e:
+        # 500 Internal Server Error - Query failed
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "database_query_error",
+                "message": "A database error occurred during authentication.",
+                "details": str(e.message)
+            }
+        )
+    except DatabaseError as e:
+        # 500 Internal Server Error - General DB error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "database_error",
+                "message": "An unexpected database error occurred.",
+                "details": str(e.message)
+            }
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 401)
+        raise
+    except Exception as e:
+        # Catch-all for unexpected errors
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "internal_error",
+                "message": "An unexpected error occurred during login."
+            }
+        )
 
 
 @router.post("/auth/forgot-password")

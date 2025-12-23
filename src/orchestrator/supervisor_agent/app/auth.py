@@ -1,11 +1,13 @@
 import os
 import uuid
 import logging
+import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 from pydantic import BaseModel, EmailStr, Field
 import bcrypt
-from psycopg import AsyncConnection
+from psycopg import AsyncConnection, OperationalError, ProgrammingError
 import jwt
 from dotenv import load_dotenv
 
@@ -14,6 +16,34 @@ load_dotenv()
 
 # Logger
 logger = logging.getLogger("auth")
+
+# Database connection timeout (seconds)
+DB_CONNECTION_TIMEOUT = 10
+DB_QUERY_TIMEOUT = 30
+
+
+# ============================================================================
+# Custom Exceptions
+# ============================================================================
+
+class DatabaseError(Exception):
+    """Base exception for database errors."""
+    def __init__(self, message: str, original_error: Exception = None):
+        self.message = message
+        self.original_error = original_error
+        super().__init__(self.message)
+
+class DatabaseConnectionError(DatabaseError):
+    """Raised when unable to connect to the database."""
+    pass
+
+class DatabaseQueryError(DatabaseError):
+    """Raised when a query fails."""
+    pass
+
+class DatabaseTimeoutError(DatabaseError):
+    """Raised when a database operation times out."""
+    pass
 
 # JWT Config
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-key-change-in-production")
@@ -92,7 +122,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 # ============================================================================
 
 async def ensure_users_table():
-    """Create users table if it doesn't exist."""
+    """Create users table if it doesn't exist with proper error handling."""
     create_table_query = """
     CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY,
@@ -104,25 +134,52 @@ async def ensure_users_table():
     );
     """
     try:
-        async with await AsyncConnection.connect(DATABASE_URL) as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(create_table_query)
-                
-                # Add columns if they don't exist (simple migration)
-                try:
-                    await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);")
-                    await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;")
-                except Exception as e:
-                     logger.warning(f"Migration warning (columns might exist): {e}")
+        async def _do_setup():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(create_table_query)
+                        
+                        # Add columns if they don't exist (simple migration)
+                        try:
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);")
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;")
+                        except Exception as e:
+                             logger.warning(f"Migration warning (columns might exist): {e}")
 
-            await conn.commit()
-            logger.info("Users table ensure check completed.")
+                    await conn.commit()
+                    logger.info("Users table ensure check completed.")
+            except OperationalError as e:
+                logger.error(f"Database connection error during table setup: {e}")
+                raise DatabaseConnectionError(
+                    f"Unable to connect to database: {str(e)}",
+                    original_error=e
+                )
+            except ProgrammingError as e:
+                logger.error(f"Database query error during table setup: {e}")
+                raise DatabaseQueryError(
+                    f"Database query failed: {str(e)}",
+                    original_error=e
+                )
+        
+        await asyncio.wait_for(_do_setup(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        logger.error(f"Database table setup timed out after {DB_QUERY_TIMEOUT}s")
+        raise DatabaseTimeoutError(
+            f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds"
+        )
+    except DatabaseError:
+        raise
     except Exception as e:
         logger.error(f"Failed to ensure users table: {e}")
         raise
 
 async def create_user(user: UserRegisterRequest) -> UserResponse:
-    """Register a new user."""
+    """Register a new user with proper error handling."""
     user_id = uuid.uuid4()
     hashed_password = get_password_hash(user.password)
     
@@ -132,54 +189,128 @@ async def create_user(user: UserRegisterRequest) -> UserResponse:
     RETURNING id, email, name, tenant_id
     """
     
-    async with await AsyncConnection.connect(DATABASE_URL) as conn:
-        async with conn.cursor() as cur:
-            # Check if user exists
-            await cur.execute("SELECT id FROM users WHERE email = %s", (user.email,))
-            if await cur.fetchone():
-                raise ValueError("User with this email already exists")
-            
-            await cur.execute(query, (
-                user_id, 
-                user.email, 
-                hashed_password, 
-                user.name or user.email.split('@')[0], 
-                DEFAULT_TENANT_ID
-            ))
-            row = await cur.fetchone()
-            await conn.commit()
-            
-            return UserResponse(
-                id=str(row[0]),
-                email=row[1],
-                name=row[2],
-                tenant_id=row[3]
-            )
+    try:
+        async def _do_create():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        # Check if user exists
+                        await cur.execute("SELECT id FROM users WHERE email = %s", (user.email,))
+                        if await cur.fetchone():
+                            raise ValueError("User with this email already exists")
+                        
+                        await cur.execute(query, (
+                            user_id, 
+                            user.email, 
+                            hashed_password, 
+                            user.name or user.email.split('@')[0], 
+                            DEFAULT_TENANT_ID
+                        ))
+                        row = await cur.fetchone()
+                        await conn.commit()
+                        
+                        return UserResponse(
+                            id=str(row[0]),
+                            email=row[1],
+                            name=row[2],
+                            tenant_id=row[3]
+                        )
+            except OperationalError as e:
+                logger.error(f"Database connection error during user creation: {e}")
+                raise DatabaseConnectionError(
+                    f"Unable to connect to database: {str(e)}",
+                    original_error=e
+                )
+            except ProgrammingError as e:
+                logger.error(f"Database query error during user creation: {e}")
+                raise DatabaseQueryError(
+                    f"Database query failed: {str(e)}",
+                    original_error=e
+                )
+        
+        return await asyncio.wait_for(_do_create(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        logger.error(f"User creation timed out after {DB_QUERY_TIMEOUT}s")
+        raise DatabaseTimeoutError(
+            f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds"
+        )
+    except ValueError:
+        # Re-raise ValueError for "user already exists"
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during user creation: {e}")
+        import traceback
+        traceback.print_exc()
+        raise DatabaseError(f"User creation failed due to an unexpected error: {str(e)}", original_error=e)
 
 async def authenticate_user(login_data: UserLoginRequest) -> Optional[UserResponse]:
-    """Authenticate user credentials."""
+    """Authenticate user credentials with proper error handling."""
     query = "SELECT id, email, name, tenant_id, password_hash FROM users WHERE email = %s"
     
-    async with await AsyncConnection.connect(DATABASE_URL) as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(query, (login_data.email,))
-            row = await cur.fetchone()
-            
-            if not row:
-                return None
-            
-            user_id, email, name, tenant_id, pwd_hash = row
-            
-            if not verify_password(login_data.password, pwd_hash):
-                return None
-            
-            
-            return UserResponse(
-                id=str(user_id),
-                email=email,
-                name=name,
-                tenant_id=tenant_id
-            )
+    try:
+        # Wrap the entire operation with a timeout
+        async def _do_auth():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(query, (login_data.email,))
+                        row = await cur.fetchone()
+                        
+                        if not row:
+                            return None
+                        
+                        user_id, email, name, tenant_id, pwd_hash = row
+                        
+                        if not verify_password(login_data.password, pwd_hash):
+                            return None
+                        
+                        return UserResponse(
+                            id=str(user_id),
+                            email=email,
+                            name=name,
+                            tenant_id=tenant_id
+                        )
+            except OperationalError as e:
+                # Connection-level errors (host unreachable, auth failed, etc.)
+                logger.error(f"Database connection error during login: {e}")
+                raise DatabaseConnectionError(
+                    f"Unable to connect to database: {str(e)}",
+                    original_error=e
+                )
+            except ProgrammingError as e:
+                # Query/syntax errors
+                logger.error(f"Database query error during login: {e}")
+                raise DatabaseQueryError(
+                    f"Database query failed: {str(e)}",
+                    original_error=e
+                )
+        
+        # Apply overall timeout
+        return await asyncio.wait_for(_do_auth(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        logger.error(f"Database operation timed out after {DB_QUERY_TIMEOUT}s")
+        raise DatabaseTimeoutError(
+            f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds"
+        )
+    except DatabaseError:
+        # Re-raise our custom errors
+        raise
+    except Exception as e:
+        # Catch-all for unexpected errors
+        logger.error(f"Unexpected error during authentication: {e}")
+        import traceback
+        traceback.print_exc()
+        raise DatabaseError(f"Authentication failed due to an unexpected error: {str(e)}", original_error=e)
 
 async def create_password_reset_token(email: str) -> Optional[str]:
     """Generate a reset token and save it to DB."""
