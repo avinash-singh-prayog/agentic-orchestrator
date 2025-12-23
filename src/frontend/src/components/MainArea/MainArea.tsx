@@ -33,6 +33,9 @@ const edgeTypes = {
 const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } => {
     const senderLower = sender.toLowerCase()
 
+    // Debug log to verify sender name
+    console.log("Animation Path for sender:", sender, "Lower:", senderLower)
+
     // Base path always includes supervisor and transport
     const basePath = {
         nodes: ["supervisor", "slim-transport"],
@@ -50,6 +53,21 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
             edges: [...basePath.edges, "slim-to-serviceability-agent"],
         }
     }
+
+    if (
+        senderLower.includes("booking") ||
+        senderLower === "booking_agent"
+    ) {
+        console.log("Found Booking Agent activity:", sender)
+        return {
+            nodes: [...basePath.nodes, "booking-agent"],
+            edges: [...basePath.edges, "slim-to-booking-agent"],
+        }
+    }
+
+    console.log("Unknown sender for animation:", sender)
+
+
 
     // Default: only supervisor
     if (senderLower.includes("supervisor")) {
