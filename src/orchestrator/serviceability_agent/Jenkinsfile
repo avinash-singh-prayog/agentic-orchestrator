@@ -59,10 +59,31 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
                             export AWS_DEFAULT_REGION=${AWS_REGION}
 
-                            echo "Triggering ECS Deployment for ${SERVICE_NAME}..."
+                            echo "Deploying ${SERVICE_NAME} with image tag: ${BUILD_NUMBER}"
                             
-                            # This command forces ECS to pull the 'latest' image we just pushed
-                            aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
+                            # Get the current task definition
+                            TASK_DEF_ARN=\$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'services[0].taskDefinition' --output text)
+                            TASK_DEF_NAME=\$(echo \$TASK_DEF_ARN | awk -F'/' '{print \$NF}' | awk -F':' '{print \$1}')
+                            
+                            echo "Current task definition: \$TASK_DEF_ARN"
+                            
+                            # Get the current task definition JSON and update the image
+                            aws ecs describe-task-definition --task-definition \$TASK_DEF_ARN --query 'taskDefinition' > task-def.json
+                            
+                            # Update the image in the container definition to use the new build number
+                            cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" '.containerDefinitions[0].image = \$IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > new-task-def.json
+                            
+                            # Register the new task definition
+                            NEW_TASK_DEF_ARN=\$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+                            echo "New task definition: \$NEW_TASK_DEF_ARN"
+                            
+                            # Update the service to use the new task definition
+                            aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --task-definition \$NEW_TASK_DEF_ARN --force-new-deployment
+                            
+                            echo "Deployment triggered successfully!"
+                            
+                            # Clean up
+                            rm -f task-def.json new-task-def.json
                         """
                     }
                 }
