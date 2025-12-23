@@ -7,20 +7,30 @@ from pydantic import BaseModel, EmailStr, Field
 import bcrypt
 from psycopg import AsyncConnection
 import jwt
+from dotenv import load_dotenv
+
+# Load .env file (for local development)
+load_dotenv()
 
 # Logger
 logger = logging.getLogger("auth")
 
-# JWT Config (Simple secret for now, ideally from env)
+# JWT Config
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 
-# Database URL
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod"
-)
+# Database URL - REQUIRED, no hardcoded fallback
+_raw_db_url = os.getenv("DATABASE_URL")
+if not _raw_db_url:
+    raise ValueError("DATABASE_URL environment variable is required but not set")
+
+# Strip quotes that may be accidentally included in ECS task definitions
+DATABASE_URL = _raw_db_url.strip('"').strip("'")
+
+# Log at startup for debugging (mask password)
+_masked_url = DATABASE_URL.split('@')[0].rsplit(':', 1)[0] + ':***@' + DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL[:30]
+logger.info(f"DATABASE_URL loaded: {_masked_url}")
 
 # Hardcoded Tenant ID as per requirement
 DEFAULT_TENANT_ID = "507f1f77bcf86cd799439011"

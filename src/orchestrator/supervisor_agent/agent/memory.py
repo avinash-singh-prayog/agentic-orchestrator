@@ -6,14 +6,20 @@ Provides LangGraph checkpointer for conversation persistence.
 
 import os
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-# PostgreSQL connection string for multi-tenant chat history
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod"
-)
+# Load .env file (for local development)
+load_dotenv()
+
+# PostgreSQL connection string - REQUIRED, no hardcoded fallback
+_raw_db_url = os.getenv("DATABASE_URL")
+if not _raw_db_url:
+    raise ValueError("DATABASE_URL environment variable is required but not set")
+
+# Strip quotes that may be accidentally included in ECS task definitions
+DATABASE_URL = _raw_db_url.strip('"').strip("'")
 
 
 @asynccontextmanager
