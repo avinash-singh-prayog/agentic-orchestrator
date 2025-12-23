@@ -13,7 +13,7 @@ pipeline {
         
         // ECS Configuration
         CLUSTER_NAME   = 'prayog-ecs'
-        SERVICE_NAME   = 'supervisor-agent-task-service'
+        SERVICE_NAME   = 'supervisor-agent-service'
         
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
     }
