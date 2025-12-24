@@ -13,10 +13,6 @@ pipeline {
         AWS_CREDS_ID   = 'aws-creds' 
     }
     
-    tools {
-        nodejs "NodeJS" 
-    }
-    
     stages {
         stage('Checkout') {
             steps {
@@ -25,6 +21,12 @@ pipeline {
         }
         
         stage('Build & Install') {
+            agent {
+                docker { 
+                    image 'node:22-alpine' 
+                    reuseNode true 
+                }
+            }
             steps {
                 script {
                     dir('src/frontend') {
