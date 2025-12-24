@@ -4,19 +4,20 @@ Carrier Agent Nodes.
 Business logic nodes that use tools to interact with carriers.
 """
 
-import json
 import logging
 import os
+import json
 from typing import Any, Dict
 
-from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
+
 
 from config.settings import settings
 from agent.state import ServiceabilityAgentState
 from agent.tools import check_serviceability_tool
 from domain.models import ShipmentRequest, RateQuote, LabelResponse, PartnerCode
+from .llm_factory import LLMFactory
 
 logger = logging.getLogger("serviceability_agent.nodes")
 
@@ -52,8 +53,9 @@ class ServiceabilityNodes:
     """Business logic nodes using tools to interact with carriers."""
 
     def __init__(self):
-        self.llm = ChatLiteLLM(model=SERVICEABILITY_AGENT_LLM, temperature=0.1, max_tokens=200)
+        self.llm = LLMFactory.get_llm("SERVICEABILITY_AGENT_LLM", temperature=0.1, max_tokens=200)
         self.json_parser = JsonOutputParser()
+
 
     async def parse_request(self, state: ServiceabilityAgentState) -> Dict[str, Any]:
         """Parse shipment details from user message using LLM."""

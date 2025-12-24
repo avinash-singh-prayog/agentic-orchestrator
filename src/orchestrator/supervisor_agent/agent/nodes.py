@@ -7,22 +7,18 @@ Orchestrates the workflow by deciding which tool/worker to call.
 import logging
 import os
 from typing import Dict, Any
-from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.tools import Tool
 
 from .state import SupervisorAgentState
 from .tools import SUPERVISOR_TOOLS
+from .llm_factory import LLMFactory
 
 logger = logging.getLogger("supervisor_agent.nodes")
 
-# LLM Config - Use openai/gpt-oss-120b:free instead of gpt-4o-mini
-# SUPERVISOR_LLM = os.getenv("SUPERVISOR_LLM", "openrouter/openai/gpt-4o-mini")
-SUPERVISOR_LLM = os.getenv("SUPERVISOR_LLM")  # Must be set in environment
-
 class SupervisorNodes:
     def __init__(self):
-        self.llm = ChatLiteLLM(model=SUPERVISOR_LLM, temperature=0)
+        self.llm = LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0)
         self.tools = {t.name: t for t in SUPERVISOR_TOOLS}
         self.llm_with_tools = self.llm.bind_tools(SUPERVISOR_TOOLS)
 

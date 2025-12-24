@@ -112,6 +112,7 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
       # Disable OpenTelemetry completely to avoid connection errors
@@ -138,6 +139,7 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
@@ -163,6 +165,7 @@ services:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM

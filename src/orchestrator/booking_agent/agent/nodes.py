@@ -4,18 +4,18 @@ Booking Agent Nodes.
 Business logic nodes for order operations.
 """
 
-import json
 import logging
 import os
 from typing import Any, Dict
 
-from langchain_community.chat_models import ChatLiteLLM
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
 
 from config.settings import settings
 from agent.state import BookingAgentState
 from agent.tools import BOOKING_TOOLS
 from domain.models import ExtractedOrderIntent
+from .llm_factory import LLMFactory
 
 logger = logging.getLogger("booking_agent.nodes")
 
@@ -58,8 +58,8 @@ class BookingNodes:
     """Business logic nodes for order operations."""
 
     def __init__(self):
-        self.llm = ChatLiteLLM(
-            model=BOOKING_AGENT_LLM,
+        self.llm = LLMFactory.get_llm(
+            "BOOKING_AGENT_LLM",
             temperature=settings.llm_temperature,
             max_tokens=settings.llm_max_tokens,
         )
