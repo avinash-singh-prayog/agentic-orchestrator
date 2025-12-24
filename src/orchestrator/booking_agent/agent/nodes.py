@@ -20,6 +20,24 @@ from .llm_factory import LLMFactory
 
 logger = logging.getLogger("booking_agent.nodes")
 
+
+def extract_llm_error_message(error: Exception) -> str:
+    """Extract a user-friendly message from LLM API errors."""
+    error_str = str(error)
+    
+    # Check for common error patterns
+    if "402" in error_str or "credits" in error_str.lower():
+        return "⚠️ **API Credits Exhausted**\n\nThe AI service has run out of credits. Please try again later or contact support to add more credits."
+    elif "429" in error_str or "rate limit" in error_str.lower():
+        return "⚠️ **Rate Limit Reached**\n\nToo many requests. Please wait a moment and try again."
+    elif "401" in error_str or "unauthorized" in error_str.lower():
+        return "⚠️ **Authentication Error**\n\nThere's an issue with the AI service configuration. Please contact support."
+    elif "timeout" in error_str.lower():
+        return "⚠️ **Request Timeout**\n\nThe AI service took too long to respond. Please try again."
+    else:
+        # Generic error with some detail
+        return f"⚠️ **AI Service Error**\n\nUnable to process your request: {error_str[:200]}"
+
 BOOKING_AGENT_LLM = os.getenv("BOOKING_AGENT_LLM", settings.llm_model)
 
 EXTRACTION_SYSTEM_PROMPT = """You are an order assistant that extracts order intent from user messages.
@@ -186,7 +204,8 @@ class BookingNodes:
             )
         except Exception as e:
             logger.error(f"LLM extraction failed: {e}")
-            return None
+            # Re-raise with user-friendly message to be caught by parse_request
+            raise Exception(extract_llm_error_message(e))
 
     async def create_order(self, state: BookingAgentState) -> Dict[str, Any]:
         """Create a new order using the create_order tool."""
@@ -346,5 +365,10 @@ class BookingNodes:
             HumanMessage(content=user_msg),
         ]
         
-        response = await self.llm.ainvoke(messages)
-        return {"messages": [response]}
+        try:
+            response = await self.llm.ainvoke(messages)
+            return {"messages": [response]}
+        except Exception as e:
+            logger.error(f"LLM error in generate_response: {e}")
+            error_message = extract_llm_error_message(e)
+            return {"messages": [AIMessage(content=error_message)]}

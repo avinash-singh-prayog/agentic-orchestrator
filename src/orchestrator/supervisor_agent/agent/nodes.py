@@ -16,6 +16,24 @@ from .llm_factory import LLMFactory
 
 logger = logging.getLogger("supervisor_agent.nodes")
 
+
+def extract_llm_error_message(error: Exception) -> str:
+    """Extract a user-friendly message from LLM API errors."""
+    error_str = str(error)
+    
+    # Check for common error patterns
+    if "402" in error_str or "credits" in error_str.lower():
+        return "⚠️ **API Credits Exhausted**\n\nThe AI service has run out of credits. Please try again later or contact support to add more credits."
+    elif "429" in error_str or "rate limit" in error_str.lower():
+        return "⚠️ **Rate Limit Reached**\n\nToo many requests. Please wait a moment and try again."
+    elif "401" in error_str or "unauthorized" in error_str.lower():
+        return "⚠️ **Authentication Error**\n\nThere's an issue with the AI service configuration. Please contact support."
+    elif "timeout" in error_str.lower():
+        return "⚠️ **Request Timeout**\n\nThe AI service took too long to respond. Please try again."
+    else:
+        # Generic error with some detail
+        return f"⚠️ **AI Service Error**\n\nUnable to process your request: {error_str[:200]}"
+
 class SupervisorNodes:
     def __init__(self):
         self.llm = LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0)
@@ -61,9 +79,14 @@ class SupervisorNodes:
         # Include system prompt if not present
         if not isinstance(messages[0], SystemMessage):
             messages = [system_prompt] + messages
-            
-        response = await self.llm_with_tools.ainvoke(messages)
-        return {"messages": [response]}
+        
+        try:
+            response = await self.llm_with_tools.ainvoke(messages)
+            return {"messages": [response]}
+        except Exception as e:
+            logger.error(f"LLM API error in supervisor_node: {e}")
+            error_message = extract_llm_error_message(e)
+            return {"messages": [AIMessage(content=error_message)]}
 
     async def tool_node(self, state: SupervisorAgentState) -> Dict[str, Any]:
         """
