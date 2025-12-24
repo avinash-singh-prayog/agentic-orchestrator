@@ -31,6 +31,9 @@ pipeline {
                 script {
                     dir('src/frontend') {
                         sh '''
+                            # Fix npm permission issues by setting HOME to the current directory
+                            export HOME=$(pwd)
+                            
                             echo "Node version:"
                             node -v
                             echo "NPM version:"
