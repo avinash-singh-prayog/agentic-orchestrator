@@ -4,6 +4,7 @@ Booking Agent Nodes.
 Business logic nodes for order operations.
 """
 
+import json
 import logging
 import os
 from typing import Any, Dict
@@ -23,33 +24,81 @@ BOOKING_AGENT_LLM = os.getenv("BOOKING_AGENT_LLM", settings.llm_model)
 
 EXTRACTION_SYSTEM_PROMPT = """You are an order assistant that extracts order intent from user messages.
 
-Determine the user's intent and extract relevant details:
+Determine the user's intent and extract ALL relevant details for shipping/booking:
 
 Actions:
-- "create": User wants to create/book a new order
+- "create": User wants to create/book a new order or shipment
 - "get": User wants to check order status or details
 - "cancel": User wants to cancel an existing order
 - "list": User wants to see their orders
 
-Extract the following information if present:
+Extract the following information if present (null if not mentioned):
+
+REQUIRED FOR ORDER CREATION:
 - action: The action to perform (create, get, cancel, list)
-- order_id: Order ID if referencing existing order (string or null)
-- origin_pincode: Origin postal code (string or null)
-- dest_pincode: Destination postal code (string or null)
-- weight_kg: Package weight in kg (number or null)
-- payment_type: PREPAID, COD, or TOPAY (string or null)
-- item_description: Description of items (string or null)
-- cancel_reason: Reason for cancellation if applicable (string or null)
+- partner_code: Carrier/partner code (e.g., "shipcube", "delhivery", "aramex") - extract from carrier name if mentioned
+- carrier_name: The carrier name mentioned (e.g., "ShipCube", "Delhivery")
+
+SENDER (Origin) DETAILS:
+- sender_name: Full name of sender
+- sender_phone: Sender's phone number (digits only)
+- origin_street: Sender's street address
+- origin_city: Sender's city
+- origin_state: Sender's state/province  
+- origin_pincode: Origin postal/ZIP code
+
+RECEIVER (Destination) DETAILS:
+- receiver_name: Full name of receiver
+- receiver_phone: Receiver's phone number (digits only)
+- dest_street: Receiver's street address
+- dest_city: Receiver's city
+- dest_state: Receiver's state/province
+- dest_pincode: Destination postal/ZIP code
+
+PACKAGE DETAILS:
+- weight_kg: Package weight in kg (number)
+- length_cm: Package length in cm (number)
+- width_cm: Package width in cm (number)
+- height_cm: Package height in cm (number)
+
+PAYMENT & ITEMS:
+- payment_type: PREPAID, COD, or TOPAY
+- item_description: Description of items being shipped
+
+OTHER:
+- order_id: Order ID if referencing existing order
+- cancel_reason: Reason for cancellation if applicable
+
+IMPORTANT RULES:
+1. If user says "20 x 20 x 20" or "20x20x20", extract as length=20, width=20, height=20
+2. If user mentions a carrier like "ShipCube", set partner_code="shipcube" (lowercase, no spaces)
+3. Parse phone numbers as digits only (e.g., "9998887766")
+4. Parse addresses carefully - separate street, city, state, pincode
 
 Respond ONLY with valid JSON:
 {
   "action": "create|get|cancel|list",
-  "order_id": "string or null",
+  "partner_code": "string or null",
+  "carrier_name": "string or null",
+  "sender_name": "string or null",
+  "sender_phone": "string or null",
+  "origin_street": "string or null",
+  "origin_city": "string or null",
+  "origin_state": "string or null",
   "origin_pincode": "string or null",
-  "dest_pincode": "string or null", 
+  "receiver_name": "string or null",
+  "receiver_phone": "string or null",
+  "dest_street": "string or null",
+  "dest_city": "string or null",
+  "dest_state": "string or null",
+  "dest_pincode": "string or null",
   "weight_kg": number or null,
+  "length_cm": number or null,
+  "width_cm": number or null,
+  "height_cm": number or null,
   "payment_type": "string or null",
   "item_description": "string or null",
+  "order_id": "string or null",
   "cancel_reason": "string or null"
 }"""
 
@@ -108,9 +157,29 @@ class BookingNodes:
             return ExtractedOrderIntent(
                 action=data.get("action", "get"),
                 order_id=data.get("order_id"),
+                # Partner/Carrier
+                partner_code=data.get("partner_code"),
+                carrier_name=data.get("carrier_name"),
+                # Sender details
+                sender_name=data.get("sender_name"),
+                sender_phone=data.get("sender_phone"),
+                origin_street=data.get("origin_street"),
+                origin_city=data.get("origin_city"),
+                origin_state=data.get("origin_state"),
                 origin_pincode=data.get("origin_pincode"),
+                # Receiver details
+                receiver_name=data.get("receiver_name"),
+                receiver_phone=data.get("receiver_phone"),
+                dest_street=data.get("dest_street"),
+                dest_city=data.get("dest_city"),
+                dest_state=data.get("dest_state"),
                 dest_pincode=data.get("dest_pincode"),
+                # Package details
                 weight_kg=data.get("weight_kg"),
+                length_cm=data.get("length_cm"),
+                width_cm=data.get("width_cm"),
+                height_cm=data.get("height_cm"),
+                # Payment and items
                 payment_type=data.get("payment_type"),
                 item_description=data.get("item_description"),
                 cancel_reason=data.get("cancel_reason"),
@@ -140,30 +209,46 @@ class BookingNodes:
             import uuid
             order_id = f"ORD-{str(uuid.uuid4())[:8].upper()}"
             
-            # Use defaults for missing values
+            # Use extracted values with sensible defaults
+            sender_name = intent.sender_name or "Sender"
+            sender_phone = intent.sender_phone or "9876543210"
+            origin_street = intent.origin_street or "Origin Address"
+            origin_city = intent.origin_city or "Mumbai"
+            origin_state = intent.origin_state or "Maharashtra"
             origin_pincode = intent.origin_pincode or "400001"
+            
+            receiver_name = intent.receiver_name or "Receiver"
+            receiver_phone = intent.receiver_phone or "9876543211"
+            dest_street = intent.dest_street or "Destination Address"
+            dest_city = intent.dest_city or "Delhi"
+            dest_state = intent.dest_state or "Delhi"
             dest_pincode = intent.dest_pincode or "110001"
+            
             weight_kg = intent.weight_kg or 1.0
             weight_grams = weight_kg * 1000
             payment_type = intent.payment_type or "PREPAID"
             item_description = intent.item_description or "General Goods"
+            partner_code = intent.partner_code or "default"
+            
+            logger.info(f"Creating order with partner={partner_code}, from={sender_name} ({origin_pincode}) to={receiver_name} ({dest_pincode})")
             
             # Call the create order tool
             create_tool = self.tools.get("create_order")
             result = await create_tool.ainvoke({
                 "order_id": order_id,
-                "origin_name": "Sender",
-                "origin_phone": "9876543210",
-                "origin_city": "Mumbai",
-                "origin_state": "Maharashtra",
+                "partner_code": partner_code,
+                "origin_name": sender_name,
+                "origin_phone": sender_phone,
+                "origin_city": origin_city,
+                "origin_state": origin_state,
                 "origin_pincode": origin_pincode,
-                "origin_street": "Origin Street",
-                "dest_name": "Receiver",
-                "dest_phone": "9876543211",
-                "dest_city": "Delhi",
-                "dest_state": "Delhi",
+                "origin_street": origin_street,
+                "dest_name": receiver_name,
+                "dest_phone": receiver_phone,
+                "dest_city": dest_city,
+                "dest_state": dest_state,
                 "dest_pincode": dest_pincode,
-                "dest_street": "Destination Street",
+                "dest_street": dest_street,
                 "weight_grams": weight_grams,
                 "item_name": item_description,
                 "item_quantity": 1,

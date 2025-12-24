@@ -263,9 +263,34 @@ class ExtractedOrderIntent(BaseModel):
     """Order intent extracted from user message."""
     action: str = Field(..., description="Action: create, get, cancel, update")
     order_id: Optional[str] = Field(default=None, description="Order ID if referencing existing order")
+    
+    # Partner/Carrier selection
+    partner_code: Optional[str] = Field(default=None, description="Partner code from serviceability (e.g., shipcube, delhivery)")
+    carrier_name: Optional[str] = Field(default=None, description="Carrier name (e.g., ShipCube, Delhivery)")
+    
+    # Sender (Origin) details
+    sender_name: Optional[str] = Field(default=None, description="Sender's full name")
+    sender_phone: Optional[str] = Field(default=None, description="Sender's phone number")
+    origin_street: Optional[str] = Field(default=None, description="Sender's street address")
+    origin_city: Optional[str] = Field(default=None, description="Sender's city")
+    origin_state: Optional[str] = Field(default=None, description="Sender's state")
     origin_pincode: Optional[str] = Field(default=None, description="Origin postal code")
+    
+    # Receiver (Destination) details
+    receiver_name: Optional[str] = Field(default=None, description="Receiver's full name")
+    receiver_phone: Optional[str] = Field(default=None, description="Receiver's phone number")
+    dest_street: Optional[str] = Field(default=None, description="Receiver's street address")
+    dest_city: Optional[str] = Field(default=None, description="Receiver's city")
+    dest_state: Optional[str] = Field(default=None, description="Receiver's state")
     dest_pincode: Optional[str] = Field(default=None, description="Destination postal code")
+    
+    # Package details
     weight_kg: Optional[float] = Field(default=None, description="Weight in kg")
+    length_cm: Optional[float] = Field(default=None, description="Length in cm")
+    width_cm: Optional[float] = Field(default=None, description="Width in cm")
+    height_cm: Optional[float] = Field(default=None, description="Height in cm")
+    
+    # Payment and item
     payment_type: Optional[str] = Field(default=None, description="PREPAID, COD, or TOPAY")
     item_description: Optional[str] = Field(default=None, description="Item description")
     cancel_reason: Optional[str] = Field(default=None, description="Reason for cancellation")
