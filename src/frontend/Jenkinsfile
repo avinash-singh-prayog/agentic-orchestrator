@@ -13,6 +13,10 @@ pipeline {
         AWS_CREDS_ID   = 'aws-creds' 
     }
     
+    tools {
+        nodejs "NodeJS" 
+    }
+    
     stages {
         stage('Checkout') {
             steps {
@@ -25,6 +29,11 @@ pipeline {
                 script {
                     dir('src/frontend') {
                         sh '''
+                            echo "Node version:"
+                            node -v
+                            echo "NPM version:"
+                            npm -v
+                            
                             echo "Installing dependencies..."
                             npm install
                             
