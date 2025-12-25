@@ -12,30 +12,58 @@ class LLMFactory:
     """
 
     @staticmethod
-    def get_llm(model_env_var: str, temperature: float = 0, max_tokens: int = None) -> ChatLiteLLM:
+    def get_llm(model_env_var: str, temperature: float = 0, max_tokens: int = None, llm_config: dict = None) -> ChatLiteLLM:
         """
-        Get an LLM instance based on the model name in the specified environment variable.
+        Get an LLM instance.
+        If llm_config is provided, uses it (provider/model, api_key).
+        Otherwise falls back to model name in the specified environment variable.
         """
-        model_name = os.getenv(model_env_var)
+        model_name = None
+        api_key = None
+        
+        if llm_config:
+            # Construct model string for LiteLLM e.g. "openai/gpt-4" or "anthropic/claude-3-opus"
+            # If provider is "ollama", model might just be "llama3" -> "ollama/llama3"
+            provider = llm_config.get("provider", "").lower()
+            name = llm_config.get("model_name", "")
+            api_key = llm_config.get("api_key")
+            
+            if provider and name:
+                # Some providers like 'openai' or 'anthropic' need prefix.
+                # If name already has slash, assume it's full name.
+                if "/" in name:
+                    model_name = name
+                elif provider:
+                     model_name = f"{provider}/{name}"
+                else:
+                    model_name = name
+        
+        # Fallback to env var
         if not model_name:
-            # Fallback or error - deciding to error to ensure configuration is explicit
-            raise ValueError(f"Environment variable '{model_env_var}' is not set. Please configure the LLM model name.")
+            model_name = os.getenv(model_env_var)
+        
+        if not model_name:
+            raise ValueError(f"Model Configuration Missing: Environment variable '{model_env_var}' is not set and no user config provided.")
 
-        logger.info(f"Initializing LLM with model: {model_name} from env var: {model_env_var}")
+        logger.info(f"Initializing LLM with model: {model_name}" + (" (User Configured)" if llm_config else " (Env Var)"))
 
         # ChatLiteLLM wrapper handles the underlying litellm calls.
-        # Ensure your API keys (GROQ_API_KEY, OPENROUTER_API_KEY) are set in the environment.
-        llm = ChatLiteLLM(
-            model=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            # Add retry configuration directly to ChatLiteLLM/litellm
-            # num_retries=3 (default in litellm is often 2, bumping to 3 or 5 helps)
-            # request_timeout=60 (give it time)
-             model_kwargs={
+        llm_kwargs = {
+            "model": model_name,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "model_kwargs": {
                 "num_retries": 5,
                 "timeout": 60,
-                # "drop_params": True # useful if passing unsupported params
             }
-        )
+        }
+        
+        # If API Key is provided explicitly (from user config), pass it.
+        # LiteLLM/ChatLiteLLM usually looks for env vars. To pass explicit key, 
+        # we might need to set it in env temporarily or pass via some specific param?
+        # ChatLiteLLM docs say: api_key param.
+        if api_key:
+            llm_kwargs["api_key"] = api_key
+            
+        llm = ChatLiteLLM(**llm_kwargs)
         return llm

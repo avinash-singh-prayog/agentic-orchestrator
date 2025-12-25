@@ -20,8 +20,13 @@ import {
   useStreamingFinalResponse
 } from "@/stores/orchestratorStreamingStore"
 import { useChatHistoryStore, useChatSession } from "@/stores/chatHistoryStore"
+import { LLMSettings } from "@/components/Settings/LLMSettings"
 
 const App: React.FC = () => {
+
+  // Settings State from Store
+  const isSettingsOpen = useChatHistoryStore(state => state.isSettingsOpen)
+  const setSettingsOpen = useChatHistoryStore(state => state.setSettingsOpen)
 
   const [isGraphVisible, setIsGraphVisible] = useState(true)
   const [syncActiveAgent, setSyncActiveAgent] = useState<string | null>(null)
@@ -214,7 +219,9 @@ const App: React.FC = () => {
 
   return (
     <div style={appStyles}>
-      <Navigation />
+      <Navigation onOpenSettings={() => setSettingsOpen(true)} />
+
+      <LLMSettings isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <div ref={containerRef} style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
         {/* Sidebar - Chat History */}

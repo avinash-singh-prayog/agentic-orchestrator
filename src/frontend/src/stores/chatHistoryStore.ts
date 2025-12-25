@@ -45,6 +45,15 @@ interface MessageInfo {
   activity?: AgentActivityEvent[]
 }
 
+export interface LLMConfig {
+  id?: string // Added ID
+  provider: string
+  model_name: string
+  is_configured: boolean // helper
+  is_active?: boolean
+  config_name?: string
+}
+
 interface Conversation {
   id: string
   title: string
@@ -64,6 +73,7 @@ interface Message {
 
 interface ChatHistoryState {
   isAuthenticated: boolean
+  token: string | null // Access Token
   tenantId: string | null
   userId: string | null
   email: string | null
@@ -74,11 +84,15 @@ interface ChatHistoryState {
   isLoading: boolean
   isLoadingMessages: boolean
   isSyncing: boolean
+  llmConfig: LLMConfig | null
+  llmConfigs: LLMConfig[]
+  activeLLMConfig: LLMConfig | null
+  isSettingsOpen: boolean
 }
 
 interface ChatHistoryActions {
   initSession: () => Promise<void>
-  login: (data: { userId: string; tenantId: string; email: string; name?: string }) => Promise<void>
+  login: (data: { userId: string; tenantId: string; email: string; name?: string; token: string }) => Promise<void>
   logout: () => Promise<void>
   loadConversations: () => Promise<void>
   syncWithBackend: () => Promise<void>
@@ -89,6 +103,18 @@ interface ChatHistoryActions {
   addAssistantMessage: (content: string, activity?: { sender: string; receiver?: string; message: string; state?: string }[]) => Promise<void>
   getActiveThreadId: () => string | null
   reset: () => void
+  
+  // Settings
+  fetchLLMConfig: () => Promise<void>
+  fetchConfigs: () => Promise<void>
+  addConfig: (provider: string, modelName: string, apiKey: string, configName: string) => Promise<void>
+  deleteConfig: (id: string) => Promise<void>
+  activateConfig: (id: string) => Promise<void>
+  
+  updateLLMConfig: (provider: string, modelName: string, apiKey?: string) => Promise<void> // Legacy/Simple
+  
+  // UI Actions
+  setSettingsOpen: (isOpen: boolean) => void
 }
 
 type ChatHistoryStore = ChatHistoryState & ChatHistoryActions
@@ -99,6 +125,7 @@ type ChatHistoryStore = ChatHistoryState & ChatHistoryActions
 
 const initialState: ChatHistoryState = {
   isAuthenticated: false,
+  token: null,
   tenantId: null,
   userId: null,
   email: null,
@@ -108,7 +135,11 @@ const initialState: ChatHistoryState = {
   messages: [],
   isLoading: false,
   isLoadingMessages: false,
-  isSyncing: false
+  isSyncing: false,
+  llmConfig: null,
+  llmConfigs: [],
+  activeLLMConfig: null,
+  isSettingsOpen: false
 }
 
 // ============================================================================
@@ -145,13 +176,14 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     try {
       // Restore session from IndexedDB
       const session = await getSession()
-      if (session && session.userId && session.tenantId) {
+      if (session && session.userId && session.tenantId && session.token) {
         set({
           isAuthenticated: true,
           userId: session.userId,
           tenantId: session.tenantId,
           email: session.email || null,
-          name: session.name || null
+          name: session.name || null,
+          token: session.token
         })
 
         // Load conversations
@@ -175,13 +207,14 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
   login: async (data) => {
     set({ isLoading: true })
     
-    const { userId, tenantId, email, name } = data
+    const { userId, tenantId, email, name, token } = data
     
     // Save to IndexedDB
-    await saveSession({ userId, tenantId, email, name, activeConversationId: null })
+    await saveSession({ userId, tenantId, email, name, token, activeConversationId: null })
     
     set({
       isAuthenticated: true,
+      token,
       userId,
       tenantId,
       email,
@@ -284,7 +317,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     set({ activeConversationId: threadId, messages: [] })
     
     // Save to session
-    await saveSession({ tenantId, userId, activeConversationId: threadId, email: get().email || undefined, name: get().name || undefined })
+    await saveSession({ tenantId, userId, activeConversationId: threadId, email: get().email || undefined, name: get().name || undefined, token: get().token || undefined })
     
     return threadId
   },
@@ -299,7 +332,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     
     // Save to session
     if (tenantId && userId) {
-      await saveSession({ tenantId, userId, activeConversationId: id, email: get().email || undefined, name: get().name || undefined })
+      await saveSession({ tenantId, userId, activeConversationId: id, email: get().email || undefined, name: get().name || undefined, token: get().token || undefined })
     }
     
     if (id) {
@@ -416,7 +449,120 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
 
   getActiveThreadId: () => get().activeConversationId,
 
-  reset: () => set(initialState)
+  reset: () => set(initialState),
+
+  fetchLLMConfig: async () => {
+     // Legacy wrapper, calls fetchConfigs and sets active
+     await get().fetchConfigs()
+  },
+
+  fetchConfigs: async () => {
+    const { token } = get()
+    if (!token) return
+    
+    try {
+      const response = await fetch(`${API_URL}/supervisor-agent/settings/llm-configs`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const configs: LLMConfig[] = await response.json()
+        const active = configs.find(c => c.is_active) || null
+        set({ llmConfigs: configs, activeLLMConfig: active, llmConfig: active })
+      }
+    } catch (error) {
+       console.error("Failed to fetch LLM configs", error)
+    }
+  },
+
+  addConfig: async (provider, modelName, apiKey, configName) => {
+      const { token } = get()
+      if (!token) throw new Error("Not authenticated")
+      
+      const payload = {
+          provider,
+          model_name: modelName,
+          api_key: apiKey,
+          config_name: configName
+      }
+      
+      const response = await fetch(`${API_URL}/supervisor-agent/settings/llm-configs`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (!response.ok) {
+          throw new Error("Failed to add config")
+      }
+      
+      await get().fetchConfigs()
+  },
+  
+  activateConfig: async (id) => {
+      const { token } = get()
+      if (!token) return
+
+      await fetch(`${API_URL}/supervisor-agent/settings/llm-configs/${id}/activate`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      await get().fetchConfigs()
+  },
+  
+  deleteConfig: async (id) => {
+      const { token } = get()
+      if (!token) return
+
+      await fetch(`${API_URL}/supervisor-agent/settings/llm-configs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      await get().fetchConfigs()
+  },
+  
+  updateLLMConfig: async (provider: string, modelName: string, apiKey?: string) => {
+      const { token } = get()
+      if (!token) throw new Error("Not authenticated")
+      
+      const payload = {
+          provider,
+          model_name: modelName,
+          api_key: apiKey || "" // Send empty string if undefined, though backend handles it
+      }
+      
+      const response = await fetch(`${API_URL}/supervisor-agent/settings/llm-config`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (!response.ok) {
+          const err = await response.text()
+          throw new Error(`Failed to update settings: ${err}`)
+      }
+      
+      // Update local state immediately
+      set({ 
+          llmConfig: {
+              provider,
+              model_name: modelName,
+              is_configured: !!apiKey || (get().llmConfig?.is_configured ?? false) // Approximate logic
+          } 
+      })
+      // Refetch to be sure
+      // get().fetchLLMConfig() 
+  },
+
+  setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen })
 }))
 
 // ============================================================================

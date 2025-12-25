@@ -58,7 +58,8 @@ const AuthScreen: React.FC = () => {
                     userId: user.id,
                     tenantId: user.tenant_id,
                     email: user.email,
-                    name: user.name
+                    name: user.name,
+                    token: response.data.access_token
                 })
 
             } else if (view === 'register') {
@@ -74,7 +75,8 @@ const AuthScreen: React.FC = () => {
                     userId: user.id,
                     tenantId: user.tenant_id,
                     email: user.email,
-                    name: user.name
+                    name: user.name,
+                    token: response.data.access_token
                 })
 
             } else if (view === 'forgot-password') {

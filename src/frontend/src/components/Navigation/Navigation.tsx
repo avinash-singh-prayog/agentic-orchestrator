@@ -5,12 +5,16 @@
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle, Boxes, LogOut } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, Boxes, LogOut, Settings } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
-const Navigation: React.FC = () => {
+interface NavigationProps {
+    onOpenSettings?: () => void
+}
+
+const Navigation: React.FC<NavigationProps> = ({ onOpenSettings }) => {
     const { isLightMode, toggleTheme } = useTheme()
     const { getHealth } = useAgentAPI()
     const { logout } = useChatHistoryStore()
@@ -136,6 +140,11 @@ const Navigation: React.FC = () => {
                     ) : (
                         <Sun style={{ width: 18, height: 18, color: "#94a3b8" }} />
                     )}
+                </button>
+
+                {/* Settings Button */}
+                <button onClick={onOpenSettings} style={buttonStyles} title="LLM Settings">
+                    <Settings style={{ width: 18, height: 18, color: "#94a3b8" }} />
                 </button>
 
                 {/* Logout Button */}

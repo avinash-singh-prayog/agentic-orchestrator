@@ -14,6 +14,7 @@ import { useChatMessages, useActiveConversationId } from "@/stores/chatHistorySt
 import ExecutionTimeline from "./ExecutionTimeline"
 import type { Message } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
+import { ModelSelector } from './ModelSelector'
 
 interface ChatAreaProps {
     onAgentActive?: (agent: string | null) => void
@@ -34,6 +35,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
     // Get messages from chat history store
     const historyMessages = useChatMessages()
     const activeConversationId = useActiveConversationId()
+
 
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
     const isStreamActive = streamingStatus === "streaming" || streamingStatus === "connecting"
@@ -220,9 +222,12 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
     return (
         <div style={containerStyles}>
             {/* Header */}
-            <div style={headerStyles}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>Chat</h2>
-                <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Ask about shipping routes, rates, or bookings</p>
+            <div style={{ ...headerStyles, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>Chat</h2>
+                    <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Ask about shipping routes, rates, or bookings</p>
+                </div>
+                <ModelSelector />
             </div>
 
             {/* Messages */}

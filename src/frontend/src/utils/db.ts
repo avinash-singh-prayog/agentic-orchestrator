@@ -43,6 +43,7 @@ export interface UserSession {
   userId: string
   email?: string
   name?: string
+  token?: string
   activeConversationId: string | null
 }
 

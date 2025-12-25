@@ -728,3 +728,6 @@ async def health():
 
 
 app.include_router(router)
+
+from app.routers import settings
+app.include_router(settings.router)

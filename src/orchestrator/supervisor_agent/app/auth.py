@@ -10,6 +10,7 @@ import bcrypt
 from psycopg import AsyncConnection, OperationalError, ProgrammingError
 import jwt
 from dotenv import load_dotenv
+from fastapi.security import OAuth2PasswordBearer
 
 # Load .env file (for local development)
 load_dotenv()
@@ -20,6 +21,9 @@ logger = logging.getLogger("auth")
 # Database connection timeout (seconds)
 DB_CONNECTION_TIMEOUT = 10
 DB_QUERY_TIMEOUT = 30
+
+# OAuth2 Scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/supervisor-agent/auth/login")
 
 
 # ============================================================================
@@ -142,6 +146,46 @@ async def ensure_users_table():
                 ) as conn:
                     async with conn.cursor() as cur:
                         await cur.execute(create_table_query)
+
+                        # Create user_llm_configs table
+                        # Note: user_id is NOT unique anymore to allow multiple configs
+                        create_config_table_query = """
+                        CREATE TABLE IF NOT EXISTS user_llm_configs (
+                            id UUID PRIMARY KEY,
+                            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            config_name VARCHAR(100) DEFAULT 'Default Config',
+                            provider VARCHAR(50) NOT NULL,
+                            model_name VARCHAR(100) NOT NULL,
+                            api_key_encrypted TEXT,
+                            is_active BOOLEAN DEFAULT FALSE,
+                            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                        );
+                        """
+                        await cur.execute(create_config_table_query)
+                        
+                        # Migrations for existing tables
+                        try:
+                            # 1. Drop UNIQUE constraint on user_id if it exists (from previous version)
+                            # We suspect standard naming 'user_llm_configs_user_id_key'
+                            await cur.execute("""
+                                DO $$
+                                BEGIN
+                                    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_llm_configs_user_id_key') THEN
+                                        ALTER TABLE user_llm_configs DROP CONSTRAINT user_llm_configs_user_id_key;
+                                    END IF;
+                                END $$;
+                            """)
+                            
+                            # 2. Add new columns
+                            await cur.execute("ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS config_name VARCHAR(100) DEFAULT 'Default Config';")
+                            await cur.execute("ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;") 
+                            # Note: default TRUE for existing usage is good, but for multiple new ones we want careful logic. 
+                            # For migration of EXISTING single row, TRUE is correct.
+                            
+                        except Exception as e:
+                             logger.warning(f"Migration warning (user_llm_configs): {e}")
+
+                        # Add columns if they don't exist (simple migration)
                         
                         # Add columns if they don't exist (simple migration)
                         try:

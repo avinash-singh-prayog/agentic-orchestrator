@@ -9,6 +9,7 @@ import os
 from typing import Dict, Any
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.tools import Tool
+from langchain_core.runnables import RunnableConfig
 
 from .state import SupervisorAgentState
 from .tools import SUPERVISOR_TOOLS
@@ -40,10 +41,32 @@ class SupervisorNodes:
         self.tools = {t.name: t for t in SUPERVISOR_TOOLS}
         self.llm_with_tools = self.llm.bind_tools(SUPERVISOR_TOOLS)
 
-    async def supervisor_node(self, state: SupervisorAgentState) -> Dict[str, Any]:
+    async def supervisor_node(self, state: SupervisorAgentState, config: RunnableConfig) -> Dict[str, Any]:
         """
         Supervisor decides next step: call tool or answer.
         """
+        # Extract User context
+        user_id = None
+        if config and "metadata" in config:
+            user_id = config["metadata"].get("user_id")
+
+        # Dynamic LLM Initialization (per request)
+        # We re-initialize here to support per-user config. 
+        # Ideally we'd cache this but for now we fetch fresh.
+        from app.services.llm_config_service import LLMConfigService
+        
+        llm_config = None
+        if user_id:
+            try:
+                service = LLMConfigService()
+                llm_config = await service.get_config(user_id)
+            except Exception as e:
+                logger.warning(f"Failed to fetch user LLM config: {e}. Falling back to default.")
+
+        # Initialize LLM with tool binding
+        llm = LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, llm_config=llm_config)
+        llm_with_tools = llm.bind_tools(SUPERVISOR_TOOLS)
+
         messages = state["messages"]
         logger.info(f"Supervisor processing: {messages[-1].content[:50]}...")
         
@@ -81,7 +104,7 @@ class SupervisorNodes:
             messages = [system_prompt] + messages
         
         try:
-            response = await self.llm_with_tools.ainvoke(messages)
+            response = await llm_with_tools.ainvoke(messages)
             return {"messages": [response]}
         except Exception as e:
             logger.error(f"LLM API error in supervisor_node: {e}")
