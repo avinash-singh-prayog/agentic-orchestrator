@@ -1,0 +1,1026 @@
+{
+    "info": {
+        "_postman_id": "agentic-orchestrator-api-collection",
+        "name": "Agentic Orchestrator API",
+        "description": "Complete API collection for the Agentic Orchestrator multi-agent system including Supervisor, Booking, and Serviceability agents.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "supervisor_base_url",
+            "value": "http://localhost:9004",
+            "type": "string"
+        },
+        {
+            "key": "booking_base_url",
+            "value": "http://localhost:9005",
+            "type": "string"
+        },
+        {
+            "key": "serviceability_base_url",
+            "value": "http://localhost:9003",
+            "type": "string"
+        },
+        {
+            "key": "auth_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "tenant_id",
+            "value": "tenant_001",
+            "type": "string"
+        },
+        {
+            "key": "user_id",
+            "value": "user_001",
+            "type": "string"
+        },
+        {
+            "key": "thread_id",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Supervisor Agent",
+            "description": "Supervisor Agent - Main orchestrator that coordinates with other agents",
+            "item": [
+                {
+                    "name": "OASF Discovery",
+                    "item": [
+                        {
+                            "name": "Get Agent Record",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/.well-known/agent.json",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        ".well-known",
+                                        "agent.json"
+                                    ]
+                                },
+                                "description": "OASF Agent Discovery endpoint - returns agent record for interoperability"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Health",
+                    "item": [
+                        {
+                            "name": "Health Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/health",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "health"
+                                    ]
+                                },
+                                "description": "Health check endpoint"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Authentication",
+                    "item": [
+                        {
+                            "name": "Register User",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "if (pm.response.code === 200) {",
+                                            "    var jsonData = pm.response.json();",
+                                            "    pm.collectionVariables.set('auth_token', jsonData.access_token);",
+                                            "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                                            "    pm.collectionVariables.set('tenant_id', jsonData.user.tenant_id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"Password123!\",\n    \"name\": \"Test User\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/auth/register",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "auth",
+                                        "register"
+                                    ]
+                                },
+                                "description": "Register a new user and get access token"
+                            }
+                        },
+                        {
+                            "name": "Login",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "if (pm.response.code === 200) {",
+                                            "    var jsonData = pm.response.json();",
+                                            "    pm.collectionVariables.set('auth_token', jsonData.access_token);",
+                                            "    pm.collectionVariables.set('user_id', jsonData.user.id);",
+                                            "    pm.collectionVariables.set('tenant_id', jsonData.user.tenant_id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"Password123!\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/auth/login",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "auth",
+                                        "login"
+                                    ]
+                                },
+                                "description": "Login and get access token"
+                            }
+                        },
+                        {
+                            "name": "Forgot Password",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/auth/forgot-password",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "auth",
+                                        "forgot-password"
+                                    ]
+                                },
+                                "description": "Request password reset token"
+                            }
+                        },
+                        {
+                            "name": "Reset Password",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"token\": \"reset_token_here\",\n    \"new_password\": \"NewPassword123!\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/auth/reset-password",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "auth",
+                                        "reset-password"
+                                    ]
+                                },
+                                "description": "Reset password with token"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Agent",
+                    "item": [
+                        {
+                            "name": "Run Agent (Sync)",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "if (pm.response.code === 200) {",
+                                            "    var jsonData = pm.response.json();",
+                                            "    pm.collectionVariables.set('thread_id', jsonData.thread_id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"prompt\": \"What shipping options are available from Mumbai 400001 to Delhi 110001 for a 2kg package?\",\n    \"tenant_id\": \"{{tenant_id}}\",\n    \"user_id\": \"{{user_id}}\",\n    \"thread_id\": null\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/v1/agent/run",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "v1",
+                                        "agent",
+                                        "run"
+                                    ]
+                                },
+                                "description": "Run the supervisor agent workflow (sync mode) with context persistence"
+                            }
+                        },
+                        {
+                            "name": "Stream Agent (SSE)",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/x-ndjson"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"prompt\": \"Check serviceability from pincode 713333 to 10001\",\n    \"tenant_id\": \"{{tenant_id}}\",\n    \"user_id\": \"{{user_id}}\",\n    \"thread_id\": \"{{thread_id}}\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/v1/agent/stream",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "v1",
+                                        "agent",
+                                        "stream"
+                                    ]
+                                },
+                                "description": "Stream the supervisor agent workflow with SSE and context persistence"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Conversations",
+                    "item": [
+                        {
+                            "name": "List Conversations",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/v1/conversations?tenant_id={{tenant_id}}&user_id={{user_id}}",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "v1",
+                                        "conversations"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "tenant_id",
+                                            "value": "{{tenant_id}}"
+                                        },
+                                        {
+                                            "key": "user_id",
+                                            "value": "{{user_id}}"
+                                        }
+                                    ]
+                                },
+                                "description": "List all conversations for a tenant/user"
+                            }
+                        },
+                        {
+                            "name": "Get Conversation",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/v1/conversations/{{thread_id}}?tenant_id={{tenant_id}}&user_id={{user_id}}",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "v1",
+                                        "conversations",
+                                        "{{thread_id}}"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "tenant_id",
+                                            "value": "{{tenant_id}}"
+                                        },
+                                        {
+                                            "key": "user_id",
+                                            "value": "{{user_id}}"
+                                        }
+                                    ]
+                                },
+                                "description": "Get all messages in a conversation, including tool activity"
+                            }
+                        },
+                        {
+                            "name": "Delete Conversation",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/v1/conversations/{{thread_id}}?tenant_id={{tenant_id}}&user_id={{user_id}}",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "v1",
+                                        "conversations",
+                                        "{{thread_id}}"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "tenant_id",
+                                            "value": "{{tenant_id}}"
+                                        },
+                                        {
+                                            "key": "user_id",
+                                            "value": "{{user_id}}"
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a conversation and all its checkpoints"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Settings",
+                    "item": [
+                        {
+                            "name": "List LLM Configs",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-configs",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-configs"
+                                    ]
+                                },
+                                "description": "List all LLM configurations for the user"
+                            }
+                        },
+                        {
+                            "name": "Create LLM Config",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"provider\": \"openrouter\",\n    \"model_name\": \"anthropic/claude-3.5-sonnet\",\n    \"config_name\": \"Claude Config\",\n    \"api_key\": \"your-api-key-here\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-configs",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-configs"
+                                    ]
+                                },
+                                "description": "Create a new LLM configuration"
+                            }
+                        },
+                        {
+                            "name": "Activate LLM Config",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PUT",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-configs/:config_id/activate",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-configs",
+                                        ":config_id",
+                                        "activate"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "config_id",
+                                            "value": "config_id_here"
+                                        }
+                                    ]
+                                },
+                                "description": "Set a specific configuration as active"
+                            }
+                        },
+                        {
+                            "name": "Delete LLM Config",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-configs/:config_id",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-configs",
+                                        ":config_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "config_id",
+                                            "value": "config_id_here"
+                                        }
+                                    ]
+                                },
+                                "description": "Delete a configuration"
+                            }
+                        },
+                        {
+                            "name": "Get Active LLM Config (Legacy)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-config",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-config"
+                                    ]
+                                },
+                                "description": "Get the currently active LLM configuration (legacy endpoint)"
+                            }
+                        },
+                        {
+                            "name": "Update LLM Config (Legacy)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{auth_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"provider\": \"openrouter\",\n    \"model_name\": \"openai/gpt-4o\",\n    \"config_name\": \"GPT-4 Config\",\n    \"api_key\": \"your-api-key-here\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{supervisor_base_url}}/supervisor-agent/settings/llm-config",
+                                    "host": [
+                                        "{{supervisor_base_url}}"
+                                    ],
+                                    "path": [
+                                        "supervisor-agent",
+                                        "settings",
+                                        "llm-config"
+                                    ]
+                                },
+                                "description": "Update or create LLM configuration (legacy endpoint)"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Booking Agent",
+            "description": "Booking Agent - Handles order creation and management",
+            "item": [
+                {
+                    "name": "OASF Discovery",
+                    "item": [
+                        {
+                            "name": "Get Agent Record",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{booking_base_url}}/.well-known/agent.json",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        ".well-known",
+                                        "agent.json"
+                                    ]
+                                },
+                                "description": "OASF Agent Discovery endpoint - returns agent record for interoperability"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Health",
+                    "item": [
+                        {
+                            "name": "Health Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/health",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "health"
+                                    ]
+                                },
+                                "description": "Health check endpoint"
+                            }
+                        },
+                        {
+                            "name": "Readiness Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/ready",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "ready"
+                                    ]
+                                },
+                                "description": "Readiness check endpoint"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Agent",
+                    "item": [
+                        {
+                            "name": "Run Booking Agent",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"prompt\": \"Book a shipment from John at 9876543210 in Mumbai 400001 to Jane at 9876543211 in Delhi 110001. Package weight is 2kg. Partner code: smile_hubops\",\n    \"thread_id\": null\n}"
+                                },
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/v1/agent/run",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "v1",
+                                        "agent",
+                                        "run"
+                                    ]
+                                },
+                                "description": "Run the booking agent with a natural language prompt"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Orders",
+                    "item": [
+                        {
+                            "name": "Create Order",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-Tenant-Id",
+                                        "value": "{{tenant_id}}"
+                                    },
+                                    {
+                                        "key": "X-User-Id",
+                                        "value": "{{user_id}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"order_id\": \"ORD-001\",\n    \"partner_code\": \"smile_hubops\",\n    \"origin\": {\n        \"name\": \"John Doe\",\n        \"phone\": \"9876543210\",\n        \"street\": \"123 Main Street\",\n        \"city\": \"Mumbai\",\n        \"state\": \"Maharashtra\",\n        \"zip\": \"400001\",\n        \"country\": \"India\"\n    },\n    \"destination\": {\n        \"name\": \"Jane Smith\",\n        \"phone\": \"9876543211\",\n        \"street\": \"456 Park Avenue\",\n        \"city\": \"Delhi\",\n        \"state\": \"Delhi\",\n        \"zip\": \"110001\",\n        \"country\": \"India\"\n    },\n    \"package\": {\n        \"name\": \"General Goods\",\n        \"quantity\": 1,\n        \"unit_price\": 100.0,\n        \"weight_grams\": 2000\n    },\n    \"payment_type\": \"PREPAID\",\n    \"payment_amount\": 500,\n    \"service_type\": \"standard\",\n    \"delivery_mode\": \"SURFACE\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/v1/orders",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "v1",
+                                        "orders"
+                                    ]
+                                },
+                                "description": "Create a new shipping order"
+                            }
+                        },
+                        {
+                            "name": "Get Order",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "X-Tenant-Id",
+                                        "value": "{{tenant_id}}"
+                                    },
+                                    {
+                                        "key": "X-User-Id",
+                                        "value": "{{user_id}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/v1/orders/:order_id",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "v1",
+                                        "orders",
+                                        ":order_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "order_id",
+                                            "value": "ORD-001"
+                                        }
+                                    ]
+                                },
+                                "description": "Get order details by ID"
+                            }
+                        },
+                        {
+                            "name": "List Orders",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "X-Tenant-Id",
+                                        "value": "{{tenant_id}}"
+                                    },
+                                    {
+                                        "key": "X-User-Id",
+                                        "value": "{{user_id}}"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/v1/orders?page=1&limit=20&order_status=&reference_id=",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "v1",
+                                        "orders"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "limit",
+                                            "value": "20"
+                                        },
+                                        {
+                                            "key": "order_status",
+                                            "value": "",
+                                            "description": "Optional: Filter by status"
+                                        },
+                                        {
+                                            "key": "reference_id",
+                                            "value": "",
+                                            "description": "Optional: Filter by reference ID"
+                                        }
+                                    ]
+                                },
+                                "description": "List orders with pagination"
+                            }
+                        },
+                        {
+                            "name": "Cancel Order",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-Tenant-Id",
+                                        "value": "{{tenant_id}}"
+                                    },
+                                    {
+                                        "key": "X-User-Id",
+                                        "value": "{{user_id}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"reason\": \"Customer changed mind\",\n    \"initiated_by\": \"CUSTOMER\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{booking_base_url}}/booking-agent/v1/orders/:order_id/cancel",
+                                    "host": [
+                                        "{{booking_base_url}}"
+                                    ],
+                                    "path": [
+                                        "booking-agent",
+                                        "v1",
+                                        "orders",
+                                        ":order_id",
+                                        "cancel"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "order_id",
+                                            "value": "ORD-001"
+                                        }
+                                    ]
+                                },
+                                "description": "Cancel an existing order"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Serviceability Agent",
+            "description": "Serviceability Agent - Checks shipping serviceability and rates",
+            "item": [
+                {
+                    "name": "OASF Discovery",
+                    "item": [
+                        {
+                            "name": "Get Agent Record",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{serviceability_base_url}}/.well-known/agent.json",
+                                    "host": [
+                                        "{{serviceability_base_url}}"
+                                    ],
+                                    "path": [
+                                        ".well-known",
+                                        "agent.json"
+                                    ]
+                                },
+                                "description": "OASF Agent Discovery endpoint - returns agent record for interoperability"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Health",
+                    "item": [
+                        {
+                            "name": "Health Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{serviceability_base_url}}/serviceability-agent/health",
+                                    "host": [
+                                        "{{serviceability_base_url}}"
+                                    ],
+                                    "path": [
+                                        "serviceability-agent",
+                                        "health"
+                                    ]
+                                },
+                                "description": "Health check endpoint - returns status and available carriers"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Agent",
+                    "item": [
+                        {
+                            "name": "Run Serviceability Agent",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"prompt\": \"I need to ship a 2.5kg box from 10001 to 90210\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{serviceability_base_url}}/serviceability-agent/v1/agent/run",
+                                    "host": [
+                                        "{{serviceability_base_url}}"
+                                    ],
+                                    "path": [
+                                        "serviceability-agent",
+                                        "v1",
+                                        "agent",
+                                        "run"
+                                    ]
+                                },
+                                "description": "Run the serviceability agent with a natural language prompt"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Serviceability",
+                    "item": [
+                        {
+                            "name": "Check Serviceability",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"source_location\": {\n        \"postal_code\": \"400001\",\n        \"country_code\": \"IN\"\n    },\n    \"destination_location\": {\n        \"postal_code\": \"10001\",\n        \"country_code\": \"US\"\n    },\n    \"packages\": null,\n    \"carriers\": null\n}"
+                                },
+                                "url": {
+                                    "raw": "{{serviceability_base_url}}/serviceability-agent/v1/serviceability",
+                                    "host": [
+                                        "{{serviceability_base_url}}"
+                                    ],
+                                    "path": [
+                                        "serviceability-agent",
+                                        "v1",
+                                        "serviceability"
+                                    ]
+                                },
+                                "description": "Check serviceability across all enabled carriers for a given source and destination"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

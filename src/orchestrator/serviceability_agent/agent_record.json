@@ -1,0 +1,82 @@
+{
+    "name": "Serviceability Agent",
+    "description": "Validates shipping routes and fetches carrier rates for logistics operations. Determines service availability between origin and destination locations.",
+    "version": "1.0.0",
+    "schema_version": "0.8.0",
+    "authors": [
+        "Avinash <avinash@prayog.com>"
+    ],
+    "created_at": "2024-12-28T00:00:00Z",
+    "skills": [
+        {
+            "name": "natural_language_processing/natural_language_understanding/entity_recognition",
+            "id": 10103
+        },
+        {
+            "name": "retrieval_augmented_generation/document_or_database_question_answering",
+            "id": 602
+        },
+        {
+            "name": "natural_language_processing/natural_language_generation/dialogue_generation",
+            "id": 10204
+        }
+    ],
+    "domains": [
+        {
+            "name": "transportation/logistics",
+            "id": 801
+        },
+        {
+            "name": "transportation/supply_chain",
+            "id": 804
+        }
+    ],
+    "locators": [
+        {
+            "type": "source_code",
+            "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/serviceability_agent"
+        }
+    ],
+    "modules": [
+        {
+            "type": "a2a",
+            "data": {
+                "protocol": "SLIM",
+                "description": "Receives requests from Supervisor Agent via SLIM transport",
+                "role": "worker",
+                "parent_agent": {
+                    "name": "supervisor_agent",
+                    "endpoint": "slim://supervisor-agent:8765"
+                }
+            }
+        },
+        {
+            "type": "model",
+            "data": {
+                "provider": "litellm",
+                "model_name": "configurable via SERVICEABILITY_AGENT_MODEL env var",
+                "default_model": "openrouter/google/gemini-2.0-flash-exp:free",
+                "temperature": 0,
+                "max_tokens": null,
+                "features": [
+                    "tool_calling"
+                ]
+            }
+        },
+        {
+            "type": "observability",
+            "data": {
+                "enabled": true,
+                "provider": "ioa_observe",
+                "decorators": [
+                    "@agent",
+                    "@graph"
+                ],
+                "tracing": {
+                    "enabled": true,
+                    "exporter": "opentelemetry"
+                }
+            }
+        }
+    ]
+}

@@ -50,6 +50,25 @@ app.include_router(agent_router, prefix="/serviceability-agent/v1")
 app.include_router(serviceability_router, prefix="/serviceability-agent/v1")
 
 
+# ============================================================================
+# OASF Discovery Endpoint
+# ============================================================================
+
+@app.get("/.well-known/agent.json")
+async def get_agent_record():
+    """OASF Agent Discovery endpoint - returns agent record for interoperability."""
+    from pathlib import Path
+    import json
+    from fastapi import HTTPException
+    
+    record_path = Path(__file__).parent.parent / "agent_record.json"
+    try:
+        with open(record_path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Agent record not found")
+
+
 def main() -> None:
     """Run the HTTP server only."""
     logger.info(f"Starting Serviceability Service on {settings.host}:{settings.port}")

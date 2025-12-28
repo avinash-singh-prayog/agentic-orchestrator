@@ -22,7 +22,7 @@ A multi-agent orchestration system for logistics, built on the **AGNTCY framewor
 - **SOLID-Compliant LLM Abstraction**: Vendor-neutral LLM integration via LiteLLM
 - **Human-in-the-Loop (HITL)**: Approval workflow for high-value orders
 - **Production-Ready Identity Service**: TBAC policy-based access control
-- **OASF Compliance**: Open Agent Schema Framework for discovery
+- **OASF Compliance**: Open Agent Schema Framework v0.8.0 with discovery endpoints at `/.well-known/agent.json`
 
 ## 📁 Project Structure
 

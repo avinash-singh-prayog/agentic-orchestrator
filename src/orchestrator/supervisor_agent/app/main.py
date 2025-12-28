@@ -727,7 +727,26 @@ async def health():
     return {"status": "ok"}
 
 
+
 app.include_router(router)
 
 from app.routers import settings
 app.include_router(settings.router)
+
+
+# ============================================================================
+# OASF Discovery Endpoint
+# ============================================================================
+
+@app.get("/.well-known/agent.json")
+async def get_agent_record():
+    """OASF Agent Discovery endpoint - returns agent record for interoperability."""
+    from pathlib import Path
+    import json
+    
+    record_path = Path(__file__).parent.parent / "agent_record.json"
+    try:
+        with open(record_path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Agent record not found")
