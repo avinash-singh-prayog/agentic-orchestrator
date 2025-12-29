@@ -43,6 +43,19 @@ async def call_booking_via_slim(prompt: str) -> str:
     
     logger.info(f"Creating SLIM transport to {slim_endpoint}")
     
+    logger.info(f"Creating SLIM transport to {slim_endpoint}")
+
+    # Service Discovery
+    from agent.directory import DirectoryClient
+    dir_client = DirectoryClient()
+    agent_record = dir_client.find_agent_by_name("Booking Agent")
+    
+    target_topic = BOOKING_AGENT_TOPIC
+    if agent_record:
+        logger.info(f"Discovered Booking Agent: {agent_record.get('id', 'unknown ID')}")
+    else:
+        logger.warning("Booking Agent not found in Directory! Attempting fallback to static topic.")
+    
     # Create transport for SLIM
     transport = factory.create_transport(
         "SLIM",
@@ -53,7 +66,7 @@ async def call_booking_via_slim(prompt: str) -> str:
     # Create A2A client targeting the booking agent
     client = await factory.create_client(
         "A2A",
-        agent_topic=BOOKING_AGENT_TOPIC,
+        agent_topic=target_topic,
         transport=transport
     )
     

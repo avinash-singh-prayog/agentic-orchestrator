@@ -98,6 +98,40 @@ services:
   #     - orchestrator-net
 
   # ===========================================
+  # DIRECTORY SERVICE & REGISTRY
+  # ===========================================
+
+  directory-service:
+    image: ghcr.io/agntcy/dir-apiserver:v0.6.0
+    container_name: directory-service
+    ports:
+      - "8090:8888"
+      - "8091:8091"
+    environment:
+      - SERVER_HTTP_PORT=8091
+      - SERVER_GRPC_PORT=8090
+      - STORE_TYPE=oci
+      - STORE_OCI_HOST=http://oci-registry:5000
+      - STORE_OCI_PLAIN_HTTP=true
+    volumes:
+      - ./data/sqlite:/var/lib/agntcy/dir
+    depends_on:
+      - oci-registry
+    networks:
+      - orchestrator-net
+
+  oci-registry:
+    image: ghcr.io/project-zot/zot:v2.1.11
+    container_name: oci-registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config/docker/zot/config.json:/etc/zot/config.json
+      - ./data/zot:/var/lib/registry
+    networks:
+      - orchestrator-net
+
+  # ===========================================
   # SUPERVISOR AGENT
   # ===========================================
 

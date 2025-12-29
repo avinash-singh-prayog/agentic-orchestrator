@@ -56,6 +56,18 @@ async def lifespan(app: FastAPI):
     """Application lifespan for startup/shutdown."""
     # Startup
     set_factory(AgntcyFactory("orchestrator.supervisor_agent", enable_tracing=False))
+
+    # Directory Service registration disabled due to agntcy SDK protobuf conflict
+    # The agntcy-dir SDK requires protobuf v6, but agntcy-app-sdk pins a2a-sdk
+    # which requires protobuf v5. Waiting for upstream SDK fix.
+    # See: https://github.com/agntcy/app-sdk/issues for updates
+    # try:
+    #     from agent.directory import DirectoryClient
+    #     dir_client = DirectoryClient()
+    #     dir_client.register_agent()
+    # except Exception as e:
+    #     print(f"WARNING: Failed to register with Directory Service: {e}")
+
     try:
         import asyncio
         from agent.memory import checkpointer_lifespan

@@ -26,3 +26,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app", "agent", "domain", "config", "services"]
+
+[[tool.uv.index]]
+url = "https://buf.build/gen/python"

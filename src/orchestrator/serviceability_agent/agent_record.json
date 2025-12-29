@@ -35,6 +35,12 @@
         {
             "type": "source_code",
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/serviceability_agent"
+        },
+        {
+            "type": "endpoint",
+            "url": "slim://serviceability-agent:9003",
+            "protocol": "SLIM",
+            "description": "Main SLIM communication endpoint"
         }
     ],
     "modules": [

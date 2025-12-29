@@ -35,6 +35,12 @@
         {
             "type": "source_code",
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/booking_agent"
+        },
+        {
+            "type": "endpoint",
+            "url": "slim://booking-agent:9005",
+            "protocol": "SLIM",
+            "description": "Main SLIM communication endpoint"
         }
     ],
     "modules": [
