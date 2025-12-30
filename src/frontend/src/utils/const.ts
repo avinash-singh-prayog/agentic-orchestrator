@@ -12,7 +12,11 @@ export const NODE_IDS = {
   RATE_AGENT: "rate-agent",
   SERVICEABILITY_AGENT: "serviceability-agent",
   BOOKING_AGENT: "booking-agent",
+  PERSONAL_ASSISTANT: "personal-assistant-agent",
+  WEATHER_MCP: "weather-mcp",
+  WEBSEARCH_MCP: "websearch-mcp",
   ORCHESTRATOR_GROUP: "orchestrator-group",
+  MCP_GROUP: "mcp-group",
 } as const
 
 // Edge identifiers
@@ -22,6 +26,9 @@ export const EDGE_IDS = {
   SLIM_TO_RATE: "slim-to-rate",
   SLIM_TO_SERVICEABILITY_AGENT: "slim-to-serviceability-agent",
   SLIM_TO_BOOKING_AGENT: "slim-to-booking-agent",
+  SLIM_TO_PERSONAL_ASSISTANT: "slim-to-personal-assistant",
+  PA_TO_WEATHER_MCP: "pa-to-weather-mcp",
+  PA_TO_WEBSEARCH_MCP: "pa-to-websearch-mcp",
 } as const
 
 // Node types for ReactFlow
@@ -81,7 +88,8 @@ export const API_ENDPOINTS = {
 export const EXAMPLE_PROMPTS = [
   "Can we ship from Mumbai to London?",
   "Get shipping quotes for 50kg from New York to Tokyo",
-  "What carriers are available for international shipping?",
+  "What's the weather in Tokyo?",
+  "Search for latest AI news",
   "Book the cheapest option for my shipment",
   "Check serviceability from Los Angeles to Berlin",
 ] as const

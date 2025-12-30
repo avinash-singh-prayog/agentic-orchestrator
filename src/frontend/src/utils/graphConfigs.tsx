@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react"
-import { Brain, Package, Zap, ShoppingCart } from "lucide-react"
+import { Brain, Package, Zap, ShoppingCart, User, Cloud, Search } from "lucide-react"
 import { NODE_IDS, EDGE_IDS, NODE_TYPES, EDGE_TYPES } from "./const"
 
 export interface GraphConfig {
@@ -21,9 +21,15 @@ const nodeStyle = {
     height: 95,
 }
 
+// Small node style for MCP servers
+const smallNodeStyle = {
+    width: 140,
+    height: 80,
+}
+
 // Transport node style
 const transportStyle = {
-    width: 500,
+    width: 600,
     height: 52,
 }
 
@@ -45,7 +51,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             type: "group",
             data: { label: "Agentic Orchestrator" },
             position: { x: 50, y: 50 },
-            style: { ...groupStyle, width: 850 }, // Widen container
+            style: { ...groupStyle, width: 950, height: 550 },
             draggable: false,
         },
         // Supervisor Agent (Top Left)
@@ -60,7 +66,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Routes requests to specialized agents",
             },
-            position: { x: 180, y: 40 }, // Shifted Left
+            position: { x: 180, y: 40 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
@@ -76,7 +82,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Capability Lookup",
             },
-            position: { x: 550, y: 40 }, // Far Right
+            position: { x: 550, y: 40 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
             style: { ...nodeStyle, width: 170 },
@@ -90,7 +96,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 icon: Zap,
                 description: "A2A Message Bus",
             },
-            position: { x: 120, y: 180 }, // Centered under group
+            position: { x: 100, y: 180 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...transportStyle,
         },
@@ -106,11 +112,11 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Checks rates and serviceability",
             },
-            position: { x: 120, y: 320 },
+            position: { x: 60, y: 320 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
-        // Booking Agent (Bottom Right)
+        // Booking Agent (Bottom Center-Left)
         {
             id: NODE_IDS.BOOKING_AGENT,
             type: NODE_TYPES.CUSTOM,
@@ -122,9 +128,57 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Creates and manages orders",
             },
-            position: { x: 440, y: 320 },
+            position: { x: 280, y: 320 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
+        },
+        // Personal Assistant Agent (Bottom Center-Right)
+        {
+            id: NODE_IDS.PERSONAL_ASSISTANT,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: User,
+                label1: "Personal Assistant",
+                label2: "MCP Integration",
+                handles: "all",
+                status: "idle",
+                description: "Weather, Search & productivity",
+            },
+            position: { x: 500, y: 320 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...nodeStyle,
+        },
+        // Weather MCP (Bottom Right - under PA)
+        {
+            id: NODE_IDS.WEATHER_MCP,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: Cloud,
+                label1: "Weather MCP",
+                label2: "FastMCP Server",
+                handles: "target",
+                status: "idle",
+                description: "Weather data tools",
+            },
+            position: { x: 460, y: 460 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...smallNodeStyle,
+        },
+        // WebSearch MCP (Bottom Far Right - under PA)
+        {
+            id: NODE_IDS.WEBSEARCH_MCP,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: Search,
+                label1: "WebSearch MCP",
+                label2: "FastMCP Server",
+                handles: "target",
+                status: "idle",
+                description: "Web search & extraction",
+            },
+            position: { x: 620, y: 460 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...smallNodeStyle,
         },
     ],
     edges: [
@@ -134,7 +188,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             source: NODE_IDS.SUPERVISOR,
             target: NODE_IDS.SLIM_TRANSPORT,
             sourceHandle: "bottom",
-            targetHandle: "top", // implicit for TransportNode usually
+            targetHandle: "top",
             type: EDGE_TYPES.CUSTOM,
             data: { label: "A2A" },
             animated: false,
@@ -144,11 +198,11 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             id: "supervisor-to-directory",
             source: NODE_IDS.SUPERVISOR,
             target: "directory-service",
-            sourceHandle: "right", // Use side handles
+            sourceHandle: "right",
             targetHandle: "left",
             type: EDGE_TYPES.CUSTOM,
             data: { label: "Lookup" },
-            style: { strokeDasharray: "5, 5" }, // Dashed line for lookup
+            style: { strokeDasharray: "5, 5" },
             animated: false,
         },
         // SLIM to Serviceability Agent
@@ -173,13 +227,50 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             data: { label: "" },
             animated: false,
         },
+        // SLIM to Personal Assistant
+        {
+            id: EDGE_IDS.SLIM_TO_PERSONAL_ASSISTANT,
+            source: NODE_IDS.SLIM_TRANSPORT,
+            target: NODE_IDS.PERSONAL_ASSISTANT,
+            type: EDGE_TYPES.CUSTOM,
+            sourceHandle: "bottom-center",
+            targetHandle: "top",
+            data: { label: "" },
+            animated: false,
+        },
+        // Personal Assistant to Weather MCP
+        {
+            id: EDGE_IDS.PA_TO_WEATHER_MCP,
+            source: NODE_IDS.PERSONAL_ASSISTANT,
+            target: NODE_IDS.WEATHER_MCP,
+            type: EDGE_TYPES.CUSTOM,
+            sourceHandle: "bottom",
+            targetHandle: "top",
+            data: { label: "" },
+            style: { strokeDasharray: "3, 3" },
+            animated: false,
+        },
+        // Personal Assistant to WebSearch MCP
+        {
+            id: EDGE_IDS.PA_TO_WEBSEARCH_MCP,
+            source: NODE_IDS.PERSONAL_ASSISTANT,
+            target: NODE_IDS.WEBSEARCH_MCP,
+            type: EDGE_TYPES.CUSTOM,
+            sourceHandle: "bottom",
+            targetHandle: "top",
+            data: { label: "" },
+            style: { strokeDasharray: "3, 3" },
+            animated: false,
+        },
     ],
     animationSequence: [
         { ids: [NODE_IDS.SUPERVISOR] },
         { ids: [EDGE_IDS.SUPERVISOR_TO_SLIM] },
         { ids: [NODE_IDS.SLIM_TRANSPORT] },
-        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT] },
-        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT] },
+        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT, EDGE_IDS.SLIM_TO_PERSONAL_ASSISTANT] },
+        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT, NODE_IDS.PERSONAL_ASSISTANT] },
+        { ids: [EDGE_IDS.PA_TO_WEATHER_MCP, EDGE_IDS.PA_TO_WEBSEARCH_MCP] },
+        { ids: [NODE_IDS.WEATHER_MCP, NODE_IDS.WEBSEARCH_MCP] },
     ],
 }
 
@@ -194,4 +285,3 @@ export const getInitialNodes = (): Node[] => {
 export const getInitialEdges = (): Edge[] => {
     return ORCHESTRATOR_CONFIG.edges
 }
-

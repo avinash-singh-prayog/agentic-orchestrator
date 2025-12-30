@@ -1,0 +1,52 @@
+{
+    "name": "Personal Assistant Agent",
+    "description": "Personal assistant with weather, web search, and productivity tools. [TOPIC:agents.personal.v1] [CAPABILITY:personal_assistant] [CAPABILITY:weather_info] [CAPABILITY:web_search]",
+    "version": "1.0.0",
+    "schema_version": "0.8.0",
+    "authors": [
+        "Avinash <avinash@prayog.com>"
+    ],
+    "created_at": "2024-12-31T00:00:00Z",
+    "skills": [
+        {
+            "name": "natural_language_processing/conversational_ai/chatbot",
+            "id": 10201
+        },
+        {
+            "name": "retrieval_augmented_generation/document_or_database_question_answering",
+            "id": 602
+        }
+    ],
+    "domains": [
+        {
+            "name": "general/personal_productivity",
+            "id": 103
+        },
+        {
+            "name": "general/information_retrieval",
+            "id": 101
+        }
+    ],
+    "locators": [
+        {
+            "type": "source_code",
+            "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/personal_assistant_agent"
+        }
+    ],
+    "modules": [
+        {
+            "name": "routing",
+            "type": "routing",
+            "data": {
+                "protocol": "SLIM",
+                "slim_topic": "agents.personal.v1",
+                "capabilities": [
+                    "personal_assistant",
+                    "weather_info",
+                    "web_search"
+                ],
+                "port": 9006
+            }
+        }
+    ]
+}

@@ -63,11 +63,11 @@ from app.oauth import (
 )
 from itsdangerous import URLSafeTimedSerializer
 
+import os
+
 # OAuth state serializer (for CSRF protection)
 OAUTH_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-key-change-in-production")
 oauth_state_serializer = URLSafeTimedSerializer(OAUTH_SECRET_KEY)
-
-import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

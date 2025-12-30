@@ -20,7 +20,10 @@ import {
     ChevronDown,
     ChevronUp,
     Activity,
-    ShoppingCart
+    ShoppingCart,
+    User,
+    Cloud,
+    Search
 } from "lucide-react"
 import {
     useStreamingEvents,
@@ -72,6 +75,24 @@ const agentConfig: Record<string, {
         bgColor: "rgba(244, 114, 182, 0.15)",
         label: "Booking Agent"
     },
+    personal: {
+        icon: User,
+        color: "#a78bfa",
+        bgColor: "rgba(167, 139, 250, 0.15)",
+        label: "Personal Assistant"
+    },
+    weather: {
+        icon: Cloud,
+        color: "#38bdf8",
+        bgColor: "rgba(56, 189, 248, 0.15)",
+        label: "Weather MCP"
+    },
+    websearch: {
+        icon: Search,
+        color: "#34d399",
+        bgColor: "rgba(52, 211, 153, 0.15)",
+        label: "WebSearch MCP"
+    },
     rate: {
         icon: CircleDollarSign,
         color: "#fbbf24",
@@ -92,7 +113,7 @@ const agentConfig: Record<string, {
     },
     directory: {
         icon: Package,
-        color: "#fca5a5", // Light Red/Orange
+        color: "#fca5a5",
         bgColor: "rgba(252, 165, 165, 0.15)",
         label: "Directory Service"
     }
@@ -257,10 +278,13 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                 {events.map((event, index) => {
                     const getAgentKey = (sender: string) => {
                         const s = sender.toLowerCase()
+                        if (s.includes("weather")) return "weather"
+                        if (s.includes("websearch") || s.includes("web search")) return "websearch"
+                        if (s.includes("personal") || s.includes("assistant")) return "personal"
                         if (s.includes("carrier")) return "carrier"
                         if (s.includes("rate")) return "rate"
-                        if (s.includes("directory")) return "directory" // Must be BEFORE 'service' check!
-                        if (s.includes("serviceability")) return "serviceability" // More specific match
+                        if (s.includes("directory")) return "directory"
+                        if (s.includes("serviceability")) return "serviceability"
                         if (s.includes("booking")) return "booking"
                         if (s.includes("slim")) return "slim"
                         return "supervisor"

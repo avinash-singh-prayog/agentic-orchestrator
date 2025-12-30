@@ -30,6 +30,11 @@ async def delegate_to_capability(capability: str, message: str) -> str:
     - "order_creation": Create new shipping orders/bookings
     - "order_tracking": Track existing orders
     - "order_cancellation": Cancel orders
+    - "weather_forecast": Get multi-day weather forecast for a location
+    - "location_weather": Get current weather conditions for a location
+    - "web_search": Search the web for information on any topic
+    - "content_extraction": Extract and summarize content from URLs
+    - "personal_assistant": Personal assistance, weather, web search, productivity
     
     Args:
         capability: The capability needed (e.g., "rate_fetching", "order_creation")
