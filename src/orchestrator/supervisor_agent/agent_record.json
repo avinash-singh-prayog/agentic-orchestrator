@@ -1,6 +1,6 @@
 {
     "name": "Logistics Supervisor Agent",
-    "description": "Orchestrates logistics operations using multi-agent coordination with LangGraph ReAct pattern. Routes requests to specialized booking and serviceability agents.",
+    "description": "Orchestrates logistics operations using multi-agent coordination with LangGraph ReAct pattern. Routes requests to specialized booking and serviceability agents. [TOPIC:logistics.supervisor.v1]",
     "version": "1.0.0",
     "schema_version": "0.8.0",
     "authors": [

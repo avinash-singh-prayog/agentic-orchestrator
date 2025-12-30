@@ -48,9 +48,10 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         senderLower.includes("serviceability") ||
         senderLower === "serviceability_agent"
     ) {
+        // Includes Directory Lookup + SLIM transport
         return {
-            nodes: [...basePath.nodes, "serviceability-agent"],
-            edges: [...basePath.edges, "slim-to-serviceability-agent"],
+            nodes: [...basePath.nodes, "directory-service", "serviceability-agent"],
+            edges: [...basePath.edges, "supervisor-to-directory", "slim-to-serviceability-agent"],
         }
     }
 
@@ -60,8 +61,8 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
     ) {
         console.log("Found Booking Agent activity:", sender)
         return {
-            nodes: [...basePath.nodes, "booking-agent"],
-            edges: [...basePath.edges, "slim-to-booking-agent"],
+            nodes: [...basePath.nodes, "directory-service", "booking-agent"],
+            edges: [...basePath.edges, "supervisor-to-directory", "slim-to-booking-agent"],
         }
     }
 

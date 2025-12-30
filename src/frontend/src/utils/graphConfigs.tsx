@@ -45,10 +45,10 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             type: "group",
             data: { label: "Agentic Orchestrator" },
             position: { x: 50, y: 50 },
-            style: groupStyle,
+            style: { ...groupStyle, width: 850 }, // Widen container
             draggable: false,
         },
-        // Supervisor Agent
+        // Supervisor Agent (Top Left)
         {
             id: NODE_IDS.SUPERVISOR,
             type: NODE_TYPES.CUSTOM,
@@ -60,11 +60,28 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Routes requests to specialized agents",
             },
-            position: { x: 280, y: 40 },
+            position: { x: 180, y: 40 }, // Shifted Left
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
-        // SLIM Transport
+        // Directory Service (Top Right)
+        {
+            id: "directory-service",
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: Package,
+                label1: "Directory Service",
+                label2: "Agent Registry",
+                handles: "target",
+                status: "idle",
+                description: "Capability Lookup",
+            },
+            position: { x: 550, y: 40 }, // Far Right
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...nodeStyle,
+            style: { ...nodeStyle, width: 170 },
+        },
+        // SLIM Transport (Centered below Supervisor)
         {
             id: NODE_IDS.SLIM_TRANSPORT,
             type: NODE_TYPES.TRANSPORT,
@@ -73,11 +90,11 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 icon: Zap,
                 description: "A2A Message Bus",
             },
-            position: { x: 120, y: 180 },
+            position: { x: 120, y: 180 }, // Centered under group
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...transportStyle,
         },
-        // Serviceability Agent
+        // Serviceability Agent (Bottom Left)
         {
             id: NODE_IDS.SERVICEABILITY_AGENT,
             type: NODE_TYPES.CUSTOM,
@@ -89,11 +106,11 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Checks rates and serviceability",
             },
-            position: { x: 120, y: 300 },
+            position: { x: 120, y: 320 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
-        // Booking Agent
+        // Booking Agent (Bottom Right)
         {
             id: NODE_IDS.BOOKING_AGENT,
             type: NODE_TYPES.CUSTOM,
@@ -105,19 +122,33 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Creates and manages orders",
             },
-            position: { x: 440, y: 300 },
+            position: { x: 440, y: 320 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
     ],
     edges: [
-        // Supervisor to SLIM Transport
+        // Supervisor to SLIM Transport (Vertical)
         {
             id: EDGE_IDS.SUPERVISOR_TO_SLIM,
             source: NODE_IDS.SUPERVISOR,
             target: NODE_IDS.SLIM_TRANSPORT,
+            sourceHandle: "bottom",
+            targetHandle: "top", // implicit for TransportNode usually
             type: EDGE_TYPES.CUSTOM,
             data: { label: "A2A" },
+            animated: false,
+        },
+        // Supervisor to Directory (Horizontal)
+        {
+            id: "supervisor-to-directory",
+            source: NODE_IDS.SUPERVISOR,
+            target: "directory-service",
+            sourceHandle: "right", // Use side handles
+            targetHandle: "left",
+            type: EDGE_TYPES.CUSTOM,
+            data: { label: "Lookup" },
+            style: { strokeDasharray: "5, 5" }, // Dashed line for lookup
             animated: false,
         },
         // SLIM to Serviceability Agent
@@ -127,6 +158,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             target: NODE_IDS.SERVICEABILITY_AGENT,
             type: EDGE_TYPES.CUSTOM,
             sourceHandle: "bottom-center",
+            targetHandle: "top",
             data: { label: "" },
             animated: false,
         },
@@ -137,6 +169,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             target: NODE_IDS.BOOKING_AGENT,
             type: EDGE_TYPES.CUSTOM,
             sourceHandle: "bottom-center",
+            targetHandle: "top",
             data: { label: "" },
             animated: false,
         },

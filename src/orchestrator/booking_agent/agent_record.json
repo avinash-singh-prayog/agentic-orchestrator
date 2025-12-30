@@ -1,6 +1,6 @@
 {
     "name": "Booking Agent",
-    "description": "Handles order creation, retrieval, and cancellation for logistics operations. Parses user intent and executes order operations via external APIs.",
+    "description": "Handles order creation, retrieval, and cancellation for logistics operations. Parses user intent and executes order operations via external APIs. [TOPIC:logistics.booking.v1] [CAPABILITY:order_creation] [CAPABILITY:order_tracking]",
     "version": "1.0.0",
     "schema_version": "0.8.0",
     "authors": [

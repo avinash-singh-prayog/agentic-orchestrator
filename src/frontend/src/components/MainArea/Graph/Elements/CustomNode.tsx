@@ -107,20 +107,37 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
                 {nodeData.label2}
             </span>
 
-            {/* Handles */}
-            {(nodeData.handles === "all" || nodeData.handles === "target") && (
-                <Handle
-                    type="target"
-                    position={Position.Top}
-                    style={{ ...handleStyles, top: -6 }}
-                />
-            )}
             {(nodeData.handles === "all" || nodeData.handles === "source") && (
-                <Handle
-                    type="source"
-                    position={Position.Bottom}
-                    style={{ ...handleStyles, bottom: -6 }}
-                />
+                <>
+                    <Handle
+                        type="source"
+                        position={Position.Bottom}
+                        id="bottom"
+                        style={{ ...handleStyles, bottom: -6 }}
+                    />
+                    <Handle
+                        type="source"
+                        position={Position.Right}
+                        id="right"
+                        style={{ ...handleStyles, right: -6, top: "50%" }}
+                    />
+                </>
+            )}
+            {(nodeData.handles === "all" || nodeData.handles === "target") && (
+                <>
+                    <Handle
+                        type="target"
+                        position={Position.Top}
+                        id="top"
+                        style={{ ...handleStyles, top: -6 }}
+                    />
+                    <Handle
+                        type="target"
+                        position={Position.Left}
+                        id="left"
+                        style={{ ...handleStyles, left: -6, top: "50%" }}
+                    />
+                </>
             )}
         </div>
     )

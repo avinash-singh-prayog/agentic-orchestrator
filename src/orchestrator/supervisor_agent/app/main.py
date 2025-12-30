@@ -416,53 +416,91 @@ async def stream_events(
                 # Capture tool calls
                 elif event_type == "on_tool_start":
                     tool_name = event.get("name", "unknown")
+                    tool_input = event.get("data", {}).get("input", {})
                     
-                    # 1. Handoff from Supervisor
-                    yield json.dumps({
-                        "content": {
-                            "sender": "Supervisor",
-                            "message": f"Delegating to {tool_name}...",
-                            "node": "tools"
-                        }
-                    }) + "\n"
+                    # Extract capability if using delegate_to_capability tool
+                    capability = tool_input.get("capability", "") if isinstance(tool_input, dict) else ""
                     
-                    # 2. Agent Starting (Keeps graph active on Agent)
-                    sender = "Unknown Agent"
-                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
-                        sender = "Serviceability Agent"
-                    elif "book" in tool_name.lower():
-                        sender = "Booking Agent"
-                    elif "slim" in tool_name.lower():
-                        sender = "SLIM Transport"
-                        
-                    yield json.dumps({
-                        "content": {
-                            "sender": sender,
-                            "message": "Processing request...",
-                            "node": "tools"
-                        }
-                    }) + "\n"
+                    if tool_name == "delegate_to_capability" and capability:
+                        # Show capability-based delegation
+                        yield json.dumps({
+                            "content": {
+                                "sender": "Supervisor Agent",
+                                "message": f"🎯 Requesting capability: '{capability}'...",
+                                "node": "tools"
+                            }
+                        }) + "\n"
+                    else:
+                        # Fallback for other tools
+                        yield json.dumps({
+                            "content": {
+                                "sender": "Supervisor Agent",
+                                "message": f"Delegating to {tool_name}...",
+                                "node": "tools"
+                            }
+                        }) + "\n"
                 
                 # Capture tool results
                 elif event_type == "on_tool_end":
                     tool_name = event.get("name", "unknown")
                     tool_output = event.get("data", {}).get("output", "")
                     
-                    # Determine sender based on tool name
-                    sender = "Unknown Agent"
-                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
-                        sender = "Serviceability Agent"
-                    elif "book" in tool_name.lower():
-                        sender = "Booking Agent"
-                    elif "slim" in tool_name.lower():
-                        sender = "SLIM Transport"
-                    
-                    if tool_output:
+                    # For delegate_to_capability, we show the final response
+                    # The intermediate steps (Directory lookup, SLIM, Agent) are shown via custom events
+                    if tool_name == "delegate_to_capability" and tool_output:
+                        # Don't show here - the custom events handle intermediate steps
+                        # and the final agent response will come through
+                        pass
+                    elif tool_output:
                         yield json.dumps({
                             "content": {
-                                "sender": sender,
-                                "message": str(tool_output)[:200] + "...",
+                                "sender": "Agent Response",
+                                "message": str(tool_output)[:200] + ("..." if len(str(tool_output)) > 200 else ""),
                                 "node": "carrier"
+                            }
+                        }) + "\n"
+
+                # Capture CUSTOM EVENTS (Directory Lookup, Capability Routing, SLIM Transport)
+                elif event_type == "on_custom_event":
+                    name = event.get("name", "")
+                    data = event.get("data", {})
+                    
+                    # Directory Service events
+                    if name.startswith("directory_lookup"):
+                        msg = data.get("message", "Directory activity")
+                        # Extract agent name if found
+                        agent_name = data.get("agent_name", "")
+                        topic = data.get("topic", "")
+                        
+                        yield json.dumps({
+                            "content": {
+                                "sender": "Directory Service",
+                                "message": msg,
+                                "node": "directory",
+                                "metadata": {"agent_name": agent_name, "topic": topic}
+                            }
+                        }) + "\n"
+                    
+                    # SLIM Transport events
+                    elif name.startswith("slim_"):
+                        msg = data.get("message", "SLIM Transport activity")
+                        yield json.dumps({
+                            "content": {
+                                "sender": "SLIM Transport",
+                                "message": msg,
+                                "node": "slim"
+                            }
+                        }) + "\n"
+                    
+                    # Agent response events
+                    elif name == "agent_response":
+                        agent_name = data.get("agent_name", "Agent")
+                        msg = data.get("message", "Response received")
+                        yield json.dumps({
+                            "content": {
+                                "sender": agent_name,
+                                "message": msg[:200] + ("..." if len(msg) > 200 else ""),
+                                "node": "agent"
                             }
                         }) + "\n"
                 

@@ -90,6 +90,12 @@ const agentConfig: Record<string, {
         bgColor: "rgba(167, 139, 250, 0.15)",
         label: "SLIM Transport"
     },
+    directory: {
+        icon: Package,
+        color: "#fca5a5", // Light Red/Orange
+        bgColor: "rgba(252, 165, 165, 0.15)",
+        label: "Directory Service"
+    }
 }
 
 // ============================================================================
@@ -253,7 +259,8 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                         const s = sender.toLowerCase()
                         if (s.includes("carrier")) return "carrier"
                         if (s.includes("rate")) return "rate"
-                        if (s.includes("service")) return "serviceability"
+                        if (s.includes("directory")) return "directory" // Must be BEFORE 'service' check!
+                        if (s.includes("serviceability")) return "serviceability" // More specific match
                         if (s.includes("booking")) return "booking"
                         if (s.includes("slim")) return "slim"
                         return "supervisor"

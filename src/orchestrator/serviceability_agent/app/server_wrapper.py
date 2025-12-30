@@ -138,8 +138,8 @@ async def run_server():
     
     # 4. Create SLIM transport
     slim_endpoint = os.getenv("SLIM_ENDPOINT", "http://orchestrator-slim:46357")
-    # Use explicit topic matching supervisor client's SERVICEABILITY_AGENT_TOPIC
-    personal_topic = "serviceability-agent"  # Matches the id from AgentCard
+    # Use hierarchical topic name per IoA architecture: domain.service.version
+    personal_topic = "logistics.serviceability.v1"
     
     logger.info(f"Creating SLIM transport to {slim_endpoint} with topic: {personal_topic}")
     
