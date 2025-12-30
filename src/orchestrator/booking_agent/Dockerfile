@@ -5,6 +5,10 @@ WORKDIR /app
 # Install uv for fast package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
+# Download dirctl binary for directory service registration
+ADD https://github.com/agntcy/dir/releases/download/v0.6.0/dirctl-linux-amd64 /usr/local/bin/dirctl
+RUN chmod +x /usr/local/bin/dirctl
+
 # Copy dependency files first for better cache utilization
 COPY pyproject.toml .
 
@@ -18,5 +22,4 @@ RUN uv venv && uv pip install .
 EXPOSE 9005
 
 # Run the application in dual mode (HTTP + SLIM)
-# This enables both HTTP API server and SLIM listener for inter-agent communication
 CMD ["sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual"]

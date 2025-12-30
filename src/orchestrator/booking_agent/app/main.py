@@ -84,15 +84,12 @@ async def run_dual_mode() -> None:
     logger.info(f"  - HTTP server on {settings.host}:{settings.port}")
     logger.info(f"  - SLIM server for inter-agent communication")
     
-    # Directory Service registration disabled due to agntcy SDK protobuf conflict
-    # The agntcy-dir SDK requires protobuf v6, but agntcy-app-sdk pins a2a-sdk
-    # which requires protobuf v5. Waiting for upstream SDK fix.
-    # See: https://github.com/agntcy/app-sdk/issues for updates
-    # try:
-    #     from agent.directory import DirectoryClient
-    #     DirectoryClient().register_agent()
-    # except Exception as e:
-    #     logger.error(f"Failed to register with Directory Service: {e}")
+    # Register with Directory Service (auto-registration at startup)
+    try:
+        from agent.directory import DirectoryClient
+        DirectoryClient().register_agent()
+    except Exception as e:
+        logger.error(f"Failed to register with Directory Service: {e}")
 
     # Create uvicorn server config
     config = uvicorn.Config(

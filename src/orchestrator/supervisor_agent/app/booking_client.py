@@ -2,6 +2,7 @@
 Supervisor Agent Booking Client.
 
 Creates an A2A client to communicate with the Booking Agent via SLIM Transporter.
+Uses dynamic discovery via Directory Service to find agent endpoints.
 """
 
 import os
@@ -22,13 +23,16 @@ from agent.shared import get_factory
 
 logger = logging.getLogger("supervisor_agent.booking_client")
 
-# Target agent topic (matches BookingAgentCard.id)
-BOOKING_AGENT_TOPIC = "booking-agent"
+# Fallback topic if Directory Service is unavailable
+BOOKING_AGENT_TOPIC_FALLBACK = "booking-agent"
 
 
 async def call_booking_via_slim(prompt: str) -> str:
     """
     Call the Booking Agent via SLIM Transporter using A2A Protocol.
+    
+    Uses Directory Service for dynamic discovery. Falls back to static topic
+    if agent is not registered or directory is unavailable.
     
     Args:
         prompt: The user's request to forward to the booking agent.
@@ -43,19 +47,21 @@ async def call_booking_via_slim(prompt: str) -> str:
     
     logger.info(f"Creating SLIM transport to {slim_endpoint}")
     
-    logger.info(f"Creating SLIM transport to {slim_endpoint}")
+    # Dynamic Service Discovery via Directory
+    target_topic = BOOKING_AGENT_TOPIC_FALLBACK
+    try:
+        from agent.directory import DirectoryClient
+        dir_client = DirectoryClient()
+        discovered_topic = dir_client.get_agent_slim_topic("Booking Agent")
+        
+        if discovered_topic:
+            target_topic = discovered_topic
+            logger.info(f"Discovered Booking Agent SLIM topic: {target_topic}")
+        else:
+            logger.warning(f"Booking Agent not found in Directory. Using fallback topic: {target_topic}")
+    except Exception as e:
+        logger.warning(f"Directory lookup failed: {e}. Using fallback topic: {target_topic}")
 
-    # Service Discovery
-    from agent.directory import DirectoryClient
-    dir_client = DirectoryClient()
-    agent_record = dir_client.find_agent_by_name("Booking Agent")
-    
-    target_topic = BOOKING_AGENT_TOPIC
-    if agent_record:
-        logger.info(f"Discovered Booking Agent: {agent_record.get('id', 'unknown ID')}")
-    else:
-        logger.warning("Booking Agent not found in Directory! Attempting fallback to static topic.")
-    
     # Create transport for SLIM
     transport = factory.create_transport(
         "SLIM",
@@ -63,7 +69,7 @@ async def call_booking_via_slim(prompt: str) -> str:
         name=supervisor_identity
     )
     
-    # Create A2A client targeting the booking agent
+    # Create A2A client targeting the discovered agent
     client = await factory.create_client(
         "A2A",
         agent_topic=target_topic,
@@ -82,7 +88,7 @@ async def call_booking_via_slim(prompt: str) -> str:
         ),
     )
     
-    logger.info(f"Sending message to {BOOKING_AGENT_TOPIC}: {prompt[:50]}...")
+    logger.info(f"Sending message to {target_topic}: {prompt[:50]}...")
     
     try:
         response = await client.send_message(request)

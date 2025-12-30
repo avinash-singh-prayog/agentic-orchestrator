@@ -35,54 +35,7 @@
         {
             "type": "source_code",
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/booking_agent"
-        },
-        {
-            "type": "endpoint",
-            "url": "slim://booking-agent:9005",
-            "protocol": "SLIM",
-            "description": "Main SLIM communication endpoint"
         }
     ],
-    "modules": [
-        {
-            "type": "a2a",
-            "data": {
-                "protocol": "SLIM",
-                "description": "Receives requests from Supervisor Agent via SLIM transport",
-                "role": "worker",
-                "parent_agent": {
-                    "name": "supervisor_agent",
-                    "endpoint": "slim://supervisor-agent:8765"
-                }
-            }
-        },
-        {
-            "type": "model",
-            "data": {
-                "provider": "litellm",
-                "model_name": "configurable via BOOKING_AGENT_MODEL env var",
-                "default_model": "openrouter/google/gemini-2.0-flash-exp:free",
-                "temperature": 0,
-                "max_tokens": null,
-                "features": [
-                    "tool_calling"
-                ]
-            }
-        },
-        {
-            "type": "observability",
-            "data": {
-                "enabled": true,
-                "provider": "ioa_observe",
-                "decorators": [
-                    "@agent",
-                    "@graph"
-                ],
-                "tracing": {
-                    "enabled": true,
-                    "exporter": "opentelemetry"
-                }
-            }
-        }
-    ]
+    "modules": []
 }
