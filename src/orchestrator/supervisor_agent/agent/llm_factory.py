@@ -23,18 +23,25 @@ class LLMFactory:
         
         if llm_config:
             # Construct model string for LiteLLM e.g. "openai/gpt-4" or "anthropic/claude-3-opus"
-            # If provider is "ollama", model might just be "llama3" -> "ollama/llama3"
+            # For OpenRouter, we need "openrouter/openai/gpt-4o-mini" format
             provider = llm_config.get("provider", "").lower()
             name = llm_config.get("model_name", "")
             api_key = llm_config.get("api_key")
             
             if provider and name:
-                # Some providers like 'openai' or 'anthropic' need prefix.
-                # If name already has slash, assume it's full name.
-                if "/" in name:
+                # For openrouter, we always need the prefix even if model name has a slash
+                # e.g. openrouter + openai/gpt-4o-mini -> openrouter/openai/gpt-4o-mini
+                if provider == "openrouter":
+                    # Ensure we don't double-prefix if already has openrouter/
+                    if name.startswith("openrouter/"):
+                        model_name = name
+                    else:
+                        model_name = f"{provider}/{name}"
+                elif "/" in name:
+                    # For other providers, if name has slash, use as-is
                     model_name = name
                 elif provider:
-                     model_name = f"{provider}/{name}"
+                    model_name = f"{provider}/{name}"
                 else:
                     model_name = name
         
