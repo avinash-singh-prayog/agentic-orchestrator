@@ -51,6 +51,24 @@ from app.auth import (
     DatabaseTimeoutError
 )
 
+# OAuth imports
+from app.oauth import (
+    get_oauth_provider,
+    get_available_providers,
+    ensure_oauth_tables,
+    save_oauth_tokens,
+    get_oauth_tokens,
+    OAuthUserInfo,
+    FRONTEND_URL,
+)
+from itsdangerous import URLSafeTimedSerializer
+
+# OAuth state serializer (for CSRF protection)
+OAUTH_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-key-change-in-production")
+oauth_state_serializer = URLSafeTimedSerializer(OAUTH_SECRET_KEY)
+
+import os
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan for startup/shutdown."""
@@ -73,6 +91,11 @@ async def lifespan(app: FastAPI):
         async with checkpointer_lifespan():
             # Run other init tasks
             await asyncio.wait_for(ensure_users_table(), timeout=5.0)
+            # Initialize OAuth tables
+            try:
+                await ensure_oauth_tables()
+            except Exception as e:
+                print(f"WARNING: Failed to create OAuth tables: {e}")
             yield
     except Exception as e:
         print(f"CRITICAL: Application startup failed: {e}")
@@ -263,6 +286,137 @@ async def reset_password_endpoint(request: UserResetPasswordRequest):
             detail="Invalid or expired reset token"
         )
     return {"message": "Password updated successfully"}
+
+
+# ============================================================================
+# OAuth 2.0 Endpoints
+# ============================================================================
+
+@router.get("/auth/providers")
+async def list_oauth_providers():
+    """List available OAuth providers."""
+    return {"providers": get_available_providers()}
+
+
+@router.get("/auth/{provider}")
+async def oauth_authorize(provider: str):
+    """
+    Initiate OAuth flow by redirecting to provider's authorization URL.
+    
+    Supported providers: google
+    """
+    from fastapi.responses import RedirectResponse
+    
+    if provider not in get_available_providers():
+        raise HTTPException(
+            status_code=400,
+            detail=f"OAuth provider '{provider}' is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+        )
+    
+    oauth_provider = get_oauth_provider(provider)
+    
+    # Generate state token for CSRF protection
+    state = oauth_state_serializer.dumps({"provider": provider})
+    
+    authorization_url = oauth_provider.get_authorization_url(state)
+    
+    return RedirectResponse(url=authorization_url)
+
+
+@router.get("/auth/{provider}/callback")
+async def oauth_callback(provider: str, code: str, state: str):
+    """
+    Handle OAuth callback from provider.
+    
+    Exchanges authorization code for tokens, creates/updates user, and redirects to frontend.
+    """
+    from fastapi.responses import RedirectResponse
+    from app.auth import UserResponse, get_password_hash
+    from psycopg import AsyncConnection
+    
+    # Verify state token (CSRF protection)
+    try:
+        state_data = oauth_state_serializer.loads(state, max_age=600)  # 10 min expiry
+        if state_data.get("provider") != provider:
+            raise ValueError("Provider mismatch")
+    except Exception as e:
+        return RedirectResponse(url=f"{FRONTEND_URL}?error=invalid_state")
+    
+    if provider not in get_available_providers():
+        return RedirectResponse(url=f"{FRONTEND_URL}?error=provider_not_configured")
+    
+    try:
+        oauth_provider = get_oauth_provider(provider)
+        tokens, user_info = await oauth_provider.handle_callback(code)
+        
+        # Find or create user
+        from app.auth import DATABASE_URL, DEFAULT_TENANT_ID
+        import uuid
+        
+        async with await AsyncConnection.connect(DATABASE_URL) as conn:
+            async with conn.cursor() as cur:
+                # Check if user exists by email
+                await cur.execute(
+                    "SELECT id, email, name, tenant_id FROM users WHERE email = %s",
+                    (user_info.email,)
+                )
+                row = await cur.fetchone()
+                
+                if row:
+                    # Existing user
+                    user_id = str(row[0])
+                    user = UserResponse(
+                        id=user_id,
+                        email=row[1],
+                        name=row[2],
+                        tenant_id=row[3]
+                    )
+                else:
+                    # Create new user (with random password since they use OAuth)
+                    user_id = str(uuid.uuid4())
+                    random_password = get_password_hash(str(uuid.uuid4()))
+                    
+                    await cur.execute(
+                        """
+                        INSERT INTO users (id, email, password_hash, name, tenant_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                        RETURNING id, email, name, tenant_id
+                        """,
+                        (uuid.UUID(user_id), user_info.email, random_password, 
+                         user_info.name or user_info.email.split("@")[0], DEFAULT_TENANT_ID)
+                    )
+                    new_row = await cur.fetchone()
+                    await conn.commit()
+                    
+                    user = UserResponse(
+                        id=str(new_row[0]),
+                        email=new_row[1],
+                        name=new_row[2],
+                        tenant_id=new_row[3]
+                    )
+        
+        # Save OAuth tokens for this user
+        await save_oauth_tokens(
+            user_id=user.id,
+            provider=provider,
+            tokens=tokens,
+            provider_user_id=user_info.provider_user_id
+        )
+        
+        # Create JWT access token for our app
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id, "tenant_id": user.tenant_id},
+            expires_delta=None
+        )
+        
+        # Redirect to frontend with token
+        redirect_url = f"{FRONTEND_URL}?oauth_token={access_token}&user_id={user.id}&email={user.email}&name={user.name or ''}&tenant_id={user.tenant_id}"
+        return RedirectResponse(url=redirect_url)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return RedirectResponse(url=f"{FRONTEND_URL}?error=oauth_failed&message={str(e)[:100]}")
 
 
 # ============================================================================
