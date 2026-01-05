@@ -152,6 +152,11 @@ services:
       - OTEL_SDK_DISABLED=true
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - DATABASE_URL=${DATABASE_URL:-postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod}
+      # Google OAuth 2.0
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-http://localhost:9004/supervisor-agent/auth/google/callback}
       # depends_on:
       #   - slim
       # - otel-collector

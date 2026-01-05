@@ -78,10 +78,13 @@ class GoogleOAuthProvider(OAuthProvider):
     Google OAuth 2.0 implementation.
     
     Scopes requested:
-    - openid, email, profile: Basic user info
-    - calendar: Google Calendar access
-    - gmail.modify: Gmail read/send
-    - tasks: Google Tasks access
+    - openid, email, profile: Basic user info for sign-in
+    - calendar: Google Calendar access (for Personal Assistant)
+    - gmail.modify: Gmail read/send (for Personal Assistant)
+    - tasks: Google Tasks access (for Personal Assistant)
+    
+    Note: App must be "Published" (not Testing) for sensitive scopes to work.
+    Users will see "This app isn't verified" warning - click Advanced → Go to app.
     """
     
     SCOPES = [
