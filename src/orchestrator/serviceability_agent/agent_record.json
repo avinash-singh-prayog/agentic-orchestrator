@@ -37,5 +37,19 @@
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/serviceability_agent"
         }
     ],
-    "modules": []
+    "modules": [
+        {
+            "name": "routing",
+            "type": "routing",
+            "data": {
+                "protocol": "SLIM",
+                "slim_topic": "logistics.serviceability.v1",
+                "capabilities": [
+                    "rate_fetching",
+                    "fetch_serviceability"
+                ],
+                "port": 9003
+            }
+        }
+    ]
 }

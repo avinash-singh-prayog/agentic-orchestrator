@@ -23,8 +23,39 @@ class DirectoryClient:
     """Client for interacting with the Agency Directory Service via dirctl CLI."""
     
     def __init__(self):
-        self.server_address = os.getenv("DIRECTORY_SERVICE_ADDR", "directory-service:8888")
-        logger.info(f"Directory Client initialized with address: {self.server_address}")
+        self.server_address = os.getenv("DIRECTORY_SERVICE_ADDR")
+        self._use_tls = ":443" in self.server_address
+        logger.info(f"Directory Client initialized with address: {self.server_address} (TLS: {self._use_tls})")
+    
+    def _get_base_cmd(self, command: str) -> list:
+        """Get base dirctl command with server address and TLS if needed."""
+        cmd = ["dirctl", command, "--server-addr", self.server_address]
+        if self._use_tls:
+            # Note: TLS is auto-negotiated by gRPC for port 443
+            pass  # No special flags needed
+        return cmd
+    
+    def list_all_agents(self) -> List[Dict[str, Any]]:
+        """
+        Get all registered agents with their capabilities.
+        Used for dynamic discovery of available capabilities.
+        
+        Returns:
+            List of dicts with agent name, description, and capabilities.
+        """
+        cids = self._search_all()
+        agents = []
+        for cid in cids:
+            record = self._pull_record(cid)
+            if record:
+                routing = self._get_routing_module(record)
+                agents.append({
+                    "name": record.get("name", "Unknown"),
+                    "description": record.get("description", "")[:150],
+                    "capabilities": routing.get("capabilities", []) if routing else [],
+                    "slim_topic": routing.get("slim_topic") if routing else None
+                })
+        return agents
 
     def register_agent(self, record_path: str = "agent_record.json") -> Optional[str]:
         """
@@ -41,12 +72,8 @@ class DirectoryClient:
 
             logger.info(f"Registering agent: {record_data.get('name', 'Unknown')}")
             
-            cmd = [
-                "dirctl", "push",
-                "--server-addr", self.server_address,
-                "--stdin",
-                "--output", "raw"
-            ]
+            cmd = self._get_base_cmd("push")
+            cmd.extend(["--stdin", "--output", "raw"])
             
             result = subprocess.run(
                 cmd,
@@ -170,12 +197,8 @@ class DirectoryClient:
     def _search_all(self) -> List[str]:
         """Search for all agent CIDs in the directory."""
         try:
-            cmd = [
-                "dirctl", "search",
-                "",  # Empty query returns all
-                "--server-addr", self.server_address,
-                "--output", "raw"
-            ]
+            cmd = self._get_base_cmd("search")
+            cmd.extend(["", "--output", "raw"])  # Empty query returns all
             
             result = subprocess.run(
                 cmd,
@@ -217,12 +240,8 @@ class DirectoryClient:
     def _search_agent(self, name: str) -> Optional[str]:
         """Search for agent CID by name."""
         try:
-            cmd = [
-                "dirctl", "search",
-                name,
-                "--server-addr", self.server_address,
-                "--output", "raw"
-            ]
+            cmd = self._get_base_cmd("search")
+            cmd.extend([name, "--output", "raw"])
             
             result = subprocess.run(
                 cmd,
@@ -271,12 +290,8 @@ class DirectoryClient:
     def _pull_record(self, cid: str) -> Optional[Dict[str, Any]]:
         """Pull full agent record by CID."""
         try:
-            cmd = [
-                "dirctl", "pull",
-                cid,
-                "--server-addr", self.server_address,
-                "--output", "json"
-            ]
+            cmd = self._get_base_cmd("pull")
+            cmd.extend([cid, "--output", "json"])
             
             result = subprocess.run(
                 cmd,

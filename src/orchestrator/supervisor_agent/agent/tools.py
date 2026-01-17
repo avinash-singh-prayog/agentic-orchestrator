@@ -3,16 +3,62 @@ Supervisor Agent Tools.
 
 TRUE CAPABILITY-BASED DISCOVERY:
 The Supervisor does NOT know about specific agents.
-It only knows about CAPABILITIES and delegates to whatever agent has that capability.
+It discovers capabilities dynamically from the Directory Service.
 """
 import logging
+import json
 from langchain_core.tools import tool
 from langchain_core.callbacks.manager import dispatch_custom_event
 
 from agent.router import route_to_capability
-from agent.directory import AgentNotFoundError
+from agent.directory import DirectoryClient, AgentNotFoundError
 
 logger = logging.getLogger("supervisor_agent.tools")
+
+
+@tool
+def discover_capabilities() -> str:
+    """
+    Query the Directory Service to discover all available agent capabilities.
+    
+    Use this tool FIRST when you need to know what capabilities are available
+    in the system. Returns a list of registered agents and their capabilities.
+    
+    Returns:
+        JSON string listing available agents with their capabilities.
+    """
+    logger.info("Discovering available capabilities from Directory Service...")
+    
+    dispatch_custom_event(
+        "discovery_start",
+        {"message": "🔍 Querying Directory Service for available agents..."}
+    )
+    
+    try:
+        client = DirectoryClient()
+        agents = client.list_all_agents()
+        
+        if not agents:
+            dispatch_custom_event(
+                "discovery_end",
+                {"status": "empty", "message": "⚠️ No agents registered in Directory"}
+            )
+            return json.dumps({"agents": [], "message": "No agents are currently registered in the Directory Service."})
+        
+        dispatch_custom_event(
+            "discovery_end",
+            {"status": "success", "count": len(agents), "message": f"✅ Found {len(agents)} registered agents"}
+        )
+        
+        return json.dumps({"agents": agents}, indent=2)
+        
+    except Exception as e:
+        logger.error(f"Discovery failed: {e}")
+        dispatch_custom_event(
+            "discovery_end",
+            {"status": "error", "message": f"❌ Discovery failed: {str(e)[:100]}"}
+        )
+        return json.dumps({"error": str(e), "agents": []})
 
 
 @tool
@@ -21,33 +67,19 @@ async def delegate_to_capability(capability: str, message: str) -> str:
     Delegate a task to an agent that has the specified capability.
     
     This is the ONLY way to communicate with other agents. The Supervisor
-    does NOT know which specific agent will handle the request - it only
-    knows about capabilities.
+    does NOT know which specific agent will handle the request - it discovers
+    the agent dynamically from the Directory Service.
     
-    Available capabilities:
-    - "rate_fetching": Check shipping rates, serviceability, carrier availability
-    - "route_validation": Validate shipping routes and coverage
-    - "order_creation": Create new shipping orders/bookings
-    - "order_tracking": Track existing orders
-    - "order_cancellation": Cancel orders
-    - "weather_forecast": Get multi-day weather forecast for a location
-    - "location_weather": Get current weather conditions for a location
-    - "web_search": Search the web for information on any topic
-    - "content_extraction": Extract and summarize content from URLs
-    - "personal_assistant": Personal assistance, weather, web search, productivity
+    IMPORTANT: If you don't know what capabilities exist, call discover_capabilities() first.
     
     Args:
-        capability: The capability needed (e.g., "rate_fetching", "order_creation")
+        capability: The capability needed (discovered via discover_capabilities or from context)
         message: The complete, standalone request with ALL necessary details.
-                 Must include all context (origin, destination, weight, partner_code, etc.)
-                 because the receiving agent is STATELESS.
+                 Must include all context (e.g., locations, weights, dates) because
+                 the receiving agent is STATELESS and has no conversation history.
     
     Returns:
-        The response from the discovered agent.
-    
-    Examples:
-        - delegate_to_capability("rate_fetching", "Check rates from 713333 to 10003 for 5kg")
-        - delegate_to_capability("order_creation", "Create order with partner_code=smile_hubops, origin=713333, dest=10003, weight=5kg")
+        The response from the discovered agent, or an error if no agent has that capability.
     """
     logger.info(f"Supervisor delegating capability '{capability}' with message: {message[:50]}...")
     
@@ -105,5 +137,5 @@ async def delegate_to_capability(capability: str, message: str) -> str:
         return f"Error communicating with agent: {e}"
 
 
-# Only ONE tool - the Supervisor doesn't know about specific agents
-SUPERVISOR_TOOLS = [delegate_to_capability]
+# Dynamic discovery tools - Supervisor discovers capabilities from Directory Service
+SUPERVISOR_TOOLS = [discover_capabilities, delegate_to_capability]

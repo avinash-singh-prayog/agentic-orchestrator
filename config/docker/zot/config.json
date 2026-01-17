@@ -1,13 +1,97 @@
 {
     "distSpecVersion": "1.1.0-dev",
     "storage": {
-        "rootDirectory": "/var/lib/registry"
+        "rootDirectory": "/tmp/zot",
+        "dedupe": false,
+        "gc": true,
+        "gcDelay": "1h",
+        "gcInterval": "24h",
+        "storageDriver": {
+            "name": "s3",
+            "region": "ap-south-1",
+            "bucket": "prayog-zot-registry",
+            "secure": true,
+            "skipverify": false
+        }
     },
     "http": {
         "address": "0.0.0.0",
-        "port": "5000"
+        "port": "5000",
+        "auth": {
+            "htpasswd": {
+                "path": "/etc/zot/htpasswd"
+            },
+            "failDelay": 5
+        },
+        "accessControl": {
+            "repositories": {
+                "**": {
+                    "policies": [
+                        {
+                            "users": [
+                                "admin"
+                            ],
+                            "actions": [
+                                "read",
+                                "create",
+                                "update",
+                                "delete"
+                            ]
+                        }
+                    ],
+                    "defaultPolicy": [
+                        "read"
+                    ]
+                }
+            },
+            "adminPolicy": {
+                "users": [
+                    "admin"
+                ],
+                "actions": [
+                    "read",
+                    "create",
+                    "update",
+                    "delete"
+                ]
+            }
+        },
+        "ratelimit": {
+            "rate": 100,
+            "methods": [
+                {
+                    "method": "GET",
+                    "rate": 50
+                },
+                {
+                    "method": "POST",
+                    "rate": 20
+                }
+            ]
+        }
+    },
+    "extensions": {
+        "ui": {
+            "enable": true
+        },
+        "search": {
+            "enable": true
+        },
+        "scrub": {
+            "enable": true,
+            "interval": "24h"
+        },
+        "metrics": {
+            "enable": true,
+            "prometheus": {
+                "path": "/metrics"
+            }
+        },
+        "lint": {
+            "enable": true
+        }
     },
     "log": {
-        "level": "debug"
+        "level": "info"
     }
 }

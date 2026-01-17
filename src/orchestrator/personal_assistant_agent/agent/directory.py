@@ -15,6 +15,7 @@ class DirectoryClient:
     
     def __init__(self):
         self.server_address = os.getenv("DIRECTORY_SERVICE_ADDR", "directory-service:8888")
+        self._use_tls = ":443" in self.server_address
     
     def register_agent(self, record_path: str = "agent_record.json") -> bool:
         """Register this agent with the Directory Service."""
@@ -42,9 +43,11 @@ class DirectoryClient:
             cmd = [
                 "dirctl", "push",
                 "--server-addr", self.server_address,
-                "--stdin",
-                "--output", "raw"
             ]
+            if self._use_tls:
+                # Use TLS authentication mode for gRPC on port 443
+                cmd.extend(["--auth-mode", "tls", "--tls-skip-verify"])
+            cmd.extend(["--stdin", "--output", "raw"])
             
             result = subprocess.run(
                 cmd,
