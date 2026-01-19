@@ -1,73 +1,27 @@
 {
     "distSpecVersion": "1.1.0-dev",
     "storage": {
-        "rootDirectory": "/tmp/zot",
+        "rootDirectory": "/var/lib/registry",
         "dedupe": false,
         "gc": true,
         "gcDelay": "1h",
-        "gcInterval": "24h",
-        "storageDriver": {
-            "name": "s3",
-            "region": "ap-south-1",
-            "bucket": "prayog-zot-registry",
-            "secure": true,
-            "skipverify": false
-        }
+        "gcInterval": "24h"
     },
     "http": {
         "address": "0.0.0.0",
         "port": "5000",
-        "auth": {
-            "htpasswd": {
-                "path": "/etc/zot/htpasswd"
-            },
-            "failDelay": 5
-        },
+        "auth": null,
         "accessControl": {
             "repositories": {
                 "**": {
-                    "policies": [
-                        {
-                            "users": [
-                                "admin"
-                            ],
-                            "actions": [
-                                "read",
-                                "create",
-                                "update",
-                                "delete"
-                            ]
-                        }
-                    ],
-                    "defaultPolicy": [
-                        "read"
+                    "anonymousPolicy": [
+                        "read",
+                        "create",
+                        "update",
+                        "delete"
                     ]
                 }
-            },
-            "adminPolicy": {
-                "users": [
-                    "admin"
-                ],
-                "actions": [
-                    "read",
-                    "create",
-                    "update",
-                    "delete"
-                ]
             }
-        },
-        "ratelimit": {
-            "rate": 100,
-            "methods": [
-                {
-                    "method": "GET",
-                    "rate": 50
-                },
-                {
-                    "method": "POST",
-                    "rate": 20
-                }
-            ]
         }
     },
     "extensions": {

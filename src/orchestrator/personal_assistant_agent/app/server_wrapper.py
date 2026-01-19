@@ -12,7 +12,7 @@ from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
-from a2a.types import Message, Role, Part, TextPart, AgentCard, AgentSkill
+from a2a.types import Message, Role, Part, TextPart, AgentCard, AgentSkill, AgentCapabilities
 from a2a.utils import new_task
 
 from agntcy_app_sdk.factory import AgntcyFactory
@@ -31,6 +31,10 @@ PersonalAssistantCard = AgentCard(
     description="Personal assistant with weather, web search, and productivity tools",
     version="1.0.0",
     url=f"http://localhost:{settings.port}",
+    defaultInputModes=["text"],
+    defaultOutputModes=["text"],
+    capabilities=AgentCapabilities(streaming=False),
+    supportsAuthenticatedExtendedCard=False,
     skills=[
         AgentSkill(
             id="weather",

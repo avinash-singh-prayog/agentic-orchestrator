@@ -37,20 +37,5 @@
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/booking_agent"
         }
     ],
-    "modules": [
-        {
-            "name": "routing",
-            "type": "routing",
-            "data": {
-                "protocol": "SLIM",
-                "slim_topic": "logistics.booking.v1",
-                "capabilities": [
-                    "order_creation",
-                    "order_tracking",
-                    "order_cancellation"
-                ],
-                "port": 9005
-            }
-        }
-    ]
+    "modules": []
 }

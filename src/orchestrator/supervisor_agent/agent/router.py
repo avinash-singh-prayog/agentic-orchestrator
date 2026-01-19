@@ -83,15 +83,9 @@ class DiscoveryRouter:
         # e.g., "rate_fetching" -> search for "[CAPABILITY:rate_fetching]"
         search_term = f"[CAPABILITY:{capability}]"
         
-        # EMIT ACTIVITY EVENT: Directory Lookup Started
-        dispatch_custom_event(
-            "directory_lookup_start",
-            {
-                "capability": capability,
-                "status": "searching",
-                "message": f"🔍 [REST API] Querying Directory for capability: '{capability}'..."
-            }
-        )
+        # NOTE: Directory lookup events are not shown in Agent Activity (internal infrastructure)
+        # Only agent responses are shown to the user
+        logger.info(f"Querying Directory for capability: '{capability}'")
         
         try:
             # We use find_agent_by_name because dirctl search works on full text
@@ -123,17 +117,7 @@ class DiscoveryRouter:
         
         logger.info(f"DISCOVERED: Agent '{agent_name}' handles '{capability}' -> topic '{topic}'")
         
-        # EMIT ACTIVITY EVENT: Directory Lookup Success
-        dispatch_custom_event(
-            "directory_lookup_end",
-            {
-                "capability": capability,
-                "agent_name": agent_name,
-                "topic": topic,
-                "status": "found",
-                "message": f"✅ [REST API] Found: '{agent_name}' → SLIM topic '{topic}'"
-            }
-        )
+        logger.info(f"Found: Agent '{agent_name}' handles '{capability}' → topic '{topic}'")
         
         # Phase 3: Route via SLIM to discovered topic
         return await self._send_via_slim(topic, payload, agent_name)
@@ -143,14 +127,8 @@ class DiscoveryRouter:
         
         logger.info(f"Creating SLIM transport to {self.slim_endpoint}")
         
-        # EMIT EVENT: SLIM Transport starting
-        dispatch_custom_event(
-            "slim_routing_start",
-            {
-                "topic": topic,
-                "message": f"📡 [SLIM A2A] Sending message to topic '{topic}'..."
-            }
-        )
+        # NOTE: SLIM Transport events are hidden from Agent Activity (internal transport detail)
+        # Only agent responses are shown to the user
         
         transport = self.factory.create_transport(
             "SLIM",

@@ -30,10 +30,22 @@ class DirectoryClient:
     def _get_base_cmd(self, command: str) -> list:
         """Get base dirctl command with server address and TLS if needed."""
         cmd = ["dirctl", command, "--server-addr", self.server_address]
-        if self._use_tls:
-            # Note: TLS is auto-negotiated by gRPC for port 443
-            pass  # No special flags needed
+        # TLS flags not needed for local directory service
+        pass
         return cmd
+    
+    def _parse_description_tags(self, description: str) -> Dict[str, Any]:
+        """
+        Parse [CAPABILITY:...] and [TOPIC:...] tags from description.
+        Used as fallback when modules block is empty.
+        """
+        import re
+        capabilities = re.findall(r'\[CAPABILITY:(\w+)\]', description)
+        topic_match = re.search(r'\[TOPIC:([^\]]+)\]', description)
+        return {
+            "capabilities": capabilities,
+            "slim_topic": topic_match.group(1) if topic_match else None
+        }
     
     def list_all_agents(self) -> List[Dict[str, Any]]:
         """
@@ -49,11 +61,22 @@ class DirectoryClient:
             record = self._pull_record(cid)
             if record:
                 routing = self._get_routing_module(record)
+                description = record.get("description", "")
+                
+                # Use modules if available, otherwise parse from description tags
+                if routing and routing.get("capabilities"):
+                    capabilities = routing.get("capabilities", [])
+                    slim_topic = routing.get("slim_topic")
+                else:
+                    parsed = self._parse_description_tags(description)
+                    capabilities = parsed["capabilities"]
+                    slim_topic = parsed["slim_topic"]
+                
                 agents.append({
                     "name": record.get("name", "Unknown"),
-                    "description": record.get("description", "")[:150],
-                    "capabilities": routing.get("capabilities", []) if routing else [],
-                    "slim_topic": routing.get("slim_topic") if routing else None
+                    "description": description[:150],
+                    "capabilities": capabilities,
+                    "slim_topic": slim_topic
                 })
         return agents
 

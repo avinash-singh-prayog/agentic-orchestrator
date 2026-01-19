@@ -30,9 +30,8 @@ class DirectoryClient:
     def _get_base_cmd(self, command: str) -> list:
         """Get base dirctl command with server address and TLS if needed."""
         cmd = ["dirctl", command, "--server-addr", self.server_address]
-        if self._use_tls:
-            # Note: TLS is auto-negotiated by gRPC for port 443
-            pass  # No special flags needed
+        # TLS flags not needed for local directory service
+        pass
         return cmd
 
     def register_agent(self, record_path: str = "agent_record.json") -> Optional[str]:

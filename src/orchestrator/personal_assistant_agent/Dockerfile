@@ -18,6 +18,7 @@ COPY tools/ tools/
 COPY app/ app/
 
 # Install dependencies
+ENV UV_HTTP_TIMEOUT=300
 RUN uv venv && uv pip install .
 
 # Environment

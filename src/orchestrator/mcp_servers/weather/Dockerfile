@@ -15,5 +15,5 @@ ENV PYTHONUNBUFFERED=1
 # FastMCP SSE server runs on port 8000 by default
 EXPOSE 8000
 
-# Run with SSE transport (HTTP-based)
-CMD ["python", "-c", "from server import mcp; mcp.run(transport='sse')"]
+# Run with SSE transport on 0.0.0.0 (accessible from other containers)
+CMD ["python", "-c", "from server import mcp; mcp.run(transport='sse', host='0.0.0.0')"]

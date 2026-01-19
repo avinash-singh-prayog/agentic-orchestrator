@@ -101,33 +101,21 @@ services:
   # DIRECTORY SERVICE & REGISTRY
   # ===========================================
 
-  # directory-service:
-  #   image: ghcr.io/agntcy/dir-apiserver:v0.6.0
-  #   container_name: directory-service
-  #   network_mode: "service:oci-registry"
-  #   ports: []
-  #   environment:
-  #     - DIR_OASF_STRICT_VALIDATION=false
-  #     - DIR_DISABLE_API_VALIDATION=true
-  #     - OASF_STRICT_VALIDATION=false
-  #     - DISABLE_API_VALIDATION=true
-  #   volumes:
-  #     - ./data/sqlite:/var/lib/agntcy/dir
-  #   depends_on:
-  #     - oci-registry
-
-  # oci-registry:
-  #   image: ghcr.io/project-zot/zot:v2.1.11
-  #   container_name: oci-registry
-  #   ports:
-  #     - "5000:5000"
-  #     - "8090:8888"
-  #     - "8091:8091"
-  #   volumes:
-  #     - ./config/docker/zot/config.json:/etc/zot/config.json
-  #     - ./data/zot:/var/lib/registry
-  #   networks:
-  #     - orchestrator-net
+  directory-service:
+    image: ghcr.io/agntcy/dir-apiserver:v0.6.0
+    container_name: directory-service
+    ports:
+      - "8888:8888"
+    environment:
+      - DIR_OASF_STRICT_VALIDATION=false
+      - DIR_DISABLE_API_VALIDATION=true
+      - OASF_STRICT_VALIDATION=false
+      - DIRECTORY_SERVER_STORE_OCI_LOCAL_DIR=/var/lib/agntcy/dir/store
+      - DIRECTORY_SERVER_DATABASE_SQLITE_DIRECTORY=/var/lib/agntcy/dir/db
+    volumes:
+      - ./data/sqlite:/var/lib/agntcy/dir
+    networks:
+      - orchestrator-net
 
   # ===========================================
   # SUPERVISOR AGENT
@@ -147,7 +135,7 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
+      - DIRECTORY_SERVICE_ADDR=directory-service:8888
       # Disable OpenTelemetry completely to avoid connection errors
       - OTEL_SDK_DISABLED=true
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
@@ -181,7 +169,7 @@ services:
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
+      - DIRECTORY_SERVICE_ADDR=directory-service:8888
       # External serviceability API (running on host machine)
       - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
     command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
@@ -208,7 +196,7 @@ services:
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
+      - DIRECTORY_SERVICE_ADDR=directory-service:8888
       # Order V2 API (use host.docker.internal to reach host machine from container)
       - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
     command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
@@ -261,11 +249,12 @@ services:
       - PERSONAL_ASSISTANT_LLM=${PERSONAL_ASSISTANT_LLM:-openrouter/openai/gpt-4o-mini}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - SLIM_TOPIC=agents.personal.v1
-      - WEATHER_MCP_URL=http://weather-mcp:8000
-      - WEBSEARCH_MCP_URL=http://websearch-mcp:8000
-      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
+      - WEATHER_MCP_URL=http://weather-mcp:8000/sse
+      - WEBSEARCH_MCP_URL=http://websearch-mcp:8000/sse
+      - DIRECTORY_SERVICE_ADDR=directory-service:8888
       - LOG_LEVEL=INFO
     depends_on:
       - weather-mcp

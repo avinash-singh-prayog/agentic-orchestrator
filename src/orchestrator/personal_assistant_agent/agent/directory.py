@@ -44,9 +44,8 @@ class DirectoryClient:
                 "dirctl", "push",
                 "--server-addr", self.server_address,
             ]
-            if self._use_tls:
-                # Use TLS authentication mode for gRPC on port 443
-                cmd.extend(["--auth-mode", "tls", "--tls-skip-verify"])
+            # TLS flags not needed for local directory service
+            pass
             cmd.extend(["--stdin", "--output", "raw"])
             
             result = subprocess.run(

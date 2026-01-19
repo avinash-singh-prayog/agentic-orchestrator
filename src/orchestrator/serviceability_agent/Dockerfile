@@ -16,6 +16,7 @@ COPY pyproject.toml .
 COPY . .
 
 # Create virtual environment and install project with dependencies
+ENV UV_HTTP_TIMEOUT=300
 RUN uv venv && uv pip install .
 
 # Expose port

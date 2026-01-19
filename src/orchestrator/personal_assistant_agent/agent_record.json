@@ -9,8 +9,8 @@
     "created_at": "2024-12-31T00:00:00Z",
     "skills": [
         {
-            "name": "natural_language_processing/conversational_ai/chatbot",
-            "id": 10201
+            "name": "natural_language_processing/natural_language_generation/dialogue_generation",
+            "id": 10204
         },
         {
             "name": "retrieval_augmented_generation/document_or_database_question_answering",
@@ -19,12 +19,8 @@
     ],
     "domains": [
         {
-            "name": "general/personal_productivity",
-            "id": 103
-        },
-        {
-            "name": "general/information_retrieval",
-            "id": 101
+            "name": "technology/information_technology",
+            "id": 106
         }
     ],
     "locators": [
@@ -33,20 +29,5 @@
             "url": "https://github.com/avinash-singh-prayog/agentic-orchestrator/tree/main/src/orchestrator/personal_assistant_agent"
         }
     ],
-    "modules": [
-        {
-            "name": "routing",
-            "type": "routing",
-            "data": {
-                "protocol": "SLIM",
-                "slim_topic": "agents.personal.v1",
-                "capabilities": [
-                    "personal_assistant",
-                    "weather_info",
-                    "web_search"
-                ],
-                "port": 9006
-            }
-        }
-    ]
+    "modules": []
 }
