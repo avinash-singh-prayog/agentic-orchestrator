@@ -179,8 +179,11 @@ const AuthScreen: React.FC = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-primary)] to-purple-500 mb-2">
-                        Prayog Orchestrator
+                        Cerebrio
                     </h1>
+                    <p className="text-[var(--text-secondary)] text-xs mb-4 font-medium tracking-wide">
+                        Polymorphic AI Infrastructure for Long-Lived Agents.
+                    </p>
                     <p className="text-[var(--text-tertiary)] text-sm">
                         {view === 'login' && "Welcome back! Login to continue."}
                         {view === 'register' && "Create an account to get started."}
@@ -378,7 +381,7 @@ const AuthScreen: React.FC = () => {
 
             {/* Disclaimer */}
             <div className="mt-8 text-[var(--text-tertiary)] text-xs opacity-50">
-                &copy; 2024 Prayog Agentic Orchestrator. All rights reserved.
+                &copy; 2024 Cerebrio. All rights reserved.
             </div>
         </div>
     )

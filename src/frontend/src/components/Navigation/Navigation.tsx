@@ -99,7 +99,7 @@ const Navigation: React.FC = () => {
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}>
-                        Agentic Orchestrator
+                        Cerebrio
                     </span>
                     <span style={{ fontSize: 11, color: isLightMode ? "#64748b" : "#8b9cb8" }}>
                         Multi-Agent System

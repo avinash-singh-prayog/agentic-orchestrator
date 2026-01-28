@@ -37,13 +37,13 @@ const groupStyle = {
 }
 
 export const ORCHESTRATOR_CONFIG: GraphConfig = {
-    title: "Agentic Orchestrator Network",
+    title: "Cerebrio Network",
     nodes: [
         // Group container
         {
             id: NODE_IDS.ORCHESTRATOR_GROUP,
             type: "group",
-            data: { label: "Agentic Orchestrator" },
+            data: { label: "Cerebrio" },
             position: { x: 50, y: 50 },
             style: groupStyle,
             draggable: false,
