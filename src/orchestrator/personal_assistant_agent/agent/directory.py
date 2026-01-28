@@ -1,71 +1,51 @@
 """
 Directory Client for Personal Assistant Agent.
+
+Re-exports the shared DirectoryClient library for agent registration.
 """
-import os
-import logging
-import subprocess
-import json
+
+import sys
 from pathlib import Path
 
-logger = logging.getLogger("personal_assistant.directory")
+# Add libs directory to path for import
+def _setup_libs_path():
+    docker_libs = Path("/app/libs")
+    if docker_libs.exists():
+        if str(docker_libs) not in sys.path:
+            sys.path.insert(0, str(docker_libs))
+        return
+    local_libs = Path(__file__).parent.parent.parent / "libs"
+    if local_libs.exists() and str(local_libs) not in sys.path:
+        sys.path.insert(0, str(local_libs))
+
+_setup_libs_path()
+
+from agntcy_directory import (
+    DirectoryClient,
+    AgentRecord,
+    DirectoryError,
+    RegistrationError,
+)
+
+_client = None
 
 
-class DirectoryClient:
-    """Client for registering with the Agency Directory Service."""
-    
-    def __init__(self):
-        self.server_address = os.getenv("DIRECTORY_SERVICE_ADDR", "directory-service:8888")
-        self._use_tls = ":443" in self.server_address
-    
-    def register_agent(self, record_path: str = "agent_record.json") -> bool:
-        """Register this agent with the Directory Service."""
-        try:
-            if not os.path.isabs(record_path):
-                possible_paths = [
-                    Path(record_path),
-                    Path(__file__).parent.parent / record_path,
-                    Path("/app") / record_path,
-                ]
-                
-                for path in possible_paths:
-                    if path.exists():
-                        record_path = str(path)
-                        break
-                else:
-                    logger.error(f"Agent record not found")
-                    return False
-            
-            with open(record_path, "r") as f:
-                record_data = json.load(f)
-            
-            logger.info(f"Registering agent: {record_data.get('name', 'Unknown')}")
-            
-            cmd = [
-                "dirctl", "push",
-                "--server-addr", self.server_address,
-            ]
-            # TLS flags not needed for local directory service
-            pass
-            cmd.extend(["--stdin", "--output", "raw"])
-            
-            result = subprocess.run(
-                cmd,
-                input=json.dumps(record_data),
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if result.returncode != 0:
-                logger.error(f"dirctl push failed: {result.stderr}")
-                return False
-            
-            logger.info(f"Successfully registered. CID: {result.stdout.strip()}")
-            return True
-            
-        except FileNotFoundError:
-            logger.warning("dirctl not found. Skipping registration.")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to register: {e}")
-            return False
+def get_client() -> DirectoryClient:
+    global _client
+    if _client is None:
+        _client = DirectoryClient.from_env()
+    return _client
+
+
+def register_agent(record_path: str = "agent_record.json") -> bool:
+    try:
+        cid = get_client().register_agent(record_path)
+        return cid is not None
+    except Exception:
+        return False
+
+
+__all__ = [
+    "DirectoryClient", "AgentRecord", "DirectoryError",
+    "RegistrationError", "get_client", "register_agent",
+]

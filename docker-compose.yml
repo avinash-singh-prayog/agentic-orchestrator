@@ -123,8 +123,8 @@ services:
 
   supervisor-agent:
     build:
-      context: src/orchestrator/supervisor_agent
-      dockerfile: Dockerfile
+      context: src/orchestrator
+      dockerfile: supervisor_agent/Dockerfile
     container_name: supervisor-agent
     ports:
       - "9004:9004"
@@ -156,8 +156,8 @@ services:
 
   serviceability-agent:
     build:
-      context: src/orchestrator/serviceability_agent
-      dockerfile: Dockerfile
+      context: src/orchestrator
+      dockerfile: serviceability_agent/Dockerfile
     container_name: serviceability-agent
     ports:
       - "${SERVICEABILITY_AGENT_PORT:-9003}:9003"
@@ -169,7 +169,7 @@ services:
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - DIRECTORY_SERVICE_ADDR=directory-service:8888
+      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
       # External serviceability API (running on host machine)
       - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
     command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
@@ -183,8 +183,8 @@ services:
 
   booking-agent:
     build:
-      context: src/orchestrator/booking_agent
-      dockerfile: Dockerfile
+      context: src/orchestrator
+      dockerfile: booking_agent/Dockerfile
     container_name: booking-agent
     ports:
       - "${BOOKING_AGENT_PORT:-9005}:9005"
@@ -196,7 +196,7 @@ services:
       # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      - DIRECTORY_SERVICE_ADDR=directory-service:8888
+      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
       # Order V2 API (use host.docker.internal to reach host machine from container)
       - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
     command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
@@ -240,8 +240,8 @@ services:
 
   personal-assistant-agent:
     build:
-      context: src/orchestrator/personal_assistant_agent
-      dockerfile: Dockerfile
+      context: src/orchestrator
+      dockerfile: personal_assistant_agent/Dockerfile
     container_name: personal-assistant-agent
     ports:
       - "${PERSONAL_ASSISTANT_PORT:-9006}:9006"
@@ -254,7 +254,7 @@ services:
       - SLIM_TOPIC=agents.personal.v1
       - WEATHER_MCP_URL=http://weather-mcp:8000/sse
       - WEBSEARCH_MCP_URL=http://websearch-mcp:8000/sse
-      - DIRECTORY_SERVICE_ADDR=directory-service:8888
+      - DIRECTORY_SERVICE_ADDR=agntcy-dir-grpc.prayog.io:443
       - LOG_LEVEL=INFO
     depends_on:
       - weather-mcp

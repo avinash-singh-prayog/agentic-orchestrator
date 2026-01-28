@@ -9,15 +9,18 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 ADD https://github.com/agntcy/dir/releases/download/v0.6.0/dirctl-linux-amd64 /usr/local/bin/dirctl
 RUN chmod +x /usr/local/bin/dirctl
 
-# Copy dependency files first for better cache utilization
-COPY pyproject.toml .
+# Copy shared libraries first (from parent build context)
+COPY libs /app/libs
 
-# Copy application code (needed for package install)
-COPY . .
+# Copy dependency files for cache utilization
+COPY booking_agent/pyproject.toml .
+
+# Copy application code
+COPY booking_agent/ .
 
 # Create virtual environment and install project with dependencies
 ENV UV_HTTP_TIMEOUT=300
-RUN uv venv && uv pip install .
+RUN uv venv && uv pip install . && uv pip install pydantic
 
 # Expose port
 EXPOSE 9005
