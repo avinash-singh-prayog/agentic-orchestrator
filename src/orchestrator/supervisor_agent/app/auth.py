@@ -147,6 +147,7 @@ async def ensure_users_table():
                         try:
                             await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);")
                             await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;")
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;")
                         except Exception as e:
                              logger.warning(f"Migration warning (columns might exist): {e}")
 
@@ -248,6 +249,88 @@ async def create_user(user: UserRegisterRequest) -> UserResponse:
         import traceback
         traceback.print_exc()
         raise DatabaseError(f"User creation failed due to an unexpected error: {str(e)}", original_error=e)
+
+async def get_or_create_google_user(email: str, name: str, google_id: str) -> UserResponse:
+    """Get existing user or create new one from Google profile."""
+    query_find = "SELECT id, email, name, tenant_id FROM users WHERE email = %s"
+    
+    # We set a random password for OAuth users so password_hash NOT NULL constraint is satisfied
+    # and they can technically reset it later if they want to login via password.
+    random_password = str(uuid.uuid4())
+    hashed_password = get_password_hash(random_password)
+    new_user_id = uuid.uuid4()
+    
+    insert_query = """
+    INSERT INTO users (id, email, password_hash, name, tenant_id, google_id)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    RETURNING id, email, name, tenant_id
+    """
+    
+    update_google_id_query = "UPDATE users SET google_id = %s WHERE email = %s AND google_id IS NULL"
+
+    try:
+        async def _do_google_auth():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        # 1. Check if user exists
+                        await cur.execute(query_find, (email,))
+                        row = await cur.fetchone()
+                        
+                        if row:
+                            # User exists
+                            user_id_found, email_found, name_found, tenant_id_found = row
+                            
+                            # Optionally link google_id if missing
+                            # We can do this safely.
+                            await cur.execute(update_google_id_query, (google_id, email))
+                            await conn.commit()
+                            
+                            return UserResponse(
+                                id=str(user_id_found),
+                                email=email_found,
+                                name=name_found,
+                                tenant_id=tenant_id_found
+                            )
+                        else:
+                            # 2. Create new user
+                            await cur.execute(insert_query, (
+                                new_user_id,
+                                email,
+                                hashed_password,
+                                name,
+                                DEFAULT_TENANT_ID,
+                                google_id
+                            ))
+                            row = await cur.fetchone()
+                            await conn.commit()
+                            
+                            return UserResponse(
+                                id=str(row[0]),
+                                email=row[1],
+                                name=row[2],
+                                tenant_id=row[3]
+                            )
+                            
+            except OperationalError as e:
+                logger.error(f"Database connection error during google auth: {e}")
+                raise DatabaseConnectionError(f"Unable to connect to database: {str(e)}", original_error=e)
+            except ProgrammingError as e:
+                logger.error(f"Database query error during google auth: {e}")
+                raise DatabaseQueryError(f"Database query failed: {str(e)}", original_error=e)
+        
+        return await asyncio.wait_for(_do_google_auth(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        raise DatabaseTimeoutError(f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds")
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during google auth: {e}")
+        raise DatabaseError(f"Google auth failed: {str(e)}", original_error=e)
 
 async def authenticate_user(login_data: UserLoginRequest) -> Optional[UserResponse]:
     """Authenticate user credentials with proper error handling."""

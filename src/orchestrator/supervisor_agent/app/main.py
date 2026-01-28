@@ -76,6 +76,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Supervisor Agent", lifespan=lifespan)
 router = APIRouter(prefix="/supervisor-agent")
 
+# Include OAuth router
+from app import oauth
+router.include_router(oauth.router)
+
 # Add CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
