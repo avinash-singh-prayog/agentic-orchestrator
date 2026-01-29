@@ -2,6 +2,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Accept build argument for API URL
+ARG VITE_ORCHESTRATOR_API_URL
+ENV VITE_ORCHESTRATOR_API_URL=$VITE_ORCHESTRATOR_API_URL
+
 # Copy package files
 COPY package*.json ./
 

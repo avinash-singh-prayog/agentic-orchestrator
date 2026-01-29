@@ -20,7 +20,8 @@ import {
     ChevronDown,
     ChevronUp,
     Activity,
-    ShoppingCart
+    ShoppingCart,
+    FileSearch
 } from "lucide-react"
 import {
     useStreamingEvents,
@@ -71,6 +72,12 @@ const agentConfig: Record<string, {
         color: "#f472b6",
         bgColor: "rgba(244, 114, 182, 0.15)",
         label: "Booking Agent"
+    },
+    "transaction-rca": {
+        icon: FileSearch,
+        color: "#10b981",
+        bgColor: "rgba(16, 185, 129, 0.15)",
+        label: "Transaction RCA Agent"
     },
     rate: {
         icon: CircleDollarSign,
@@ -256,7 +263,13 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                 {events.map((event, index) => {
                     const getAgentKey = (sender: string) => {
                         const s = sender.toLowerCase()
+                        // Debug logging
+                        if (s.includes("transaction") || s.includes("rca")) {
+                            console.log(`[ExecutionTimeline] Sender: "${sender}", Lower: "${s}", Checking Transaction RCA...`)
+                        }
                         if (s.includes("carrier")) return "carrier"
+                        if (s.includes("transaction") && s.includes("rca")) return "transaction-rca"
+                        if (s.includes("rca")) return "transaction-rca"
                         if (s.includes("rate")) return "rate"
                         if (s.includes("service")) return "serviceability"
                         if (s.includes("booking")) return "booking"

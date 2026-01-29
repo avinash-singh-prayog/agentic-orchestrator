@@ -65,6 +65,19 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         }
     }
 
+    if (
+        (senderLower.includes("transaction") && senderLower.includes("rca")) ||
+        senderLower.includes("rca") ||
+        senderLower === "transaction_rca_agent" ||
+        senderLower === "transaction-rca-agent"
+    ) {
+        console.log("Found Transaction RCA Agent activity:", sender)
+        return {
+            nodes: [...basePath.nodes, "transaction-rca-agent"],
+            edges: [...basePath.edges, "slim-to-transaction-rca-agent"],
+        }
+    }
+
     console.log("Unknown sender for animation:", sender)
 
 
