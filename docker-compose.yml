@@ -185,6 +185,26 @@ services:
     networks:
       - orchestrator-net
 
+  transaction-rca-agent:
+    build:
+      context: src/orchestrator/transaction_rca_agent
+      dockerfile: Dockerfile
+    container_name: transaction-rca-agent
+    ports:
+      - "${TRANSACTION_RCA_AGENT_PORT:-9006}:9006"
+    environment:
+      - TRANSACTION_RCA_AGENT_LLM=${TRANSACTION_RCA_AGENT_LLM:-gemini/gemini-3-flash-preview}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
+      - DEFAULT_MESSAGE_TRANSPORT=SLIM
+    command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - orchestrator-net
+
   # SLIM commented out - using remote EC2 instance
   # To use local SLIM, uncomment this and update .env: SLIM_ENDPOINT=http://3.7.70.176:46357
   # slim:
@@ -206,13 +226,13 @@ services:
     build:
       context: ./src/frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_ORCHESTRATOR_API_URL=${VITE_ORCHESTRATOR_API_URL:-http://localhost:9004}
     container_name: orchestrator-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - supervisor-agent
-    environment:
-      - VITE_ORCHESTRATOR_API_URL=http://supervisor-agent:9004
     networks:
       - orchestrator-net
 

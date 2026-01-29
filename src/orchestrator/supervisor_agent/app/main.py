@@ -411,6 +411,7 @@ async def stream_events(
                 # Capture tool calls
                 elif event_type == "on_tool_start":
                     tool_name = event.get("name", "unknown")
+                    tool_name_lower = tool_name.lower()
                     
                     # 1. Handoff from Supervisor
                     yield json.dumps({
@@ -423,12 +424,20 @@ async def stream_events(
                     
                     # 2. Agent Starting (Keeps graph active on Agent)
                     sender = "Unknown Agent"
-                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
+                    # Check for Transaction RCA Agent first (most specific)
+                    if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
+                        sender = "Transaction RCA Agent"
+                    elif "rate" in tool_name_lower or "service" in tool_name_lower:
                         sender = "Serviceability Agent"
-                    elif "book" in tool_name.lower():
+                    elif "book" in tool_name_lower:
                         sender = "Booking Agent"
-                    elif "slim" in tool_name.lower():
+                    elif "slim" in tool_name_lower:
                         sender = "SLIM Transport"
+                    
+                    # Log for debugging
+                    import logging
+                    logger = logging.getLogger("supervisor_agent.main")
+                    logger.info(f"Tool: {tool_name}, Mapped sender: {sender}")
                         
                     yield json.dumps({
                         "content": {
@@ -441,15 +450,19 @@ async def stream_events(
                 # Capture tool results
                 elif event_type == "on_tool_end":
                     tool_name = event.get("name", "unknown")
+                    tool_name_lower = tool_name.lower()
                     tool_output = event.get("data", {}).get("output", "")
                     
                     # Determine sender based on tool name
                     sender = "Unknown Agent"
-                    if "rate" in tool_name.lower() or "service" in tool_name.lower():
+                    # Check for Transaction RCA Agent first (most specific)
+                    if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
+                        sender = "Transaction RCA Agent"
+                    elif "rate" in tool_name_lower or "service" in tool_name_lower:
                         sender = "Serviceability Agent"
-                    elif "book" in tool_name.lower():
+                    elif "book" in tool_name_lower:
                         sender = "Booking Agent"
-                    elif "slim" in tool_name.lower():
+                    elif "slim" in tool_name_lower:
                         sender = "SLIM Transport"
                     
                     if tool_output:
@@ -626,12 +639,16 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
                 # 2. Capture Tool Outputs (from Tool)
             elif isinstance(msg, ToolMessage):
                 tool_name = msg.name or "unknown"
+                tool_name_lower = tool_name.lower()
                 sender = "Unknown Agent"
-                if "rate" in tool_name.lower() or "service" in tool_name.lower():
+                # Check for Transaction RCA Agent first (most specific)
+                if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
+                    sender = "Transaction RCA Agent"
+                elif "rate" in tool_name_lower or "service" in tool_name_lower:
                     sender = "Serviceability Agent"
-                elif "book" in tool_name.lower():
+                elif "book" in tool_name_lower:
                     sender = "Booking Agent"
-                elif "slim" in tool_name.lower():
+                elif "slim" in tool_name_lower:
                     sender = "SLIM Transport"
                     
                 pending_activity.append({

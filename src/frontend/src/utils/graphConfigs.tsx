@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react"
-import { Brain, Package, Zap, ShoppingCart } from "lucide-react"
+import { Brain, Package, Zap, ShoppingCart, FileSearch } from "lucide-react"
 import { NODE_IDS, EDGE_IDS, NODE_TYPES, EDGE_TYPES } from "./const"
 
 export interface GraphConfig {
@@ -30,7 +30,7 @@ const transportStyle = {
 // Group container style
 const groupStyle = {
     width: 740,
-    height: 500,
+    height: 550,
     backgroundColor: "rgba(26, 29, 40, 0.4)",
     border: "1px dashed rgba(139, 156, 184, 0.2)",
     borderRadius: "16px",
@@ -109,6 +109,22 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
+        // Transaction RCA Agent
+        {
+            id: NODE_IDS.TRANSACTION_RCA_AGENT,
+            type: NODE_TYPES.CUSTOM,
+            data: {
+                icon: FileSearch,
+                label1: "Transaction RCA Agent",
+                label2: "Root Cause Analysis",
+                handles: "target",
+                status: "idle",
+                description: "Analyzes transaction failures",
+            },
+            position: { x: 280, y: 400 },
+            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
+            ...nodeStyle,
+        },
     ],
     edges: [
         // Supervisor to SLIM Transport
@@ -140,13 +156,23 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             data: { label: "" },
             animated: false,
         },
+        // SLIM to Transaction RCA Agent
+        {
+            id: EDGE_IDS.SLIM_TO_TRANSACTION_RCA_AGENT,
+            source: NODE_IDS.SLIM_TRANSPORT,
+            target: NODE_IDS.TRANSACTION_RCA_AGENT,
+            type: EDGE_TYPES.CUSTOM,
+            sourceHandle: "bottom-center",
+            data: { label: "" },
+            animated: false,
+        },
     ],
     animationSequence: [
         { ids: [NODE_IDS.SUPERVISOR] },
         { ids: [EDGE_IDS.SUPERVISOR_TO_SLIM] },
         { ids: [NODE_IDS.SLIM_TRANSPORT] },
-        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT] },
-        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT] },
+        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT, EDGE_IDS.SLIM_TO_TRANSACTION_RCA_AGENT] },
+        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT, NODE_IDS.TRANSACTION_RCA_AGENT] },
     ],
 }
 

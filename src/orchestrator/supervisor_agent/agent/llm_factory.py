@@ -23,19 +23,18 @@ class LLMFactory:
 
         logger.info(f"Initializing LLM with model: {model_name} from env var: {model_env_var}")
 
+        # Determine which API key to use based on the model provider
+        model_kwargs = {
+            "num_retries": 5,
+            "timeout": 60,
+        }
+
         # ChatLiteLLM wrapper handles the underlying litellm calls.
-        # Ensure your API keys (GROQ_API_KEY, OPENROUTER_API_KEY) are set in the environment.
+        # Pass API key via model_kwargs to ensure authentication works
         llm = ChatLiteLLM(
             model=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            # Add retry configuration directly to ChatLiteLLM/litellm
-            # num_retries=3 (default in litellm is often 2, bumping to 3 or 5 helps)
-            # request_timeout=60 (give it time)
-             model_kwargs={
-                "num_retries": 5,
-                "timeout": 60,
-                # "drop_params": True # useful if passing unsupported params
-            }
+            model_kwargs=model_kwargs
         )
         return llm
