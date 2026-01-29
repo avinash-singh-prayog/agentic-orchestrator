@@ -42,29 +42,7 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         edges: ["supervisor-to-slim"],
     }
 
-    if (
-        senderLower.includes("service") ||
-        senderLower.includes("rate") ||
-        senderLower.includes("serviceability") ||
-        senderLower === "serviceability_agent"
-    ) {
-        return {
-            nodes: [...basePath.nodes, "serviceability-agent"],
-            edges: [...basePath.edges, "slim-to-serviceability-agent"],
-        }
-    }
-
-    if (
-        senderLower.includes("booking") ||
-        senderLower === "booking_agent"
-    ) {
-        console.log("Found Booking Agent activity:", sender)
-        return {
-            nodes: [...basePath.nodes, "booking-agent"],
-            edges: [...basePath.edges, "slim-to-booking-agent"],
-        }
-    }
-
+    // Transaction RCA Agent path
     if (
         (senderLower.includes("transaction") && senderLower.includes("rca")) ||
         senderLower.includes("rca") ||
@@ -77,10 +55,6 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
             edges: [...basePath.edges, "slim-to-transaction-rca-agent"],
         }
     }
-
-    console.log("Unknown sender for animation:", sender)
-
-
 
     // Default: only supervisor
     if (senderLower.includes("supervisor")) {
@@ -229,7 +203,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        background: "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))",
+                        background: "linear-gradient(135deg, #003323, #50D387)",
                         animation: "pulse 1.5s infinite",
                     }} />
                     <div style={{ display: "flex", flexDirection: "column" }}>

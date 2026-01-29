@@ -203,7 +203,7 @@ const App: React.FC = () => {
   if (isLoadingSession) {
     return (
       <div style={{ ...appStyles, alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 className="animate-spin text-indigo-500" size={32} />
+        <Loader2 className="animate-spin text-[var(--accent-primary)]" size={32} />
       </div>
     )
   }

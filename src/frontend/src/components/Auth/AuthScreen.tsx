@@ -171,18 +171,18 @@ const AuthScreen: React.FC = () => {
 
             {/* Glow Orbs */}
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--accent-primary)]/10 rounded-full blur-3xl pointer-events-none mix-blend-screen" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none mix-blend-screen" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--accent-primary)]/10 rounded-full blur-3xl pointer-events-none mix-blend-screen" />
 
             {/* Main Card */}
             <div className="w-full max-w-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-2xl shadow-xl p-8 relative z-10 backdrop-blur-xl transition-colors duration-300">
 
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-primary)] to-purple-500 mb-2">
-                        Cerebrio
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-primary)] to-[#003323] mb-2">
+                        PineLabs AI
                     </h1>
                     <p className="text-[var(--text-secondary)] text-xs mb-4 font-medium tracking-wide">
-                        Polymorphic AI Infrastructure for Long-Lived Agents.
+                        Transaction Analysis System
                     </p>
                     <p className="text-[var(--text-tertiary)] text-sm">
                         {view === 'login' && "Welcome back! Login to continue."}
@@ -201,7 +201,7 @@ const AuthScreen: React.FC = () => {
                 )}
 
                 {successMessage && (
-                    <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-3 text-green-500 text-sm">
+                    <div className="mb-6 p-4 bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 rounded-lg flex items-center gap-3 text-[var(--accent-primary)] text-sm">
                         <CheckCircle size={18} />
                         <span>{successMessage}</span>
                     </div>
@@ -296,7 +296,7 @@ const AuthScreen: React.FC = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-lg shadow-indigo-500/20"
+                        className="w-full bg-gradient-to-r from-[#003323] to-[var(--accent-primary)] hover:from-[#004d2e] hover:to-[#80e0a8] text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[var(--accent-primary)]/20"
                     >
                         {isLoading ? (
                             <Loader2 className="animate-spin" size={18} />
@@ -381,7 +381,7 @@ const AuthScreen: React.FC = () => {
 
             {/* Disclaimer */}
             <div className="mt-8 text-[var(--text-tertiary)] text-xs opacity-50">
-                &copy; 2024 Cerebrio. All rights reserved.
+                &copy; 2024 PineLabs AI. All rights reserved.
             </div>
         </div>
     )

@@ -427,10 +427,6 @@ async def stream_events(
                     # Check for Transaction RCA Agent first (most specific)
                     if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
                         sender = "Transaction RCA Agent"
-                    elif "rate" in tool_name_lower or "service" in tool_name_lower:
-                        sender = "Serviceability Agent"
-                    elif "book" in tool_name_lower:
-                        sender = "Booking Agent"
                     elif "slim" in tool_name_lower:
                         sender = "SLIM Transport"
                     
@@ -458,10 +454,6 @@ async def stream_events(
                     # Check for Transaction RCA Agent first (most specific)
                     if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
                         sender = "Transaction RCA Agent"
-                    elif "rate" in tool_name_lower or "service" in tool_name_lower:
-                        sender = "Serviceability Agent"
-                    elif "book" in tool_name_lower:
-                        sender = "Booking Agent"
                     elif "slim" in tool_name_lower:
                         sender = "SLIM Transport"
                     
@@ -644,10 +636,6 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
                 # Check for Transaction RCA Agent first (most specific)
                 if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
                     sender = "Transaction RCA Agent"
-                elif "rate" in tool_name_lower or "service" in tool_name_lower:
-                    sender = "Serviceability Agent"
-                elif "book" in tool_name_lower:
-                    sender = "Booking Agent"
                 elif "slim" in tool_name_lower:
                     sender = "SLIM Transport"
                     

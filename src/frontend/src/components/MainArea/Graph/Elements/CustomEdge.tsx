@@ -48,12 +48,13 @@ const CustomEdge: React.FC<EdgeProps> = ({
                 path={edgePath}
                 style={{
                     stroke: isAnimated
-                        ? "rgba(79, 143, 255, 0.45)"
+                        ? "#50D387"
                         : selected
-                            ? "#4f8fff"
-                            : "rgba(139, 156, 184, 0.3)",
+                            ? "#50D387"
+                            : "var(--border-subtle)",
                     strokeWidth: isAnimated ? 3 : 2,
-                    filter: isAnimated ? "drop-shadow(0 0 6px rgba(79, 143, 255, 0.55))" : "none",
+                    filter: isAnimated ? "drop-shadow(0 0 8px rgba(80, 211, 135, 0.6))" : "none",
+                    transition: "all 0.3s ease",
                 }}
             />
 
@@ -87,7 +88,7 @@ const CustomEdge: React.FC<EdgeProps> = ({
                     />
 
                     {/* Moving particle dot */}
-                    <circle r="4" fill="#6ba6ff" filter="url(#glowFilter)">
+                    <circle r="4" fill="#50D387" filter="url(#glowFilter)">
                         <animateMotion
                             dur={`${pathLength / 60}s`}
                             repeatCount="indefinite"
@@ -98,9 +99,9 @@ const CustomEdge: React.FC<EdgeProps> = ({
                     {/* Gradient and filter definitions */}
                     <defs>
                         <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#4f8fff" />
-                            <stop offset="50%" stopColor="#9d7cf6" />
-                            <stop offset="100%" stopColor="#4f8fff" />
+                            <stop offset="0%" stopColor="#50D387" />
+                            <stop offset="50%" stopColor="#80e0a8" />
+                            <stop offset="100%" stopColor="#50D387" />
                         </linearGradient>
                         <filter id="glowFilter" x="-50%" y="-50%" width="200%" height="200%">
                             <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -121,7 +122,7 @@ const CustomEdge: React.FC<EdgeProps> = ({
                     textAnchor="middle"
                     style={{
                         fontSize: 10,
-                        fill: isAnimated ? "#60a5fa" : "#64748b",
+                        fill: isAnimated ? "#50D387" : "var(--text-tertiary)",
                         fontWeight: 500,
                     }}
                 >

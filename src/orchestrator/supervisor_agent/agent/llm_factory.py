@@ -29,21 +29,6 @@ class LLMFactory:
             "timeout": 60,
         }
         
-        if model_name.startswith("openrouter/"):
-            api_key = os.getenv("OPENROUTER_API_KEY")
-            if not api_key:
-                raise ValueError("OPENROUTER_API_KEY environment variable is not set. Required for OpenRouter models.")
-            # Ensure API key is set in environment for LiteLLM to pick up
-            os.environ["OPENROUTER_API_KEY"] = api_key
-            logger.info("OPENROUTER_API_KEY configured for LiteLLM (length: %d)", len(api_key))
-        elif model_name.startswith("groq/"):
-            api_key = os.getenv("GROQ_API_KEY")
-            if not api_key:
-                raise ValueError("GROQ_API_KEY environment variable is not set. Required for Groq models.")
-            # Set API key in environment for LiteLLM to pick up
-            os.environ["GROQ_API_KEY"] = api_key
-            logger.info("GROQ_API_KEY configured for LiteLLM")
-
         # ChatLiteLLM wrapper handles the underlying litellm calls.
         # Pass API key via model_kwargs to ensure authentication works
         llm = ChatLiteLLM(

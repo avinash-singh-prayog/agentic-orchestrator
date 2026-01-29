@@ -5,6 +5,8 @@
     --bg-app: #0f1117;
     --bg-panel: #161b22;
     --bg-input: #0d1117;
+    --bg-sidebar: #161b22;
+    --bg-hover: rgba(22, 27, 34, 0.8);
 
     --text-primary: #e6edf3;
     --text-secondary: #8b949e;
@@ -14,12 +16,13 @@
     --border-light: #30363d;
     --border-hover: #8b949e;
 
-    --accent-primary: #6366f1;
-    --accent-primary-border: #6366f1;
-    --text-accent: #818cf8;
-    /* Indigo 400 */
+    --accent-primary: #50D387;
+    --accent-primary-border: #50D387;
+    --accent-primary-bg: rgba(80, 211, 135, 0.15);
+    --text-accent: #50D387;
+    /* PineLabs Light Green */
 
-    --shadow-glow: 0 0 10px rgba(99, 102, 241, 0.2);
+    --shadow-glow: 0 0 10px rgba(80, 211, 135, 0.2);
     --color-grid: rgba(255, 255, 255, 0.05);
     /* White grid for dark mode */
 
@@ -32,6 +35,8 @@ body[data-theme="light"] {
     --bg-app: #f6f8fa;
     --bg-panel: #ffffff;
     --bg-input: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-hover: rgba(248, 250, 252, 0.8);
 
     --text-primary: #1f2328;
     --text-secondary: #656d76;
@@ -41,12 +46,13 @@ body[data-theme="light"] {
     --border-light: #d0d7de;
     --border-hover: #8c959f;
 
-    --accent-primary: #6366f1;
-    --accent-primary-border: #6366f1;
-    --text-accent: #4f46e5;
-    /* Indigo 600 - darker for contrast on white */
+    --accent-primary: #50D387;
+    --accent-primary-border: #50D387;
+    --accent-primary-bg: rgba(80, 211, 135, 0.1);
+    --text-accent: #003323;
+    /* PineLabs Dark Green - darker for contrast on white */
 
-    --shadow-glow: 0 0 10px rgba(99, 102, 241, 0.15);
+    --shadow-glow: 0 0 10px rgba(80, 211, 135, 0.15);
     --color-grid: rgba(0, 0, 0, 0.05);
     /* Black grid for light mode */
 

@@ -124,8 +124,8 @@ const HITLApprovalPanel: React.FC<HITLApprovalPanelProps> = ({
                                         {/* Order info header */}
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                                                    <Package className="h-5 w-5 text-purple-400" />
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent-primary)]/20 to-[#003323]/20 border border-[var(--accent-primary)]/30">
+                                                    <Package className="h-5 w-5 text-[var(--accent-primary)]" />
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-medium text-white">

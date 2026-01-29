@@ -23,10 +23,12 @@ import {
     ShoppingCart,
     FileSearch
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 import {
     useStreamingEvents,
     useStreamingStatus,
 } from "@/stores/orchestratorStreamingStore"
+import { useTheme } from "@/contexts/ThemeContext"
 
 // ============================================================================
 // Types
@@ -57,44 +59,44 @@ const agentConfig: Record<string, {
 }> = {
     supervisor: {
         icon: Brain,
-        color: "#6ba6ff",
-        bgColor: "rgba(107, 166, 255, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Supervisor Agent"
     },
     serviceability: {
         icon: MapPin,
-        color: "#22d3ee",
-        bgColor: "rgba(34, 211, 238, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Serviceability Agent"
     },
     booking: {
         icon: ShoppingCart,
-        color: "#f472b6",
-        bgColor: "rgba(244, 114, 182, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Booking Agent"
     },
     "transaction-rca": {
         icon: FileSearch,
-        color: "#10b981",
-        bgColor: "rgba(16, 185, 129, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Transaction RCA Agent"
     },
     rate: {
         icon: CircleDollarSign,
-        color: "#fbbf24",
-        bgColor: "rgba(251, 191, 36, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Rate Agent"
     },
     carrier: {
         icon: Package,
-        color: "#34d399",
-        bgColor: "rgba(52, 211, 153, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Serviceability Agent"
     },
     slim: {
         icon: Zap,
-        color: "#a78bfa",
-        bgColor: "rgba(167, 139, 250, 0.15)",
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
         label: "SLIM Transport"
     },
 }
@@ -111,6 +113,7 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
     // Live streaming data (only used when isLive=true)
     const streamingEvents = useStreamingEvents()
     const streamingStatus = useStreamingStatus()
+    const { isLightMode } = useTheme()
 
     // Use props events if provided, otherwise use streaming events
     const events = propsEvents ?? (isLive ? streamingEvents : [])
@@ -154,9 +157,9 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
     // ============================================================================
 
     const containerStyles: React.CSSProperties = {
-        background: "rgba(20, 22, 30, 0.95)",
+        background: isLightMode ? "rgba(255, 255, 255, 0.9)" : "rgba(20, 22, 30, 0.95)",
         borderRadius: 12,
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        border: isLightMode ? "1px solid rgba(0, 0, 0, 0.1)" : "1px solid rgba(255, 255, 255, 0.1)",
         overflow: "hidden",
         marginBottom: 12,
     }
@@ -166,8 +169,8 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
         alignItems: "center",
         justifyContent: "space-between",
         padding: "10px 14px",
-        background: "rgba(255, 255, 255, 0.03)",
-        borderBottom: isCollapsed ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
+        background: isLightMode ? "rgba(241, 245, 249, 0.8)" : "rgba(255, 255, 255, 0.03)",
+        borderBottom: isCollapsed ? "none" : (isLightMode ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)"),
         cursor: "pointer",
         userSelect: "none",
     }
@@ -185,7 +188,7 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
         gap: 10,
         padding: "6px 0",
         marginLeft: 8,
-        borderLeft: `2px solid ${isActive ? config.color : "rgba(255, 255, 255, 0.1)"}`,
+        borderLeft: `2px solid ${isActive ? config.color : (isLightMode ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.1)")}`,
         position: "relative",
     })
 
@@ -208,15 +211,15 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
             {/* Header */}
             <div style={headerStyles} onClick={() => setIsCollapsed(!isCollapsed)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Activity style={{ width: 14, height: 14, color: "#a8b5cf" }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>
+                    <Activity style={{ width: 14, height: 14, color: isLightMode ? "#64748b" : "#a8b5cf" }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: isLightMode ? "#1e293b" : "#e2e8f0" }}>
                         Agent Activity
                     </span>
                     {stats.stepCount > 0 && (
                         <span style={{
                             fontSize: 10,
-                            color: "#64748b",
-                            background: "rgba(255, 255, 255, 0.08)",
+                            color: isLightMode ? "#475569" : "#64748b",
+                            background: isLightMode ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.08)",
                             padding: "2px 6px",
                             borderRadius: 8,
                         }}>
@@ -251,9 +254,9 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                     ) : null}
 
                     {isCollapsed ? (
-                        <ChevronDown style={{ width: 14, height: 14, color: "#64748b" }} />
+                        <ChevronDown style={{ width: 14, height: 14, color: isLightMode ? "#64748b" : "#64748b" }} />
                     ) : (
-                        <ChevronUp style={{ width: 14, height: 14, color: "#64748b" }} />
+                        <ChevronUp style={{ width: 14, height: 14, color: isLightMode ? "#64748b" : "#64748b" }} />
                     )}
                 </div>
             </div>
@@ -321,57 +324,123 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                                     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
                                         {getStatusIcon(isActive, event.state === "COMPLETED" || !isLive)}
                                         {isExpanded ? (
-                                            <ChevronUp style={{ width: 12, height: 12, color: "#64748b" }} />
+                                            <ChevronUp style={{ width: 12, height: 12, color: isLightMode ? "#64748b" : "#64748b" }} />
                                         ) : (
-                                            <ChevronDown style={{ width: 12, height: 12, color: "#64748b" }} />
+                                            <ChevronDown style={{ width: 12, height: 12, color: isLightMode ? "#64748b" : "#64748b" }} />
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Message - truncated or full */}
-                                <p style={{
+                                <div style={{
                                     fontSize: 11,
-                                    color: "#94a3b8",
+                                    color: isLightMode ? "#475569" : "#94a3b8",
                                     marginTop: 2,
                                     lineHeight: 1.4,
                                     ...(isExpanded ? {} : {
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
-                                        whiteSpace: "pre-wrap", // Allow wrapping
                                         wordBreak: "break-word",
                                         // maxWidth: "90%", // Let it take available space
                                     })
                                 }}>
-                                    {event.message}
-                                </p>
+                                    <ReactMarkdown
+                                        components={{
+                                            p: ({ children }) => <p style={{ margin: "0 0 4px 0" }}>{children}</p>,
+                                            strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                                            em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
+                                            ul: ({ children }) => <ul style={{ margin: "4px 0", paddingLeft: "16px" }}>{children}</ul>,
+                                            ol: ({ children }) => <ol style={{ margin: "4px 0", paddingLeft: "16px" }}>{children}</ol>,
+                                            li: ({ children }) => <li style={{ margin: "2px 0" }}>{children}</li>,
+                                            code: ({ children, className }) => {
+                                                const isInline = !className
+                                                return isInline ? (
+                                                    <code style={{
+                                                        background: isLightMode ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.3)",
+                                                        padding: "1px 4px",
+                                                        borderRadius: 3,
+                                                        fontSize: "0.9em",
+                                                        fontFamily: "monospace"
+                                                    }}>{children}</code>
+                                                ) : (
+                                                    <code style={{
+                                                        display: "block",
+                                                        background: isLightMode ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.3)",
+                                                        padding: "6px 8px",
+                                                        borderRadius: 4,
+                                                        fontSize: "0.9em",
+                                                        fontFamily: "monospace",
+                                                        overflow: "auto",
+                                                        margin: "4px 0"
+                                                    }}>{children}</code>
+                                                )
+                                            },
+                                        }}
+                                    >
+                                        {event.message}
+                                    </ReactMarkdown>
+                                </div>
 
                                 {/* Expanded details */}
                                 {isExpanded && (
                                     <div style={{
                                         marginTop: 6,
                                         padding: 8,
-                                        background: "rgba(255, 255, 255, 0.03)",
+                                        background: isLightMode ? "rgba(241, 245, 249, 0.8)" : "rgba(255, 255, 255, 0.03)",
                                         borderRadius: 6,
-                                        border: "1px solid rgba(255, 255, 255, 0.06)",
+                                        border: isLightMode ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.06)",
                                         fontSize: 10,
                                     }}>
                                         {event.receiver && (
-                                            <div style={{ color: "#64748b", marginBottom: 2 }}>
-                                                <strong style={{ color: "#94a3b8" }}>Target:</strong> {event.receiver}
+                                            <div style={{ color: isLightMode ? "#64748b" : "#64748b", marginBottom: 2 }}>
+                                                <strong style={{ color: isLightMode ? "#475569" : "#94a3b8" }}>Target:</strong> {event.receiver}
                                             </div>
                                         )}
-                                        <div style={{ color: "#94a3b8" }}>
+                                        <div style={{ color: isLightMode ? "#475569" : "#94a3b8" }}>
                                             <strong>Message:</strong>
-                                            <p style={{
+                                            <div style={{
                                                 marginTop: 2,
                                                 padding: 6,
-                                                background: "rgba(0,0,0,0.2)",
+                                                background: isLightMode ? "rgba(0, 0, 0, 0.03)" : "rgba(0,0,0,0.2)",
                                                 borderRadius: 4,
-                                                whiteSpace: "pre-wrap",
                                                 wordBreak: "break-word",
                                             }}>
-                                                {event.message}
-                                            </p>
+                                                <ReactMarkdown
+                                                    components={{
+                                                        p: ({ children }) => <p style={{ margin: "0 0 4px 0" }}>{children}</p>,
+                                                        strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                                                        em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
+                                                        ul: ({ children }) => <ul style={{ margin: "4px 0", paddingLeft: "16px" }}>{children}</ul>,
+                                                        ol: ({ children }) => <ol style={{ margin: "4px 0", paddingLeft: "16px" }}>{children}</ol>,
+                                                        li: ({ children }) => <li style={{ margin: "2px 0" }}>{children}</li>,
+                                                        code: ({ children, className }) => {
+                                                            const isInline = !className
+                                                            return isInline ? (
+                                                                <code style={{
+                                                                    background: isLightMode ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.3)",
+                                                                    padding: "1px 4px",
+                                                                    borderRadius: 3,
+                                                                    fontSize: "0.9em",
+                                                                    fontFamily: "monospace"
+                                                                }}>{children}</code>
+                                                            ) : (
+                                                                <code style={{
+                                                                    display: "block",
+                                                                    background: isLightMode ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.3)",
+                                                                    padding: "6px 8px",
+                                                                    borderRadius: 4,
+                                                                    fontSize: "0.9em",
+                                                                    fontFamily: "monospace",
+                                                                    overflow: "auto",
+                                                                    margin: "4px 0"
+                                                                }}>{children}</code>
+                                                            )
+                                                        },
+                                                    }}
+                                                >
+                                                    {event.message}
+                                                </ReactMarkdown>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

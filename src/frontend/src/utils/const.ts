@@ -81,11 +81,11 @@ export const API_ENDPOINTS = {
 
 // Example prompts for the chat interface
 export const EXAMPLE_PROMPTS = [
-  "Can we ship from Mumbai to London?",
-  "Get shipping quotes for 50kg from New York to Tokyo",
-  "What carriers are available for international shipping?",
-  "Book the cheapest option for my shipment",
-  "Check serviceability from Los Angeles to Berlin",
+  "Analyze transaction failure for TXN-12345",
+  "What caused the payment to fail for merchant ID 789?",
+  "Perform root cause analysis on transaction error",
+  "Why did transaction TXN-67890 get stuck in processing?",
+  "Investigate the sync issue for transaction TXN-11111",
 ] as const
 
 // Animation timing

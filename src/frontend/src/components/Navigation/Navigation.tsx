@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle, Boxes, LogOut } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, LogOut } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useChatHistoryStore } from "@/stores/chatHistoryStore"
@@ -55,10 +55,12 @@ const Navigation: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #4f8fff, #9d7cf6)",
+        background: isLightMode ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.1)",
         boxShadow: isLightMode
-            ? "0 4px 15px rgba(79, 143, 255, 0.25)"
-            : "0 4px 15px rgba(79, 143, 255, 0.35)",
+            ? "0 2px 8px rgba(0, 0, 0, 0.1)"
+            : "0 4px 15px rgba(80, 211, 135, 0.2)",
+        padding: 8,
+        border: isLightMode ? "1px solid rgba(0, 0, 0, 0.05)" : "1px solid rgba(255, 255, 255, 0.1)",
     }
 
     const healthBadgeStyles: React.CSSProperties = {
@@ -89,20 +91,24 @@ const Navigation: React.FC = () => {
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={logoBoxStyles}>
-                    <Boxes style={{ width: 22, height: 22, color: "white" }} />
+                    <img 
+                        src="/pinelabs-logo.jpeg" 
+                        alt="PineLabs Logo" 
+                        style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 8 }}
+                    />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column" }}>
                     <span style={{
                         fontSize: 16,
                         fontWeight: 700,
-                        background: "linear-gradient(135deg, #4f8fff, #c4b5fd)",
+                        background: "linear-gradient(135deg, #003323, #50D387)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}>
-                        Cerebrio
+                        PineLabs AI
                     </span>
                     <span style={{ fontSize: 11, color: isLightMode ? "#64748b" : "#8b9cb8" }}>
-                        Multi-Agent System
+                        Transaction Analysis System
                     </span>
                 </div>
             </div>

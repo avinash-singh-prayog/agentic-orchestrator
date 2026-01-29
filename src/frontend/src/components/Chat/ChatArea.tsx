@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { Send, Sparkles, Square } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
+import ReactMarkdown from "react-markdown"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
 import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
@@ -180,7 +181,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         textAlign: "left",
         fontSize: 13,
         color: "var(--text-secondary)",
-        background: "var(--bg-card)",
+        background: "var(--bg-panel)",
         border: "1px solid var(--border-light)",
         borderRadius: 12,
         cursor: "pointer",
@@ -209,7 +210,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 10,
-        background: "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))",
+        background: "linear-gradient(135deg, #003323, #50D387)",
         border: "none",
         cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
         opacity: input.trim() && !isLoading ? 1 : 0.5,
@@ -222,7 +223,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
             {/* Header */}
             <div style={headerStyles}>
                 <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>Chat</h2>
-                <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Ask about shipping routes, rates, or bookings</p>
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Ask about transaction analysis or root cause analysis</p>
             </div>
 
             {/* Messages */}
@@ -244,7 +245,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                         </div>
                         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>How can I help?</h2>
                         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 280, lineHeight: 1.5 }}>
-                            I coordinate with specialized agents to help with shipping logistics.
+                            I help analyze transaction failures and perform root cause analysis.
                         </p>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
@@ -274,17 +275,64 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                         padding: "12px 16px",
                                         borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                                         background: msg.role === "user"
-                                            ? "linear-gradient(135deg, var(--color-blue-500), var(--color-purple-500))"
-                                            : "var(--bg-card)",
+                                            ? "linear-gradient(135deg, #003323, #50D387)"
+                                            : "var(--bg-panel)",
                                         border: msg.role === "user" ? "none" : "1px solid var(--border-light)",
                                         color: "#f8fafc", // Keep white text on colored bubbles
                                     }}>
-                                        <p style={{
+                                        <div style={{
                                             fontSize: 14,
                                             lineHeight: 1.5,
-                                            whiteSpace: "pre-wrap",
                                             color: msg.role === "user" ? "#f8fafc" : "var(--text-primary)"
-                                        }}>{msg.content}</p>
+                                        }}>
+                                            <ReactMarkdown
+                                                components={{
+                                                    p: ({ children }) => <p style={{ margin: "0 0 8px 0" }}>{children}</p>,
+                                                    strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                                                    em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
+                                                    ul: ({ children }) => <ul style={{ margin: "8px 0", paddingLeft: "20px" }}>{children}</ul>,
+                                                    ol: ({ children }) => <ol style={{ margin: "8px 0", paddingLeft: "20px" }}>{children}</ol>,
+                                                    li: ({ children }) => <li style={{ margin: "4px 0" }}>{children}</li>,
+                                                    h1: ({ children }) => <h1 style={{ fontSize: 18, fontWeight: 600, margin: "12px 0 8px 0" }}>{children}</h1>,
+                                                    h2: ({ children }) => <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>{children}</h2>,
+                                                    h3: ({ children }) => <h3 style={{ fontSize: 15, fontWeight: 600, margin: "8px 0 4px 0" }}>{children}</h3>,
+                                                    code: ({ children, className }) => {
+                                                        const isInline = !className
+                                                        return isInline ? (
+                                                            <code style={{
+                                                                background: msg.role === "user" ? "rgba(0, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.15)",
+                                                                padding: "2px 6px",
+                                                                borderRadius: 4,
+                                                                fontSize: "0.9em",
+                                                                fontFamily: "monospace"
+                                                            }}>{children}</code>
+                                                        ) : (
+                                                            <code style={{
+                                                                display: "block",
+                                                                background: msg.role === "user" ? "rgba(0, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.15)",
+                                                                padding: "8px 12px",
+                                                                borderRadius: 6,
+                                                                fontSize: "0.9em",
+                                                                fontFamily: "monospace",
+                                                                overflow: "auto",
+                                                                margin: "8px 0"
+                                                            }}>{children}</code>
+                                                        )
+                                                    },
+                                                    blockquote: ({ children }) => (
+                                                        <blockquote style={{
+                                                            borderLeft: `3px solid ${msg.role === "user" ? "rgba(255, 255, 255, 0.3)" : "var(--border-light)"}`,
+                                                            paddingLeft: "12px",
+                                                            margin: "8px 0",
+                                                            fontStyle: "italic"
+                                                        }}>{children}</blockquote>
+                                                    ),
+                                                    hr: () => <hr style={{ border: "none", borderTop: `1px solid ${msg.role === "user" ? "rgba(255, 255, 255, 0.2)" : "var(--border-light)"}`, margin: "12px 0" }} />,
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
                                     </div>
                                 </div>
                             </React.Fragment>
@@ -325,7 +373,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                         {isLoading ? (
                             <button onClick={handleStop} style={{
                                 ...sendButtonStyles,
-                                background: "var(--bg-card)",
+                                background: "var(--bg-panel)",
                                 border: "1px solid var(--border-light)",
                                 cursor: "pointer",
                                 opacity: 1

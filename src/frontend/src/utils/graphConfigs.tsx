@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react"
-import { Brain, Package, Zap, ShoppingCart, FileSearch } from "lucide-react"
+import { Brain, Zap, FileSearch } from "lucide-react"
 import { NODE_IDS, EDGE_IDS, NODE_TYPES, EDGE_TYPES } from "./const"
 
 export interface GraphConfig {
@@ -27,23 +27,24 @@ const transportStyle = {
     height: 52,
 }
 
-// Group container style
+// Group container style (theme-aware using CSS variables)
 const groupStyle = {
     width: 740,
-    height: 550,
-    backgroundColor: "rgba(26, 29, 40, 0.4)",
-    border: "1px dashed rgba(139, 156, 184, 0.2)",
+    height: 400,
+    backgroundColor: "var(--bg-panel)",
+    border: "1px dashed var(--border-subtle)",
     borderRadius: "16px",
+    opacity: 0.8,
 }
 
 export const ORCHESTRATOR_CONFIG: GraphConfig = {
-    title: "Cerebrio Network",
+    title: "PineLabs AI Network",
     nodes: [
         // Group container
         {
             id: NODE_IDS.ORCHESTRATOR_GROUP,
             type: "group",
-            data: { label: "Cerebrio" },
+            data: { label: "PineLabs AI" },
             position: { x: 50, y: 50 },
             style: groupStyle,
             draggable: false,
@@ -58,7 +59,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 label2: "Orchestrator Agent",
                 handles: "source",
                 status: "idle",
-                description: "Routes requests to specialized agents",
+                description: "Routes requests to Transaction RCA Agent",
             },
             position: { x: 280, y: 40 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
@@ -73,41 +74,9 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 icon: Zap,
                 description: "A2A Message Bus",
             },
-            position: { x: 120, y: 180 },
+            position: { x: 220, y: 180 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...transportStyle,
-        },
-        // Serviceability Agent
-        {
-            id: NODE_IDS.SERVICEABILITY_AGENT,
-            type: NODE_TYPES.CUSTOM,
-            data: {
-                icon: Package,
-                label1: "Serviceability Agent",
-                label2: "Logistics Fulfillment",
-                handles: "target",
-                status: "idle",
-                description: "Checks rates and serviceability",
-            },
-            position: { x: 120, y: 300 },
-            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
-            ...nodeStyle,
-        },
-        // Booking Agent
-        {
-            id: NODE_IDS.BOOKING_AGENT,
-            type: NODE_TYPES.CUSTOM,
-            data: {
-                icon: ShoppingCart,
-                label1: "Booking Agent",
-                label2: "Order Management",
-                handles: "target",
-                status: "idle",
-                description: "Creates and manages orders",
-            },
-            position: { x: 440, y: 300 },
-            parentId: NODE_IDS.ORCHESTRATOR_GROUP,
-            ...nodeStyle,
         },
         // Transaction RCA Agent
         {
@@ -121,7 +90,7 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
                 status: "idle",
                 description: "Analyzes transaction failures",
             },
-            position: { x: 280, y: 400 },
+            position: { x: 280, y: 300 },
             parentId: NODE_IDS.ORCHESTRATOR_GROUP,
             ...nodeStyle,
         },
@@ -134,26 +103,6 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
             target: NODE_IDS.SLIM_TRANSPORT,
             type: EDGE_TYPES.CUSTOM,
             data: { label: "A2A" },
-            animated: false,
-        },
-        // SLIM to Serviceability Agent
-        {
-            id: EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT,
-            source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.SERVICEABILITY_AGENT,
-            type: EDGE_TYPES.CUSTOM,
-            sourceHandle: "bottom-center",
-            data: { label: "" },
-            animated: false,
-        },
-        // SLIM to Booking Agent
-        {
-            id: EDGE_IDS.SLIM_TO_BOOKING_AGENT,
-            source: NODE_IDS.SLIM_TRANSPORT,
-            target: NODE_IDS.BOOKING_AGENT,
-            type: EDGE_TYPES.CUSTOM,
-            sourceHandle: "bottom-center",
-            data: { label: "" },
             animated: false,
         },
         // SLIM to Transaction RCA Agent
@@ -171,8 +120,8 @@ export const ORCHESTRATOR_CONFIG: GraphConfig = {
         { ids: [NODE_IDS.SUPERVISOR] },
         { ids: [EDGE_IDS.SUPERVISOR_TO_SLIM] },
         { ids: [NODE_IDS.SLIM_TRANSPORT] },
-        { ids: [EDGE_IDS.SLIM_TO_SERVICEABILITY_AGENT, EDGE_IDS.SLIM_TO_BOOKING_AGENT, EDGE_IDS.SLIM_TO_TRANSACTION_RCA_AGENT] },
-        { ids: [NODE_IDS.SERVICEABILITY_AGENT, NODE_IDS.BOOKING_AGENT, NODE_IDS.TRANSACTION_RCA_AGENT] },
+        { ids: [EDGE_IDS.SLIM_TO_TRANSACTION_RCA_AGENT] },
+        { ids: [NODE_IDS.TRANSACTION_RCA_AGENT] },
     ],
 }
 

@@ -115,14 +115,20 @@ You MUST return ONLY valid JSON matching this exact structure:
   },
   "human_intervention": {
     "action_required": true,
-    "prompt": "Based on this analysis, do you want to create a ticket for this issue?"
+    "prompt": ""
   }
 }
 
-🚫 No additional fields
-🚫 No free text outside JSON
-🚫 rca_category must be exactly one of the allowed categories
-🚫 last_successful_checkpoint must be exactly one of the allowed checkpoint names
+🚫 CRITICAL RESTRICTIONS:
+- No additional fields
+- No free text outside JSON
+- rca_category must be exactly one of the allowed categories
+- last_successful_checkpoint must be exactly one of the allowed checkpoint names
+- DO NOT include questions, prompts, or "Next Steps" in ANY field
+- DO NOT ask "Would you like to..." or similar questions
+- DO NOT include action items or recommendations in final_reasoning
+- final_reasoning should ONLY explain why the RCA category fits best - nothing else
+- human_intervention.prompt must ALWAYS be an empty string ""
 """
 
 
@@ -337,16 +343,75 @@ Return the normalized JSON:"""
         last_msg = state["messages"][-1].content if state["messages"] else ""
         logger.info(f"Parsing request from: {last_msg[:100]}...")
 
-        # Check if this is a ticket creation request
+        # First, try to parse as JSON to check for structured requests
+        parsed_json = None
+        if isinstance(last_msg, str):
+            try:
+                parsed_json = json.loads(last_msg)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        elif isinstance(last_msg, dict):
+            parsed_json = last_msg
+
+        # Check if this is a structured ticket creation request (has "action" field)
+        if isinstance(parsed_json, dict) and parsed_json.get("action") == "create_ticket":
+            logger.info("Detected structured ticket creation request with action field")
+            rca_analysis = parsed_json.get("rca_analysis")
+            transaction_context_data = parsed_json.get("transaction_context")
+            
+            # Try to parse transaction context if provided (but don't fail if it's missing or invalid)
+            transaction_context = None
+            if transaction_context_data:
+                try:
+                    # Try to validate transaction context, but make it optional
+                    if isinstance(transaction_context_data, dict):
+                        transaction_context = TransactionContext(**transaction_context_data)
+                        logger.info(f"Parsed transaction context for ticket: {transaction_context.transaction_id}")
+                    else:
+                        logger.warning(f"transaction_context is not a dict: {type(transaction_context_data)}")
+                except Exception as e:
+                    logger.warning(f"Could not parse transaction_context for ticket creation: {e}. Proceeding without it.")
+                    # Continue without transaction context - ticket creation can work with just RCA analysis
+            
+            if rca_analysis:
+                result = {"action": "create_ticket", "rca_analysis": rca_analysis}
+                if transaction_context:
+                    result["transaction_context"] = transaction_context
+                logger.info("Found RCA analysis for ticket creation")
+                return result
+            else:
+                # Try to get RCA analysis from state as fallback
+                rca_analysis = None
+                if hasattr(state, "rca_analysis"):
+                    rca_analysis = state.rca_analysis
+                elif isinstance(state, dict):
+                    rca_analysis = state.get("rca_analysis")
+                
+                if rca_analysis:
+                    result = {"action": "create_ticket", "rca_analysis": rca_analysis}
+                    if transaction_context:
+                        result["transaction_context"] = transaction_context
+                    return result
+                else:
+                    logger.warning("No RCA analysis found in request or state for ticket creation")
+                    return {
+                        "error": "RCA analysis not found. Please perform RCA analysis first.",
+                        "action": "create_ticket",
+                        "messages": [
+                            AIMessage(content="Cannot create ticket: RCA analysis not found. Please perform RCA analysis first.")
+                        ]
+                    }
+
+        # Check if this is a natural language ticket creation request
         last_msg_lower = last_msg.lower() if isinstance(last_msg, str) else ""
         is_ticket_request = any(phrase in last_msg_lower for phrase in [
             "create ticket", "create a ticket", "yes", "yes create", "yes please",
             "create ticket for", "ticket for this", "ticket for the issue"
         ])
         
-        # If it's a ticket request, try to extract RCA analysis from message or state
+        # If it's a natural language ticket request, try to extract RCA analysis from state
         if is_ticket_request:
-            logger.info("Detected ticket creation request")
+            logger.info("Detected natural language ticket creation request")
             rca_analysis = None
             
             # First check state
@@ -355,29 +420,8 @@ Return the normalized JSON:"""
             elif isinstance(state, dict):
                 rca_analysis = state.get("rca_analysis")
             
-            # If not in state, try to extract from message (supervisor might pass it)
-            if not rca_analysis and isinstance(last_msg, str):
-                try:
-                    # Try to parse as JSON that might contain RCA analysis
-                    msg_data = json.loads(last_msg)
-                    if isinstance(msg_data, dict) and "rca_analysis" in msg_data:
-                        rca_analysis = msg_data["rca_analysis"]
-                        # Also extract transaction context if present
-                        if "transaction_context" in msg_data:
-                            try:
-                                transaction_context = TransactionContext(**msg_data["transaction_context"])
-                                return {
-                                    "action": "create_ticket",
-                                    "rca_analysis": rca_analysis,
-                                    "transaction_context": transaction_context
-                                }
-                            except:
-                                pass
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            
             if rca_analysis:
-                logger.info("Found RCA analysis for ticket creation")
+                logger.info("Found RCA analysis in state for ticket creation")
                 return {"action": "create_ticket", "rca_analysis": rca_analysis}
             else:
                 # If no RCA analysis found, return error
@@ -389,77 +433,87 @@ Return the normalized JSON:"""
                     ]
                 }
 
+        # If not a ticket request, try to parse as TransactionContext
         try:
             # Try to parse as JSON first (if coming from API)
             context_data = None
             try:
-                if isinstance(last_msg, str):
-                    context_data = json.loads(last_msg)
+                if parsed_json is not None:
+                    context_data = parsed_json
+                elif isinstance(last_msg, str):
+                    # Already tried JSON parsing above, so this is likely not JSON
+                    context_data = None
                 elif isinstance(last_msg, dict):
                     context_data = last_msg
                 else:
                     context_data = last_msg
 
-                # Try to validate directly first
-                try:
-                    transaction_context = TransactionContext(**context_data)
-                    logger.info(f"Parsed transaction context: {transaction_context.transaction_id}")
-                    return {"transaction_context": transaction_context}
-                except Exception as validation_error:
-                    logger.warning(f"Direct validation failed: {validation_error}. Attempting LLM normalization...")
-                    # Use LLM to normalize the input
-                    normalized_data = await self.normalize_input_with_llm(context_data)
-                    
-                    if "error" in normalized_data:
-                        return {
-                            "error": normalized_data["error"],
-                            "messages": [
-                                AIMessage(content=f"Error normalizing input: {normalized_data['error']}")
-                            ],
-                        }
-                    
-                    # Try validation again with normalized data
+                # If we have context_data, try to validate as TransactionContext
+                if context_data is not None:
+                    # Try to validate directly first
                     try:
-                        transaction_context = TransactionContext(**normalized_data)
-                        logger.info(f"Parsed transaction context after normalization: {transaction_context.transaction_id}")
+                        transaction_context = TransactionContext(**context_data)
+                        logger.info(f"Parsed transaction context: {transaction_context.transaction_id}")
                         return {"transaction_context": transaction_context}
-                    except Exception as e:
-                        logger.error(f"Validation failed even after normalization: {e}")
-                        return {
-                            "error": f"Failed to parse transaction context after normalization: {str(e)}",
-                            "messages": [
-                                AIMessage(content=f"Error parsing input: {str(e)}")
-                            ],
-                        }
+                    except Exception as validation_error:
+                        logger.warning(f"Direct validation failed: {validation_error}. Attempting LLM normalization...")
+                        # Use LLM to normalize the input
+                        normalized_data = await self.normalize_input_with_llm(context_data)
+                        
+                        if "error" in normalized_data:
+                            return {
+                                "error": normalized_data["error"],
+                                "messages": [
+                                    AIMessage(content=f"Error normalizing input: {normalized_data['error']}")
+                                ],
+                            }
+                        
+                        # Try validation again with normalized data
+                        try:
+                            transaction_context = TransactionContext(**normalized_data)
+                            logger.info(f"Parsed transaction context after normalization: {transaction_context.transaction_id}")
+                            return {"transaction_context": transaction_context}
+                        except Exception as e:
+                            logger.error(f"Validation failed even after normalization: {e}")
+                            # Don't fail completely - try to extract what we can
+                            return {
+                                "error": f"Failed to parse transaction context after normalization: {str(e)}",
+                                "messages": [
+                                    AIMessage(content=f"Error parsing input: {str(e)}")
+                                ],
+                            }
 
             except (json.JSONDecodeError, TypeError) as e:
                 # If not JSON, try to extract from natural language using LLM
-                logger.info("Input is not JSON, attempting to extract from natural language...")
-                try:
-                    extracted_data = await self._extract_from_natural_language(last_msg)
-                    if "error" in extracted_data:
+                if isinstance(last_msg, str):
+                    logger.info("Input is not JSON, attempting to extract from natural language...")
+                    try:
+                        extracted_data = await self._extract_from_natural_language(last_msg)
+                        if "error" in extracted_data:
+                            return {
+                                "error": extracted_data["error"],
+                                "messages": [
+                                    AIMessage(content=extracted_data["error"])
+                                ],
+                            }
+                        
+                        # Normalize and validate
+                        normalized_data = await self.normalize_input_with_llm(extracted_data)
+                        transaction_context = TransactionContext(**normalized_data)
+                        logger.info(f"Parsed transaction context from natural language: {transaction_context.transaction_id}")
+                        return {"transaction_context": transaction_context}
+                    except Exception as extract_error:
+                        logger.error(f"Failed to extract from natural language: {extract_error}")
                         return {
-                            "error": extracted_data["error"],
+                            "error": "Transaction context must be provided as JSON or natural language describing the transaction.",
                             "messages": [
-                                AIMessage(content=extracted_data["error"])
+                                AIMessage(
+                                    content="I need transaction context (JSON or natural language) to perform RCA analysis."
+                                )
                             ],
                         }
-                    
-                    # Normalize and validate
-                    normalized_data = await self.normalize_input_with_llm(extracted_data)
-                    transaction_context = TransactionContext(**normalized_data)
-                    logger.info(f"Parsed transaction context from natural language: {transaction_context.transaction_id}")
-                    return {"transaction_context": transaction_context}
-                except Exception as extract_error:
-                    logger.error(f"Failed to extract from natural language: {extract_error}")
-                    return {
-                        "error": "Transaction context must be provided as JSON or natural language describing the transaction.",
-                        "messages": [
-                            AIMessage(
-                                content="I need transaction context (JSON or natural language) to perform RCA analysis."
-                            )
-                        ],
-                    }
+                else:
+                    raise e
         except Exception as e:
             logger.error(f"Parse error: {e}", exc_info=True)
             return {
@@ -627,12 +681,10 @@ Return ONLY valid JSON:"""
                 final_reasoning=rca_data.get("final_reasoning", ""),
             )
 
+            # Force prompt to be empty - never show ticket creation prompts
             human_intervention = HumanIntervention(
                 action_required=intervention_data.get("action_required", True),
-                prompt=intervention_data.get(
-                    "prompt",
-                    "Based on this analysis, do you want to create a ticket for this issue?",
-                ),
+                prompt="",  # Always empty - no prompts or questions
             )
 
             logger.info(
@@ -658,6 +710,107 @@ Return ONLY valid JSON:"""
                 "error": str(e),
                 "messages": [AIMessage(content=error_message)],
             }
+
+    def _format_rca_response_human_readable(
+        self, rca_analysis: RCAAnalysis, human_intervention: HumanIntervention
+    ) -> str:
+        """Format RCA analysis in a human-readable, well-structured format."""
+        
+        # Format confidence as percentage
+        confidence_pct = f"{rca_analysis.confidence * 100:.0f}%"
+        
+        # Format narrative with better structure
+        narrative = rca_analysis.transaction_narrative.strip()
+        if not narrative.endswith('.'):
+            narrative += '.'
+        
+        # Build the formatted response
+        formatted = f"""## Root Cause Analysis Summary
+
+{narrative}
+
+---
+
+### Analysis Details
+
+**Category:** {rca_analysis.rca_category}
+**Confidence:** {confidence_pct}
+**Last Successful Step:** {rca_analysis.last_successful_checkpoint.replace('_', ' ').title()}
+
+### Key Issues Identified
+
+"""
+        
+        # Format key anomalies
+        if rca_analysis.key_anomalies:
+            for anomaly in rca_analysis.key_anomalies:
+                formatted += f"• {anomaly}\n"
+        else:
+            formatted += "• No specific anomalies identified\n"
+        
+        formatted += "\n### Supporting Evidence\n\n"
+        
+        # Format evidence - clean up technical formatting for readability
+        if rca_analysis.evidence:
+            for i, evidence_item in enumerate(rca_analysis.evidence, 1):
+                # Make evidence more readable by converting technical format to natural language
+                evidence_text = evidence_item
+                # Replace common technical patterns with more readable text
+                evidence_text = evidence_text.replace("checkpoint_name:", "Checkpoint:")
+                evidence_text = evidence_text.replace("status:", "Status:")
+                evidence_text = evidence_text.replace("observational_notes:", "Note:")
+                formatted += f"{i}. {evidence_text}\n"
+        else:
+            formatted += "No explicit evidence recorded.\n"
+        
+        # Format alternative causes if any
+        if rca_analysis.alternative_causes_considered:
+            formatted += "\n### Other Causes Considered\n\n"
+            for cause in rca_analysis.alternative_causes_considered:
+                formatted += f"• {cause}\n"
+        
+        # Format contradictions if any
+        if rca_analysis.contradictions_observed:
+            formatted += "\n### Contradictions or Conflicts\n\n"
+            for contradiction in rca_analysis.contradictions_observed:
+                formatted += f"⚠️ {contradiction}\n"
+        else:
+            formatted += "\n### Contradictions or Conflicts\n\n"
+            formatted += "None observed.\n"
+        
+        # Format final reasoning - clean up any questions or "Next Steps" sections
+        final_reasoning = rca_analysis.final_reasoning.strip()
+        # Remove "Next Steps:" sections and anything after them
+        if "Next Steps:" in final_reasoning or "next steps:" in final_reasoning.lower():
+            lines = final_reasoning.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                if "Next Steps:" in line or "next steps:" in line.lower():
+                    break
+                cleaned_lines.append(line)
+            final_reasoning = '\n'.join(cleaned_lines).strip()
+        # Remove any questions (lines ending with "?")
+        lines = final_reasoning.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            line_stripped = line.strip()
+            # Skip lines that are questions or prompts
+            if (line_stripped.endswith('?') and 
+                ('would you like' in line_stripped.lower() or 
+                 'do you want' in line_stripped.lower() or
+                 'create a ticket' in line_stripped.lower())):
+                continue
+            cleaned_lines.append(line)
+        final_reasoning = '\n'.join(cleaned_lines).strip()
+        
+        formatted += "\n### Analysis Conclusion\n\n"
+        formatted += f"{final_reasoning}\n"
+        
+        # Add human intervention prompt (only if prompt is provided)
+        if human_intervention.action_required and human_intervention.prompt and human_intervention.prompt.strip():
+            formatted += f"\n---\n\n**{human_intervention.prompt}**\n"
+        
+        return formatted
 
     async def generate_response(
         self, state: TransactionRCAAgentState
@@ -729,8 +882,12 @@ Return ONLY valid JSON:"""
                 ],
             }
 
-        # Format response as JSON string matching the output contract
-        # At this point, rca_analysis and human_intervention should be Pydantic models
+        # Format response in human-readable format
+        formatted_response = self._format_rca_response_human_readable(
+            rca_analysis, human_intervention
+        )
+        
+        # Also include JSON for programmatic access (but make it secondary)
         response_data = {
             "rca_analysis": {
                 "rca_category": rca_analysis.rca_category,
@@ -748,16 +905,10 @@ Return ONLY valid JSON:"""
                 "prompt": human_intervention.prompt,
             },
         }
-        
-        intervention_prompt = human_intervention.prompt
-
-        response_text = json.dumps(response_data, indent=2)
 
         return {
             "messages": [
-                AIMessage(
-                    content=f"RCA Analysis Complete:\n\n{response_text}\n\n{intervention_prompt}"
-                )
+                AIMessage(content=formatted_response)
             ],
         }
 
@@ -803,39 +954,38 @@ Return ONLY valid JSON:"""
         if transaction_context:
             transaction_id = transaction_context.transaction_id if hasattr(transaction_context, "transaction_id") else str(transaction_context.get("transaction_id", "UNKNOWN"))
         
-        # Create ticket content using RCA analysis
-        ticket_content = f"""Ticket Created for Transaction: {transaction_id}
+        # Generate ticket ID for display
+        ticket_id = f"TICKET-{transaction_id}-{int(__import__('time').time())}"
+        
+        # Format ticket content for display in chat
+        ticket_content = f"""## Ticket: {ticket_id}
+
+**Transaction ID:** {transaction_id}
 
 **RCA Category:** {rca_analysis.rca_category}
-**Confidence:** {rca_analysis.confidence}
-**Last Successful Checkpoint:** {rca_analysis.last_successful_checkpoint}
+**Confidence:** {rca_analysis.confidence * 100:.0f}%
+**Last Successful Checkpoint:** {rca_analysis.last_successful_checkpoint.replace('_', ' ').title()}
 
 **Transaction Narrative:**
 {rca_analysis.transaction_narrative}
 
 **Key Anomalies:**
-{chr(10).join(f"- {anomaly}" for anomaly in rca_analysis.key_anomalies)}
+{chr(10).join(f"- {anomaly}" for anomaly in rca_analysis.key_anomalies) if rca_analysis.key_anomalies else "- None identified"}
 
 **Evidence:**
-{chr(10).join(f"- {evidence}" for evidence in rca_analysis.evidence)}
+{chr(10).join(f"- {evidence}" for evidence in rca_analysis.evidence) if rca_analysis.evidence else "- No explicit evidence recorded"}
 
 **Alternative Causes Considered:**
-{chr(10).join(f"- {cause}" for cause in rca_analysis.alternative_causes_considered) if rca_analysis.alternative_causes_considered else "None"}
+{chr(10).join(f"- {cause}" for cause in rca_analysis.alternative_causes_considered) if rca_analysis.alternative_causes_considered else "- None"}
 
 **Final Reasoning:**
 {rca_analysis.final_reasoning}
 """
         
-        # In a real implementation, this would call a ticket creation API
-        # For now, we'll return a formatted ticket
-        ticket_id = f"TICKET-{transaction_id}-{int(__import__('time').time())}"
-        
-        logger.info(f"Ticket created: {ticket_id}")
+        logger.info(f"Displaying ticket: {ticket_id}")
         
         return {
             "messages": [
-                AIMessage(
-                    content=f"✅ **Ticket Created Successfully**\n\n**Ticket ID:** {ticket_id}\n\n{ticket_content}\n\nThe ticket has been created with all RCA analysis details."
-                )
+                AIMessage(content=ticket_content)
             ],
         }

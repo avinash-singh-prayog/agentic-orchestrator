@@ -133,58 +133,6 @@ services:
   # WORKER AGENTS
   # ===========================================
 
-  serviceability-agent:
-    build:
-      context: src/orchestrator/serviceability_agent
-      dockerfile: Dockerfile
-    container_name: serviceability-agent
-    ports:
-      - "${SERVICEABILITY_AGENT_PORT:-9003}:9003"
-    environment:
-      # Using gpt-oss-120b:free instead of gpt-4o-mini
-      - SERVICEABILITY_AGENT_LLM=${SERVICEABILITY_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      # External serviceability API (running on host machine)
-      - SERVICEABILITY_API_URL=${SERVICEABILITY_API_URL:-https://sandbox-apis.prayog.io}
-    command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-      # depends_on:
-      #   - slim
-      # - otel-collector
-    networks:
-      - orchestrator-net
-
-  booking-agent:
-    build:
-      context: src/orchestrator/booking_agent
-      dockerfile: Dockerfile
-    container_name: booking-agent
-    ports:
-      - "${BOOKING_AGENT_PORT:-9005}:9005"
-    environment:
-      # Using gpt-oss-120b:free instead of gpt-4o-mini
-      - BOOKING_AGENT_LLM=${BOOKING_AGENT_LLM:-openrouter/openai/gpt-4o-mini}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      # - OTLP_HTTP_ENDPOINT=http://otel-collector:4318
-      - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
-      - DEFAULT_MESSAGE_TRANSPORT=SLIM
-      # Order V2 API (use host.docker.internal to reach host machine from container)
-      - BOOKING_AGENT_ORDER_API_URL=${ORDER_API_URL:-https://qaapis2.delcaper.com}
-    command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-      # depends_on:
-      #   - slim
-      # - otel-collector
-    networks:
-      - orchestrator-net
-
   transaction-rca-agent:
     build:
       context: src/orchestrator/transaction_rca_agent
@@ -193,9 +141,9 @@ services:
     ports:
       - "${TRANSACTION_RCA_AGENT_PORT:-9006}:9006"
     environment:
-      - TRANSACTION_RCA_AGENT_LLM=${TRANSACTION_RCA_AGENT_LLM:-gemini/gemini-3-flash-preview}
+      - TRANSACTION_RCA_AGENT_LLM=${TRANSACTION_RCA_AGENT_LLM:-openrouter/openai/gpt-5.2}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-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}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM

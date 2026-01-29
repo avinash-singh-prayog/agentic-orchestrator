@@ -20,7 +20,7 @@ class TransactionRCAAgentSettings(BaseSettings):
     log_level: str = "INFO"
 
     # LLM Model
-    transaction_rca_agent_llm: str = "gemini/gemini-3-flash-preview"
+    transaction_rca_agent_llm: str = "openrouter/openai/gpt-5.2"
 
     model_config = {
         "env_prefix": "TRANSACTION_RCA_AGENT_",

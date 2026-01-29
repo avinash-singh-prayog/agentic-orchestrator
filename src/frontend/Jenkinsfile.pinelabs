@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+    environment {
+        // --- CONFIGURATION ---
+        AWS_ACCOUNT_ID = '946926531781'
+        AWS_REGION     = 'ap-south-1'
+        
+        // S3 and CloudFront Configuration (PineLabs specific)
+        S3_BUCKET      = 'agentic-orchestrator-frontend-pinelabs-assets'
+        CLOUDFRONT_ID  = 'ERK9MYL0EVOJF'  // Update this with PineLabs-specific CloudFront ID if different
+        
+        // The ID of your "Username with Password" (PAT) credentials in Jenkins
+        AWS_CREDS_ID   = 'aws-creds' 
+    }
+
+    tools {
+        nodejs 'node18'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build & Install') {
+            steps {
+                script {
+                    dir('src/frontend') {
+                        sh '''
+                            # Fix npm permission issues by setting HOME to the current directory
+                            export HOME=$(pwd)
+                            
+                            echo "Node version:"
+                            node -v
+                            echo "NPM version:"
+                            npm -v
+                            
+                            echo "Installing dependencies..."
+                            npm install
+                            
+                            echo "Building frontend..."
+                            npm run build
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to S3') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
+                        dir('src/frontend') {
+                            sh """
+                                export AWS_ACCESS_KEY_ID=${AWS_KEY}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+                                export AWS_DEFAULT_REGION=${AWS_REGION}
+                                
+                                echo "Deploying to S3..."
+                                # Sync dist folder to S3, deleting stale files
+                                aws s3 sync dist/ s3://${S3_BUCKET} --delete
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Invalidate CloudFront') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: AWS_CREDS_ID, passwordVariable: 'AWS_SECRET', usernameVariable: 'AWS_KEY')]) {
+                        sh """
+                            export AWS_ACCESS_KEY_ID=${AWS_KEY}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+
+                            echo "Invalidating CloudFront cache..."
+                            aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_ID} --paths "/*"
+                        """
+                    }
+                }
+            }
+        }
+    }
+}

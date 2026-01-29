@@ -19,7 +19,7 @@ GEMINI_API_KEY=your_gemini_key_here  # For Transaction RCA Agent
 SUPERVISOR_LLM=openrouter/openai/gpt-4o-mini
 SERVICEABILITY_AGENT_LLM=openrouter/openai/gpt-4o-mini
 BOOKING_AGENT_LLM=openrouter/openai/gpt-4o-mini
-TRANSACTION_RCA_AGENT_LLM=gemini/gemini-3-flash-preview
+TRANSACTION_RCA_AGENT_LLM=openrouter/openai/gpt-5.2
 
 # SLIM Transport (using remote EC2 instance)
 SLIM_ENDPOINT=http://3.7.70.176:46357

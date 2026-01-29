@@ -22,16 +22,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const [theme, setThemeState] = useState<Theme>(() => {
+        // Default to light theme for PineLabs
         if (typeof window !== "undefined") {
             const stored = localStorage.getItem("theme")
             if (stored === "light" || stored === "dark" || stored === "system") {
                 return stored
             }
+            // If no stored theme, default to light
+            localStorage.setItem("theme", "light")
         }
-        return "dark"
+        return "light"
     })
 
-    const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark")
+    const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light")
 
     // Listen for system theme changes
     useEffect(() => {
