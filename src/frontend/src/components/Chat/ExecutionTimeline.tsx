@@ -112,6 +112,11 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
     const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set())
 
+    // Sync collapsed state when defaultCollapsed prop changes
+    React.useEffect(() => {
+        setIsCollapsed(defaultCollapsed)
+    }, [defaultCollapsed])
+
     // Calculate execution stats
     const stats = useMemo(() => {
         const stepCount = events.length
@@ -162,8 +167,8 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
 
     const timelineStyles: React.CSSProperties = {
         padding: isCollapsed ? 0 : "12px 14px",
-        maxHeight: isCollapsed ? 0 : 250,
-        overflow: isCollapsed ? "hidden" : "auto",
+        maxHeight: isCollapsed ? 0 : "none", // Remove height limit when expanded
+        overflow: isCollapsed ? "hidden" : "visible", // Allow overflow when expanded
         transition: "all 0.3s ease",
     }
 
@@ -319,8 +324,9 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                                     ...(isExpanded ? {} : {
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        maxWidth: "90%",
+                                        whiteSpace: "pre-wrap", // Allow wrapping
+                                        wordBreak: "break-word",
+                                        // maxWidth: "90%", // Let it take available space
                                     })
                                 }}>
                                     {event.message}

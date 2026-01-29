@@ -264,7 +264,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                     <ExecutionTimeline
                                         events={msg.activity}
                                         isLive={false}
-                                        defaultCollapsed={true}
+                                        defaultCollapsed={false}
                                     />
                                 )}
 
