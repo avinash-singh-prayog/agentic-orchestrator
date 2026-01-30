@@ -7,7 +7,8 @@ pipeline {
         REPO_NAME      = 'prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent'
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
         CLUSTER_NAME   = 'prayog-prod-ecs'
-        SERVICE_NAME   = 'supervisor-agent-service'
+        SERVICE_NAME   = 'prayog-ag-orch-prod-pinelabs-supervisor-agent'
+        TASK_DEF_NAME  = 'prayog-prod-ecs-ag-orch-pinelabs-supervisor-agent-td'
         AWS_CREDS_ID   = 'prayog-prod-aws'
     }
 
@@ -60,23 +61,23 @@ pipeline {
                     sh '''
                         export AWS_DEFAULT_REGION=ap-south-1
 
-                        echo "Deploying ${SERVICE_NAME} with image tag: ${BUILD_NUMBER}"
-
-                        TASK_DEF_ARN=$(aws ecs describe-services \
-                          --cluster ${CLUSTER_NAME} \
-                          --services ${SERVICE_NAME} \
-                          --query 'services[0].taskDefinition' \
-                          --output text)
-
-                        echo "Current task definition: $TASK_DEF_ARN"
-
+                        echo "Fetching current task definition..."
                         aws ecs describe-task-definition \
-                          --task-definition $TASK_DEF_ARN \
+                          --task-definition ${TASK_DEF_NAME} \
                           --query 'taskDefinition' > task-def.json
 
-                        echo "Updating task definition..."
+                        echo "Updating task definition with new image..."
                         cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" '
                             .containerDefinitions[0].image = $IMAGE |
+                            .containerDefinitions[0].portMappings[0].containerPort = 3044 |
+                            .containerDefinitions[0].portMappings[0].hostPort = 3044 |
+                            .containerDefinitions[0].healthCheck = {
+                                "command": ["CMD-SHELL", "curl -f http://localhost:3044/supervisor-pinelabs/health || exit 1"],
+                                "interval": 30,
+                                "timeout": 5,
+                                "retries": 3,
+                                "startPeriod": 60
+                            } |
                             del(
                                 .taskDefinitionArn,
                                 .revision,
@@ -94,7 +95,7 @@ pipeline {
                           --query 'taskDefinition.taskDefinitionArn' \
                           --output text)
 
-                        echo "Updating ECS service..."
+                        echo "Deploying new task definition..."
                         aws ecs update-service \
                           --cluster ${CLUSTER_NAME} \
                           --service ${SERVICE_NAME} \
