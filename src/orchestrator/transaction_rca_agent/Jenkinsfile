@@ -4,10 +4,11 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID = '084375559937'
         AWS_REGION     = 'ap-south-1'
-        REPO_NAME      = 'prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent'
+        REPO_NAME      = 'prayog-prod-agentic-orchestrator/transaction-RCA-agent'
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
         CLUSTER_NAME   = 'prayog-ecs'
-        SERVICE_NAME   = 'supervisor-agent-service'
+        SERVICE_NAME   = 'transaction-rca-agent-pinelabs-service'
+        SLIM_ENDPOINT  = 'http://3.7.70.176:46357'
         AWS_CREDS_ID   = 'prayog-prod-aws'
     }
 
@@ -36,7 +37,7 @@ pipeline {
                           084375559937.dkr.ecr.ap-south-1.amazonaws.com
 
                         echo "Building Docker image..."
-                        cd src/orchestrator/supervisor_agent
+                        cd src/orchestrator/transaction_rca_agent
                         docker build \
                           -t ${IMAGE_URI}:${BUILD_NUMBER} \
                           -t ${IMAGE_URI}:latest .
@@ -60,23 +61,35 @@ pipeline {
                     sh '''
                         export AWS_DEFAULT_REGION=ap-south-1
 
-                        echo "Deploying ${SERVICE_NAME} with image tag: ${BUILD_NUMBER}"
-
+                        echo "Fetching current task definition..."
                         TASK_DEF_ARN=$(aws ecs describe-services \
                           --cluster ${CLUSTER_NAME} \
                           --services ${SERVICE_NAME} \
                           --query 'services[0].taskDefinition' \
                           --output text)
 
-                        echo "Current task definition: $TASK_DEF_ARN"
-
                         aws ecs describe-task-definition \
                           --task-definition $TASK_DEF_ARN \
                           --query 'taskDefinition' > task-def.json
 
-                        echo "Updating task definition..."
-                        cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" '
+                        echo "Updating task definition with new image..."
+                        cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" \
+                                               --arg SLIM_ENDPOINT "${SLIM_ENDPOINT}" '
                             .containerDefinitions[0].image = $IMAGE |
+                            .containerDefinitions[0].portMappings[0].containerPort = 3045 |
+                            .containerDefinitions[0].portMappings[0].hostPort = 3045 |
+                            .containerDefinitions[0].environment = (
+                                (.containerDefinitions[0].environment // []) |
+                                map(select(.name != "SLIM_ENDPOINT")) +
+                                [{"name":"SLIM_ENDPOINT","value":$SLIM_ENDPOINT}]
+                            ) |
+                            .containerDefinitions[0].healthCheck = {
+                                "command": ["CMD-SHELL", "curl -f http://localhost:3045/rca-pinelabs/health || exit 1"],
+                                "interval": 30,
+                                "timeout": 5,
+                                "retries": 3,
+                                "startPeriod": 60
+                            } |
                             del(
                                 .taskDefinitionArn,
                                 .revision,
@@ -94,7 +107,7 @@ pipeline {
                           --query 'taskDefinition.taskDefinitionArn' \
                           --output text)
 
-                        echo "Updating ECS service..."
+                        echo "Deploying new task definition..."
                         aws ecs update-service \
                           --cluster ${CLUSTER_NAME} \
                           --service ${SERVICE_NAME} \
