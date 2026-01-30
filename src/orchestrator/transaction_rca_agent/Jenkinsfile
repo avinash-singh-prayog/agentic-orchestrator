@@ -6,7 +6,7 @@ pipeline {
         AWS_REGION     = 'ap-south-1'
         REPO_NAME      = 'prayog-prod-agentic-orchestrator/transaction-rca-agent'
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
-        CLUSTER_NAME   = 'prayog-ecs'
+        CLUSTER_NAME   = 'prayog-prod-ecs'
         SERVICE_NAME   = 'transaction-rca-agent-pinelabs-service'
         SLIM_ENDPOINT  = 'http://3.7.70.176:46357'
         AWS_CREDS_ID   = 'prayog-prod-aws'

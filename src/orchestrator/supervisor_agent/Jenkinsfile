@@ -6,7 +6,7 @@ pipeline {
         AWS_REGION     = 'ap-south-1'
         REPO_NAME      = 'prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent'
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
-        CLUSTER_NAME   = 'prayog-ecs'
+        CLUSTER_NAME   = 'prayog-prod-ecs'
         SERVICE_NAME   = 'supervisor-agent-service'
         AWS_CREDS_ID   = 'prayog-prod-aws'
     }
