@@ -12,7 +12,7 @@ pipeline {
         CLOUDFRONT_ID  = 'E29AQVB9X1DUQS'  // Update this with PineLabs-specific CloudFront ID after creation
         
         // The ID of your "Username with Password" (PAT) credentials in Jenkins
-        AWS_CREDS_ID   = 'prayog-prod-aws' 
+        AWS_CREDS_ID   = 'aws-creds' 
     }
 
     tools {
