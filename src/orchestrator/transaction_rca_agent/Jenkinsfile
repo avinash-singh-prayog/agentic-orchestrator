@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID = '084375559937'
         AWS_REGION     = 'ap-south-1'
-        REPO_NAME      = 'prayog-prod-agentic-orchestrator/transaction-RCA-agent'
+        REPO_NAME      = 'prayog-prod-agentic-orchestrator/transaction-rca-agent'
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
         CLUSTER_NAME   = 'prayog-ecs'
         SERVICE_NAME   = 'transaction-rca-agent-pinelabs-service'
