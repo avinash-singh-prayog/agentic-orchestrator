@@ -2,15 +2,17 @@ pipeline {
     agent any
     environment {
         // --- CONFIGURATION ---
-        AWS_ACCOUNT_ID = '946926531781'
+        // PineLabs AWS Account
+        AWS_ACCOUNT_ID = '084375559937'
         AWS_REGION     = 'ap-south-1'
         
-        // S3 and CloudFront Configuration
-        S3_BUCKET      = 'agentic-orchestrator-frontend-assets'
-        CLOUDFRONT_ID  = 'ERK9MYL0EVOJF'
+        // S3 and CloudFront Configuration (PineLabs specific)
+        // Note: Create these resources in PineLabs account (084375559937) before deployment
+        S3_BUCKET      = 'pinelabs-frontend'
+        CLOUDFRONT_ID  = 'E29AQVB9X1DUQS'  // Update this with PineLabs-specific CloudFront ID after creation
         
         // The ID of your "Username with Password" (PAT) credentials in Jenkins
-        AWS_CREDS_ID   = 'aws-creds' 
+        AWS_CREDS_ID   = 'prayog-prod-aws' 
     }
 
     tools {
