@@ -14,8 +14,11 @@ COPY . .
 # Create virtual environment and install project with dependencies
 RUN uv venv && uv pip install .
 
-# Expose port
-EXPOSE 9004
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Expose port (PineLabs deployment port)
+EXPOSE 3044
 
 # Run the application
-CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9004"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3044"]

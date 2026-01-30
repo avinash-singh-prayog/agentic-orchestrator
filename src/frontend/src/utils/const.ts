@@ -53,24 +53,24 @@ export const AGENT_STATUS = {
   ERROR: "error",
 } as const
 
-// API endpoints - match Supervisor Agent API
+// API endpoints - PineLabs deployment with prefixes
 export const API_ENDPOINTS = {
-  // Supervisor Agent endpoints
-  PROMPT: "/supervisor-agent/v1/agent/run",           // Sync mode
-  PROMPT_STREAM: "/supervisor-agent/v1/agent/stream", // Streaming mode (SSE)
-  HEALTH: "/supervisor-agent/health",
+  // Supervisor Agent endpoints (PineLabs prefix)
+  PROMPT: "/supervisor-pinelabs/v1/agent/run",           // Sync mode
+  PROMPT_STREAM: "/supervisor-pinelabs/v1/agent/stream", // Streaming mode (SSE)
+  HEALTH: "/supervisor-pinelabs/health",
   
-  // Auth endpoints
+  // Auth endpoints (PineLabs prefix)
   AUTH: {
-    LOGIN: "/supervisor-agent/auth/login",
-    REGISTER: "/supervisor-agent/auth/register",
-    FORGOT_PASSWORD: "/supervisor-agent/auth/forgot-password",
-    RESET_PASSWORD: "/supervisor-agent/auth/reset-password",
+    LOGIN: "/supervisor-pinelabs/auth/login",
+    REGISTER: "/supervisor-pinelabs/auth/register",
+    FORGOT_PASSWORD: "/supervisor-pinelabs/auth/forgot-password",
+    RESET_PASSWORD: "/supervisor-pinelabs/auth/reset-password",
   },
   
-  // Conversation history endpoints
-  CONVERSATIONS: "/supervisor-agent/v1/conversations",
-  CONVERSATION: (threadId: string) => `/supervisor-agent/v1/conversations/${threadId}`,
+  // Conversation history endpoints (PineLabs prefix)
+  CONVERSATIONS: "/supervisor-pinelabs/v1/conversations",
+  CONVERSATION: (threadId: string) => `/supervisor-pinelabs/v1/conversations/${threadId}`,
   
   // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",

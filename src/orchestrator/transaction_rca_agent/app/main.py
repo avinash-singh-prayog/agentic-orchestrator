@@ -39,9 +39,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(health_router, prefix="/transaction-rca-agent")
-app.include_router(agent_router, prefix="/transaction-rca-agent/v1")
+# Include routers with PineLabs prefix
+app.include_router(health_router, prefix="/rca-pinelabs")
+app.include_router(agent_router, prefix="/rca-pinelabs/v1")
 
 
 def main() -> None:

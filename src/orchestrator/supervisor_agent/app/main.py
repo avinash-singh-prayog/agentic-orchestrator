@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Supervisor Agent", lifespan=lifespan)
-router = APIRouter(prefix="/supervisor-agent")
+router = APIRouter(prefix="/supervisor-pinelabs")
 
 # Include OAuth router
 from app import oauth

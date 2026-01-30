@@ -2,7 +2,8 @@ pipeline {
     agent any
     environment {
         // --- CONFIGURATION ---
-        AWS_ACCOUNT_ID = '946926531781'
+        // PineLabs AWS Account
+        AWS_ACCOUNT_ID = '084375559937'
         AWS_REGION     = 'ap-south-1'
         
         // Match this exactly to your ECR repo name (PineLabs specific)
@@ -12,8 +13,13 @@ pipeline {
         AWS_CREDS_ID   = 'aws-creds' 
         
         // ECS Configuration (PineLabs specific service)
+        // Note: Update CLUSTER_NAME if using a different cluster in PineLabs account
         CLUSTER_NAME   = 'prayog-ecs'
         SERVICE_NAME   = 'supervisor-agent-pinelabs-service'
+        
+        // SLIM Transporter Endpoint (from agentic-orchestrator account 946926531781)
+        // This is the existing SLIM transporter that PineLabs services will connect to
+        SLIM_ENDPOINT  = 'http://3.7.70.176:46357'
         
         IMAGE_URI      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
     }
@@ -70,8 +76,25 @@ pipeline {
                             # Get the current task definition JSON and update the image
                             aws ecs describe-task-definition --task-definition \$TASK_DEF_ARN --query 'taskDefinition' > task-def.json
                             
-                            # Update the image in the container definition to use the new build number
-                            cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" '.containerDefinitions[0].image = \$IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > new-task-def.json
+                            # Update the image, port mappings, environment variables, and health check
+                            cat task-def.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" --arg SLIM_ENDPOINT "${SLIM_ENDPOINT}" '
+                                .containerDefinitions[0].image = \$IMAGE |
+                                .containerDefinitions[0].portMappings[0].containerPort = 3044 |
+                                .containerDefinitions[0].portMappings[0].hostPort = 3044 |
+                                .containerDefinitions[0].environment = (
+                                    (.containerDefinitions[0].environment // []) | 
+                                    map(select(.name != "SLIM_ENDPOINT")) + 
+                                    [{"name": "SLIM_ENDPOINT", "value": \$SLIM_ENDPOINT}]
+                                ) |
+                                .containerDefinitions[0].healthCheck = {
+                                    "command": ["CMD-SHELL", "curl -f http://localhost:3044/supervisor-pinelabs/health || exit 1"],
+                                    "interval": 30,
+                                    "timeout": 5,
+                                    "retries": 3,
+                                    "startPeriod": 60
+                                } |
+                                del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+                            ' > new-task-def.json
                             
                             # Register the new task definition
                             NEW_TASK_DEF_ARN=\$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)

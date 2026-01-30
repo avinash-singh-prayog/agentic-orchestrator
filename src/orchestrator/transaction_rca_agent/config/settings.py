@@ -13,7 +13,7 @@ class TransactionRCAAgentSettings(BaseSettings):
 
     # Server settings
     host: str = "0.0.0.0"
-    port: int = 9006
+    port: int = 3045  # PineLabs deployment port
     debug: bool = False
 
     # Logging

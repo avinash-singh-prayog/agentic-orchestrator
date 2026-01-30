@@ -14,8 +14,11 @@ COPY . .
 # Create virtual environment and install project with dependencies
 RUN uv venv && uv pip install .
 
-# Expose port
-EXPOSE 9006
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Expose port (PineLabs deployment port)
+EXPOSE 3045
 
 # Run the application in dual mode (HTTP + SLIM)
 # This enables both HTTP API server and SLIM listener for inter-agent communication
