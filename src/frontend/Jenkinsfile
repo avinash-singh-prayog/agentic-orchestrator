@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        string(
+            name: 'VITE_ORCHESTRATOR_API_URL',
+            defaultValue: 'https://prod-apis.prayog.io',
+            description: 'Production API URL for the supervisor agent. Default: https://prod-apis.prayog.io'
+        )
+    }
+
     environment {
         AWS_ACCOUNT_ID = '084375559937'
         AWS_REGION     = 'ap-south-1'
@@ -24,17 +32,60 @@ pipeline {
         stage('Build & Install') {
             steps {
                 dir('src/frontend') {
-                    sh '''
-                        export HOME=$(pwd)
+                    script {
+                        // Get the API URL from parameter or environment variable
+                        def apiUrl = params.VITE_ORCHESTRATOR_API_URL?.trim() ?: env.VITE_ORCHESTRATOR_API_URL?.trim() ?: ''
+                        
+                        echo "=========================================="
+                        echo "Checking VITE_ORCHESTRATOR_API_URL"
+                        echo "Parameter value: '${params.VITE_ORCHESTRATOR_API_URL}'"
+                        echo "Environment value: '${env.VITE_ORCHESTRATOR_API_URL ?: 'NOT SET'}'"
+                        echo "Final value: '${apiUrl}'"
+                        echo "=========================================="
+                        
+                        if (!apiUrl || apiUrl == '') {
+                            error("""
+                                ❌ VITE_ORCHESTRATOR_API_URL is not set!
+                                
+                                Please provide it in one of these ways:
+                                1. Set it as a build parameter when triggering the build
+                                2. Set it as a global environment variable in Jenkins:
+                                   Manage Jenkins → Configure System → Global properties → Environment variables
+                                   
+                                The URL should point to your production supervisor agent API.
+                                Example: https://your-api-gateway-url.com or http://your-alb-url:3044
+                                
+                                To find your production API URL:
+                                - Check your ECS service for ALB/load balancer URL
+                                - Check API Gateway if you're using one
+                                - Or use the direct ECS service endpoint if exposed
+                            """)
+                        }
+                        
+                        echo "✅ Building with VITE_ORCHESTRATOR_API_URL=${apiUrl}"
+                        
+                        // Pass the API URL to the build script
+                        withEnv(["VITE_ORCHESTRATOR_API_URL=${apiUrl}"]) {
+                            sh '''
+                                export HOME=$(pwd)
 
-                        echo "Node version:"
-                        node -v
-                        echo "NPM version:"
-                        npm -v
+                                echo "Node version:"
+                                node -v
+                                echo "NPM version:"
+                                npm -v
 
-                        npm install
-                        npm run build
-                    '''
+                                echo "=========================================="
+                                echo "Building frontend with:"
+                                echo "VITE_ORCHESTRATOR_API_URL=$VITE_ORCHESTRATOR_API_URL"
+                                echo "=========================================="
+
+                                npm install
+                                npm run build
+                                
+                                echo "✅ Build completed successfully"
+                            '''
+                        }
+                    }
                 }
             }
         }
