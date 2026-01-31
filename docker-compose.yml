@@ -107,7 +107,7 @@ services:
       dockerfile: Dockerfile
     container_name: supervisor-agent
     ports:
-      - "9004:9004"
+      - "3044:3044"
     environment:
       # Using gpt-oss-120b:free instead of gpt-4o-mini
       - SUPERVISOR_LLM=${SUPERVISOR_LLM:-openrouter/openai/gpt-4o-mini}
@@ -139,7 +139,7 @@ services:
       dockerfile: Dockerfile
     container_name: transaction-rca-agent
     ports:
-      - "${TRANSACTION_RCA_AGENT_PORT:-9006}:9006"
+      - "${TRANSACTION_RCA_AGENT_PORT:-3045}:3045"
     environment:
       - TRANSACTION_RCA_AGENT_LLM=${TRANSACTION_RCA_AGENT_LLM:-openrouter/openai/gpt-5.2}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -175,7 +175,7 @@ services:
       context: ./src/frontend
       dockerfile: Dockerfile
       args:
-        - VITE_ORCHESTRATOR_API_URL=${VITE_ORCHESTRATOR_API_URL:-http://localhost:9004}
+        - VITE_ORCHESTRATOR_API_URL=${VITE_ORCHESTRATOR_API_URL:-http://localhost:3044}
     container_name: orchestrator-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:80"

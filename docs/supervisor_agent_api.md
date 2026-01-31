@@ -6,8 +6,8 @@ The Supervisor Agent is the orchestration layer that receives user requests and 
 
 | Environment | URL |
 |------------|-----|
-| Local (Docker) | `http://localhost:9004` |
-| Container Network | `http://supervisor-agent:9004` |
+| Local (Docker) | `http://localhost:3044` |
+| Container Network | `http://supervisor-agent:3044` |
 
 ---
 
@@ -35,7 +35,7 @@ Execute the supervisor agent with a natural language prompt. The agent will anal
 
 **Example - Check Shipping Rates:**
 ```bash
-curl -X POST http://localhost:9004/supervisor-agent/v1/agent/run \
+curl -X POST http://localhost:3044/supervisor-agent/v1/agent/run \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Check shipping rates for 5kg from 193501 India to 10001 US"
@@ -75,7 +75,7 @@ Check if the supervisor agent is running and healthy.
 
 **Example:**
 ```bash
-curl http://localhost:9004/supervisor-agent/health
+curl http://localhost:3044/supervisor-agent/health
 ```
 
 ---
@@ -91,7 +91,7 @@ The Supervisor Agent:
 ```
 ┌─────────────────┐     ┌──────────────┐     ┌────────────────┐
 │  HTTP Request   │────▶│  Supervisor  │────▶│  SLIM Gateway  │
-│  (Port 9004)    │     │    Agent     │     │  (Port 46357)  │
+│  (Port 3044)    │     │    Agent     │     │  (Port 46357)  │
 └─────────────────┘     └──────────────┘     └───────┬────────┘
                                                      │
                                                      ▼

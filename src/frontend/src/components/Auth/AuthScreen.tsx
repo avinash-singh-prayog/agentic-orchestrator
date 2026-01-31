@@ -73,7 +73,7 @@ const AuthScreen: React.FC = () => {
     }, [])
 
     const handleGoogleLogin = () => {
-        window.location.href = `${API_URL}/supervisor-agent/auth/google/login`
+        window.location.href = `${API_URL}/supervisor-pinelabs/auth/google/login`
     }
 
     const handleSubmit = async (e: React.FormEvent) => {

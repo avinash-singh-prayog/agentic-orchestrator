@@ -26,10 +26,10 @@ SLIM_ENDPOINT=http://3.7.70.176:46357
 
 # Port Configuration (optional - defaults shown)
 FRONTEND_PORT=3000
-SUPERVISOR_AGENT_PORT=9004
+SUPERVISOR_AGENT_PORT=3044
 SERVICEABILITY_AGENT_PORT=9003
 BOOKING_AGENT_PORT=9005
-TRANSACTION_RCA_AGENT_PORT=9006
+TRANSACTION_RCA_AGENT_PORT=3045
 
 # Database (for supervisor agent conversation history)
 DATABASE_URL=postgresql://orchestrator_supervisor_agent:pFaiA88gRFFwrF@prayog-orchestrator-sandbox.c7geye6morpj.ap-south-1.rds.amazonaws.com:5432/orchestrator_supervisor_prod
@@ -67,7 +67,7 @@ Once all services are running, open your browser and navigate to:
 
 **Check Serviceability:**
 ```bash
-curl -X POST http://localhost:9004/supervisor-agent/v1/agent/run \
+curl -X POST http://localhost:3044/supervisor-agent/v1/agent/run \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Check shipping rates from Mumbai 400001 to Delhi 110001 for 2kg",
@@ -78,7 +78,7 @@ curl -X POST http://localhost:9004/supervisor-agent/v1/agent/run \
 
 **Transaction RCA Analysis:**
 ```bash
-curl -X POST http://localhost:9004/supervisor-agent/v1/agent/run \
+curl -X POST http://localhost:3044/supervisor-agent/v1/agent/run \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Analyze transaction TXN123 for root cause. Transaction context: {\"transaction_id\": \"TXN123\", \"checkpoints\": [{\"checkpoint_name\": \"ingestion\", \"status\": \"success\"}, {\"checkpoint_name\": \"authorization\", \"status\": \"success\"}, {\"checkpoint_name\": \"routing\", \"status\": \"pending\"}]}",
@@ -94,10 +94,10 @@ Once running, services are available at:
 | Service | URL | Port |
 |---------|-----|------|
 | **Frontend UI** | http://localhost:3000 | 3000 |
-| **Supervisor Agent** | http://localhost:9004 | 9004 |
+| **Supervisor Agent** | http://localhost:3044 | 3044 |
 | **Serviceability Agent** | http://localhost:9003 | 9003 |
 | **Booking Agent** | http://localhost:9005 | 9005 |
-| **Transaction RCA Agent** | http://localhost:9006 | 9006 |
+| **Transaction RCA Agent** | http://localhost:3045 | 3045 |
 
 ## Health Checks
 
@@ -105,7 +105,7 @@ Check if services are running:
 
 ```bash
 # Supervisor Agent
-curl http://localhost:9004/supervisor-agent/health
+curl http://localhost:3044/supervisor-agent/health
 
 # Serviceability Agent
 curl http://localhost:9003/serviceability-agent/health
@@ -114,7 +114,7 @@ curl http://localhost:9003/serviceability-agent/health
 curl http://localhost:9005/booking-agent/health
 
 # Transaction RCA Agent
-curl http://localhost:9006/transaction-rca-agent/health
+curl http://localhost:3045/transaction-rca-agent/health
 ```
 
 ## Troubleshooting
@@ -125,8 +125,8 @@ curl http://localhost:9006/transaction-rca-agent/health
 3. Verify environment variables are set correctly
 
 ### Frontend can't connect to backend
-1. Check `VITE_ORCHESTRATOR_API_URL` in docker-compose.yml points to supervisor-agent:9004
-2. Verify supervisor agent is running: `curl http://localhost:9004/supervisor-agent/health`
+1. Check `VITE_ORCHESTRATOR_API_URL` in docker-compose.yml points to supervisor-agent:3044
+2. Verify supervisor agent is running: `curl http://localhost:3044/supervisor-agent/health`
 
 ### SLIM connection issues
 1. Verify SLIM_ENDPOINT is accessible
