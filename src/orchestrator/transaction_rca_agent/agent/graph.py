@@ -100,8 +100,19 @@ class TransactionRCAGraph:
         # No transaction context and not ticket creation = error
         return "error"
 
-    async def invoke(self, user_message: str) -> dict:
-        """Invoke the transaction RCA agent with a user message."""
+    async def invoke(self, user_message: str, llm_config: dict = None) -> dict:
+        """Invoke the transaction RCA agent with a user message and optional LLM config."""
         from langchain_core.messages import HumanMessage
+        
         initial_state = {"messages": [HumanMessage(content=user_message)]}
-        return await self.app.ainvoke(initial_state)
+        
+        # Build config with LLM config if provided
+        config = {}
+        if llm_config:
+            config = {
+                "configurable": {
+                    "llm_config": llm_config
+                }
+            }
+        
+        return await self.app.ainvoke(initial_state, config=config if config else None)

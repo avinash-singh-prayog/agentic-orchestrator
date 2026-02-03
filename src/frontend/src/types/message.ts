@@ -9,6 +9,16 @@ export interface AgentActivityEvent {
   state?: string
 }
 
+export interface FileAttachment {
+  id: string
+  name: string
+  type: string
+  size: number
+  fileType: 'image' | 'text'  // Classification for routing
+  url?: string       // Temporary URL for preview
+  file?: File        // The actual File object - sent directly via FormData (no base64 needed)
+}
+
 export interface Message {
   id: string
   role: "user" | "assistant"
@@ -16,6 +26,7 @@ export interface Message {
   timestamp: Date
   animate?: boolean
   activity?: AgentActivityEvent[]
+  attachments?: FileAttachment[]
 }
 
 export interface ChatState {

@@ -72,6 +72,11 @@ export const API_ENDPOINTS = {
   CONVERSATIONS: "/supervisor-pinelabs/v1/conversations",
   CONVERSATION: (threadId: string) => `/supervisor-pinelabs/v1/conversations/${threadId}`,
   
+  // LLM Settings endpoints (PineLabs prefix)
+  LLM_CONFIG: "/supervisor-pinelabs/v1/settings/llm-config",
+  LLM_CONFIG_TEST: "/supervisor-pinelabs/v1/settings/llm-config/test",
+  LLM_CONFIG_AVAILABLE: "/supervisor-pinelabs/v1/settings/llm-config/available",
+  
   // Admin endpoints (if implemented)
   AGENT_CARD: "/.well-known/agent.json",
   PENDING_APPROVALS: "/admin/pending-approvals",

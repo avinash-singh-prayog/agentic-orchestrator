@@ -10,6 +10,8 @@ import bcrypt
 from psycopg import AsyncConnection, OperationalError, ProgrammingError
 import jwt
 from dotenv import load_dotenv
+from cryptography.fernet import Fernet
+import base64
 
 # Load .env file (for local development)
 load_dotenv()
@@ -64,6 +66,57 @@ logger.info(f"DATABASE_URL loaded: {_masked_url}")
 
 # Hardcoded Tenant ID as per requirement
 DEFAULT_TENANT_ID = "507f1f77bcf86cd799439011"
+
+# ============================================================================
+# Encryption Configuration
+# ============================================================================
+
+# Get or generate encryption key for API keys
+_encryption_key_raw = os.getenv("ENCRYPTION_KEY")
+if not _encryption_key_raw:
+    # Generate a new key if not set (for development only)
+    # In production, this MUST be set in environment
+    logger.warning("ENCRYPTION_KEY not set, generating new key (NOT SAFE FOR PRODUCTION)")
+    _encryption_key_raw = Fernet.generate_key().decode()
+    logger.warning(f"Generated encryption key: {_encryption_key_raw}")
+
+# Ensure the key is properly formatted for Fernet
+try:
+    # If it's a base64 string already, use it
+    ENCRYPTION_KEY = _encryption_key_raw.encode() if isinstance(_encryption_key_raw, str) else _encryption_key_raw
+    _cipher = Fernet(ENCRYPTION_KEY)
+except Exception as e:
+    # If the key is invalid, generate a new one
+    logger.error(f"Invalid ENCRYPTION_KEY format: {e}. Generating new key.")
+    ENCRYPTION_KEY = Fernet.generate_key()
+    _cipher = Fernet(ENCRYPTION_KEY)
+    logger.warning(f"Generated new encryption key: {ENCRYPTION_KEY.decode()}")
+
+# ============================================================================
+# Encryption Utilities
+# ============================================================================
+
+def encrypt_api_key(api_key: str) -> str:
+    """Encrypt an API key for storage."""
+    if not api_key:
+        return ""
+    try:
+        encrypted = _cipher.encrypt(api_key.encode())
+        return encrypted.decode()
+    except Exception as e:
+        logger.error(f"Failed to encrypt API key: {e}")
+        raise
+
+def decrypt_api_key(encrypted_key: str) -> str:
+    """Decrypt an API key from storage."""
+    if not encrypted_key:
+        return ""
+    try:
+        decrypted = _cipher.decrypt(encrypted_key.encode())
+        return decrypted.decode()
+    except Exception as e:
+        logger.error(f"Failed to decrypt API key: {e}")
+        raise
 
 # ============================================================================
 # Models
@@ -130,7 +183,11 @@ async def ensure_users_table():
         password_hash VARCHAR(255) NOT NULL,
         name VARCHAR(255),
         tenant_id VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        llm_provider VARCHAR(50),
+        llm_model VARCHAR(100),
+        llm_api_key_encrypted TEXT,
+        llm_config_updated_at TIMESTAMP WITH TIME ZONE
     );
     """
     try:
@@ -148,6 +205,11 @@ async def ensure_users_table():
                             await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);")
                             await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;")
                             await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;")
+                            # LLM configuration columns
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS llm_provider VARCHAR(50);")
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS llm_model VARCHAR(100);")
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS llm_api_key_encrypted TEXT;")
+                            await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS llm_config_updated_at TIMESTAMP WITH TIME ZONE;")
                         except Exception as e:
                              logger.warning(f"Migration warning (columns might exist): {e}")
 
@@ -445,3 +507,137 @@ async def reset_password(token: str, new_password: str) -> bool:
             await conn.commit()
             
     return True
+
+async def get_user_llm_config(user_id: str) -> Optional[dict]:
+    """Get user's LLM configuration from database."""
+    query = """
+    SELECT llm_provider, llm_model, llm_api_key_encrypted, llm_config_updated_at
+    FROM users
+    WHERE id = %s
+    """
+    
+    try:
+        async def _do_get():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(query, (user_id,))
+                        row = await cur.fetchone()
+                        
+                        if not row:
+                            return None
+                        
+                        provider, model, api_key_stored, updated_at = row
+                        
+                        logger.info(f"Retrieved from DB for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key_stored)}, api_key_length={len(api_key_stored) if api_key_stored else 0}")
+                        
+                        if not provider or not model:
+                            logger.warning(f"Provider or model missing for user {user_id}")
+                            return None
+                        
+                        # API key is stored directly (no encryption/decryption)
+                        api_key = api_key_stored if api_key_stored else ""
+                        
+                        logger.info(f"Returning config for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key)}")
+                        
+                        return {
+                            "provider": provider,
+                            "model": model,
+                            "api_key": api_key,
+                            "has_encrypted_key": bool(api_key_stored),  # Indicate if API key exists in DB
+                            "updated_at": updated_at.isoformat() if updated_at else None
+                        }
+            except OperationalError as e:
+                logger.error(f"Database connection error during LLM config fetch: {e}")
+                raise DatabaseConnectionError(
+                    f"Unable to connect to database: {str(e)}",
+                    original_error=e
+                )
+            except ProgrammingError as e:
+                logger.error(f"Database query error during LLM config fetch: {e}")
+                raise DatabaseQueryError(
+                    f"Database query failed: {str(e)}",
+                    original_error=e
+                )
+        
+        return await asyncio.wait_for(_do_get(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        logger.error(f"Database operation timed out after {DB_QUERY_TIMEOUT}s")
+        raise DatabaseTimeoutError(
+            f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds"
+        )
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during LLM config fetch: {e}")
+        raise DatabaseError(f"LLM config fetch failed: {str(e)}", original_error=e)
+
+async def update_user_llm_config(user_id: str, provider: str, model: str, api_key: str) -> bool:
+    """Update user's LLM configuration in database."""
+    now = datetime.utcnow()
+    
+    logger.info(f"update_user_llm_config called: user_id={user_id}, provider={provider}, model={model}, api_key_provided={bool(api_key)}, api_key_length={len(api_key) if api_key else 0}")
+    
+    # If API key is provided, store it directly (no encryption) and update all fields
+    # Otherwise, only update provider and model, keeping existing API key
+    if api_key:
+        # Store API key directly without encryption
+        query = """
+        UPDATE users
+        SET llm_provider = %s, llm_model = %s, llm_api_key_encrypted = %s, llm_config_updated_at = %s
+        WHERE id = %s
+        """
+        query_params = (provider, model, api_key, now, user_id)
+        logger.info(f"Updating all fields including API key for user {user_id}")
+    else:
+        # Only update provider and model, keep existing API key
+        query = """
+        UPDATE users
+        SET llm_provider = %s, llm_model = %s, llm_config_updated_at = %s
+        WHERE id = %s
+        """
+        query_params = (provider, model, now, user_id)
+        logger.info(f"Updating only provider and model (keeping existing API key) for user {user_id}")
+    
+    try:
+        async def _do_update():
+            try:
+                async with await AsyncConnection.connect(
+                    DATABASE_URL,
+                    connect_timeout=DB_CONNECTION_TIMEOUT
+                ) as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(query, query_params)
+                        rows_affected = cur.rowcount
+                        await conn.commit()
+                        logger.info(f"Database update completed for user {user_id}, rows affected: {rows_affected}")
+                        return True
+            except OperationalError as e:
+                logger.error(f"Database connection error during LLM config update: {e}")
+                raise DatabaseConnectionError(
+                    f"Unable to connect to database: {str(e)}",
+                    original_error=e
+                )
+            except ProgrammingError as e:
+                logger.error(f"Database query error during LLM config update: {e}")
+                raise DatabaseQueryError(
+                    f"Database query failed: {str(e)}",
+                    original_error=e
+                )
+        
+        return await asyncio.wait_for(_do_update(), timeout=DB_QUERY_TIMEOUT)
+        
+    except asyncio.TimeoutError:
+        logger.error(f"Database operation timed out after {DB_QUERY_TIMEOUT}s")
+        raise DatabaseTimeoutError(
+            f"Database operation timed out after {DB_QUERY_TIMEOUT} seconds"
+        )
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during LLM config update: {e}")
+        raise DatabaseError(f"LLM config update failed: {str(e)}", original_error=e)

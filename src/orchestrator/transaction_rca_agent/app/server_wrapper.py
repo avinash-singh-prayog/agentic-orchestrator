@@ -60,22 +60,45 @@ class TransactionRCAAgentExecutor(AgentExecutor):
             event_queue: Queue to push response events to.
         """
         if not self._validate_request(context):
-            logger.error("Invalid request context")
+            logger.error(f"Invalid request context. Context: {context}, Message: {getattr(context, 'message', None)}")
+            error_message = Message(
+                messageId=str(uuid4()),
+                role=Role.agent,
+                parts=[Part(root=TextPart(text="Error: Invalid request context - missing message or parts"))],
+            )
+            await event_queue.enqueue_event(error_message)
             return
         
-        # Extract user input from the message
-        prompt = context.get_user_input()
-        logger.info(f"Executing transaction RCA agent with prompt: {prompt[:100]}...")
-        
-        # Ensure we have a task
-        task = context.current_task
-        if not task:
-            task = new_task(context.message)
-            await event_queue.enqueue_event(task)
-        
         try:
-            # Invoke the internal LangGraph workflow
-            result = await self.graph.invoke(prompt)
+            # Extract user input from the message
+            prompt = context.get_user_input()
+            if not prompt:
+                logger.error("Failed to extract user input from context")
+                error_message = Message(
+                    messageId=str(uuid4()),
+                    role=Role.agent,
+                    parts=[Part(root=TextPart(text="Error: Could not extract user input from request"))],
+                )
+                await event_queue.enqueue_event(error_message)
+                return
+            
+            # Extract LLM config from message metadata if available
+            llm_config = None
+            if context.message and hasattr(context.message, 'metadata') and context.message.metadata:
+                llm_config = context.message.metadata.get("llm_config")
+                if llm_config:
+                    logger.info(f"Using LLM config from metadata: {llm_config.get('provider')}/{llm_config.get('model')}")
+            
+            logger.info(f"Executing transaction RCA agent with prompt: {prompt[:100]}...")
+            
+            # Ensure we have a task
+            task = context.current_task
+            if not task:
+                task = new_task(context.message)
+                await event_queue.enqueue_event(task)
+            
+            # Invoke the internal LangGraph workflow with LLM config
+            result = await self.graph.invoke(prompt, llm_config=llm_config)
             
             # Extract the response message
             msgs = result.get("messages", [])

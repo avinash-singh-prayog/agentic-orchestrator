@@ -147,6 +147,7 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - SLIM_ENDPOINT=${SLIM_ENDPOINT:-http://3.7.70.176:46357}
       - DEFAULT_MESSAGE_TRANSPORT=SLIM
+      - DATABASE_URL=${DATABASE_URL}
     command: [ "sh", "-c", "PYTHONPATH=/app /app/.venv/bin/python -m app.main dual" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"

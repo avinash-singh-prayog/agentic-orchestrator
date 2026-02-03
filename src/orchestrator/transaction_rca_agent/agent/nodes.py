@@ -579,9 +579,13 @@ Return ONLY valid JSON:"""
             return {"error": f"Failed to extract transaction context from text: {str(e)}"}
 
     async def analyze_rca(
-        self, state: TransactionRCAAgentState
+        self, 
+        state: TransactionRCAAgentState,
+        config = None
     ) -> Dict[str, Any]:
         """Perform RCA analysis using LLM reasoning."""
+        from langchain_core.runnables import RunnableConfig
+        
         context = state.get("transaction_context")
         if not context:
             return {
@@ -594,6 +598,32 @@ Return ONLY valid JSON:"""
         logger.info(f"Analyzing RCA for transaction: {context.transaction_id}")
 
         try:
+            # Extract LLM config from config if available
+            user_config = None
+            if config:
+                if isinstance(config, RunnableConfig):
+                    configurable = getattr(config, "configurable", {})
+                    if isinstance(configurable, dict):
+                        user_config = configurable.get("llm_config")
+                elif isinstance(config, dict):
+                    configurable = config.get("configurable", {})
+                    if isinstance(configurable, dict):
+                        user_config = configurable.get("llm_config")
+                
+                if user_config:
+                    logger.info(f"Using user LLM config: {user_config.get('provider')}/{user_config.get('model')}")
+            
+            # Get LLM instance (with user config if available)
+            if user_config:
+                llm_to_use = LLMFactory.get_llm(
+                    "TRANSACTION_RCA_AGENT_LLM",
+                    temperature=0.1,
+                    max_tokens=2000,
+                    user_config=user_config
+                )
+            else:
+                llm_to_use = self.llm
+            
             # Build input context for LLM
             input_data = {
                 "transaction_id": context.transaction_id,
@@ -622,7 +652,7 @@ Return ONLY valid JSON:"""
             ]
 
             # Invoke LLM
-            response = await self.llm.ainvoke(messages)
+            response = await llm_to_use.ainvoke(messages)
             content = response.content.strip()
 
             # Parse JSON from response (handle markdown code blocks if present)

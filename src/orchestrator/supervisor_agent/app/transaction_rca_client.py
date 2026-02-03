@@ -27,12 +27,17 @@ logger = logging.getLogger("supervisor_agent.transaction_rca_client")
 TRANSACTION_RCA_AGENT_TOPIC = "transaction-rca-agent"
 
 
-async def call_transaction_rca_via_slim(transaction_context_json: str) -> str:
+async def call_transaction_rca_via_slim(
+    transaction_context_json: str,
+    llm_config: dict = None
+) -> str:
     """
     Call the Transaction RCA Agent via SLIM Transporter using A2A Protocol.
     
     Args:
         transaction_context_json: JSON string containing the transaction context.
+        llm_config: Optional dict with {"provider": "openai", "model": "gpt-4", "api_key": "sk-..."}
+                    If provided, will be passed to the agent via message metadata.
         
     Returns:
         The transaction RCA agent's response text with RCA analysis.
@@ -58,6 +63,12 @@ async def call_transaction_rca_via_slim(transaction_context_json: str) -> str:
         transport=transport
     )
     
+    # Build message metadata with LLM config if provided
+    message_metadata = {}
+    if llm_config:
+        message_metadata["llm_config"] = llm_config
+        logger.info(f"Passing LLM config to Transaction RCA Agent: {llm_config.get('provider')}/{llm_config.get('model')}")
+    
     # Construct A2A message request
     request = SendMessageRequest(
         id=str(uuid4()),
@@ -66,6 +77,7 @@ async def call_transaction_rca_via_slim(transaction_context_json: str) -> str:
                 messageId=str(uuid4()),
                 role=Role.user,
                 parts=[Part(root=TextPart(text=transaction_context_json))],
+                metadata=message_metadata if message_metadata else None,
             )
         ),
     )
@@ -75,20 +87,45 @@ async def call_transaction_rca_via_slim(transaction_context_json: str) -> str:
     try:
         response = await client.send_message(request)
         
-        # Extract response text per A2A protocol
-        if response.root.result:
-            if response.root.result.parts:
-                part = response.root.result.parts[0].root
-                if hasattr(part, "text"):
-                    logger.info(f"Received response from transaction RCA agent")
-                    return part.text
-        elif response.root.error:
-            error_msg = f"A2A error: {response.root.error.message}"
+        # Handle None response
+        if response is None:
+            error_msg = "Received None response from transaction RCA agent"
             logger.error(error_msg)
-            raise Exception(error_msg)
+            return f"Error: {error_msg}"
+        
+        # Handle missing root
+        if not hasattr(response, 'root') or response.root is None:
+            error_msg = "Response missing root attribute"
+            logger.error(f"{error_msg}. Response type: {type(response)}, Response: {response}")
+            return f"Error: {error_msg}"
+        
+        # Extract response text per A2A protocol
+        if hasattr(response.root, 'result') and response.root.result:
+            if hasattr(response.root.result, 'parts') and response.root.result.parts:
+                part = response.root.result.parts[0]
+                if hasattr(part, 'root') and part.root:
+                    if hasattr(part.root, "text"):
+                        logger.info(f"Received response from transaction RCA agent")
+                        return part.root.text
+                    else:
+                        logger.warning(f"Part root missing text attribute. Part root type: {type(part.root)}")
+                else:
+                    logger.warning(f"Part missing root attribute. Part type: {type(part)}")
+            else:
+                logger.warning(f"Result missing parts. Result: {response.root.result}")
+        elif hasattr(response.root, 'error') and response.root.error:
+            error_msg = f"A2A error: {response.root.error.message if hasattr(response.root.error, 'message') else str(response.root.error)}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"
+        else:
+            logger.warning(f"Response has no result or error. Root attributes: {dir(response.root)}")
         
         return "No response from transaction RCA agent"
         
+    except AttributeError as e:
+        error_msg = f"Attribute error while parsing response: {e}"
+        logger.error(error_msg, exc_info=True)
+        return f"Error: {error_msg}"
     except Exception as e:
-        logger.error(f"Error calling transaction RCA agent: {e}")
-        return f"Error communicating with transaction RCA agent: {e}"
+        logger.error(f"Error calling transaction RCA agent: {e}", exc_info=True)
+        return f"Error communicating with transaction RCA agent: {str(e)}"

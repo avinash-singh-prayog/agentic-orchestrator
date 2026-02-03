@@ -6,14 +6,15 @@
  */
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Sparkles, Square } from "lucide-react"
+import { Send, Sparkles, Square, FileText, Image as ImageIcon, X } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import ReactMarkdown from "react-markdown"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
 import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
 import ExecutionTimeline from "./ExecutionTimeline"
-import type { Message } from "@/types/message"
+import FileUpload from "./FileUpload"
+import type { Message, FileAttachment } from "@/types/message"
 import { EXAMPLE_PROMPTS } from "@/utils/const"
 
 interface ChatAreaProps {
@@ -23,6 +24,7 @@ interface ChatAreaProps {
 const ChatArea: React.FC<ChatAreaProps> = () => {
     const [input, setInput] = useState("")
     const [messages, setMessages] = useState<Message[]>([])
+    const [selectedFiles, setSelectedFiles] = useState<FileAttachment[]>([])
     const inputRef = useRef<HTMLTextAreaElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -48,7 +50,8 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                 role: msg.role,
                 content: msg.content,
                 timestamp: new Date(msg.timestamp),
-                activity: msg.activity
+                activity: msg.activity,
+                attachments: msg.attachments
             }))
             setMessages(convertedMessages)
         } else {
@@ -102,18 +105,30 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
     }, [streamingStatus, finalResponse, streamingEvents])
 
     const handleSend = async () => {
-        if (!input.trim() || isLoading) return
+        if ((!input.trim() && selectedFiles.length === 0) || isLoading) return
+
+        // Filter out files without file object
+        const validFiles = selectedFiles.filter(f => f.file)
+        
+        if (selectedFiles.length > 0 && validFiles.length === 0) {
+            // All files failed to process
+            alert("Failed to process files. Please try again or use different files.")
+            return
+        }
 
         const userMessage: Message = {
             id: uuidv4(),
             role: "user",
-            content: input.trim(),
+            content: input.trim() || (validFiles.length > 0 ? `[Attached ${validFiles.length} file(s)]` : ""),
             timestamp: new Date(),
+            attachments: validFiles.length > 0 ? [...validFiles] : undefined,
         }
 
         setMessages((prev) => [...prev, userMessage])
         const prompt = input.trim()
+        const attachments = validFiles.length > 0 ? [...validFiles] : undefined
         setInput("")
+        setSelectedFiles([])
 
         // Reset height
         if (inputRef.current) {
@@ -121,7 +136,19 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         }
 
         reset()
-        await startStreaming(prompt)
+        await startStreaming(prompt, {}, attachments)
+    }
+
+    const handleFilesSelected = (attachments: FileAttachment[]) => {
+        setSelectedFiles((prev) => {
+            const newFiles = [...prev, ...attachments]
+            // Limit to max files
+            return newFiles.slice(0, 5)
+        })
+    }
+
+    const handleFilesRemoved = (attachmentIds: string[]) => {
+        setSelectedFiles((prev) => prev.filter((f) => !attachmentIds.includes(f.id)))
     }
 
     const handleStop = () => {
@@ -188,33 +215,6 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         transition: "all 0.2s ease",
     }
 
-    const inputStyles: React.CSSProperties = {
-        flex: 1,
-        padding: "14px 48px 14px 16px",
-        fontSize: 14,
-        color: "var(--text-primary)",
-        background: "var(--bg-input)",
-        border: "1px solid var(--border-light)",
-        borderRadius: 14,
-        outline: "none",
-    }
-
-    const sendButtonStyles: React.CSSProperties = {
-        position: "absolute",
-        right: 8,
-        top: "50%",
-        transform: "translateY(-50%)",
-        width: 36,
-        height: 36,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 10,
-        background: "linear-gradient(135deg, #003323, #50D387)",
-        border: "none",
-        cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
-        opacity: input.trim() && !isLoading ? 1 : 0.5,
-    }
 
     const showEmptyState = messages.length === 0 && !isStreamActive
 
@@ -265,7 +265,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                     <ExecutionTimeline
                                         events={msg.activity}
                                         isLive={false}
-                                        defaultCollapsed={false}
+                                        defaultCollapsed={true}
                                     />
                                 )}
 
@@ -280,6 +280,59 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                         border: msg.role === "user" ? "none" : "1px solid var(--border-light)",
                                         color: "#f8fafc", // Keep white text on colored bubbles
                                     }}>
+                                        {/* Show attachments if present */}
+                                        {msg.attachments && msg.attachments.length > 0 && (
+                                            <div style={{
+                                                marginBottom: msg.content ? 12 : 0,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: 8,
+                                            }}>
+                                                {msg.attachments.map((attachment) => (
+                                                    <div
+                                                        key={attachment.id}
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            gap: 8,
+                                                            padding: "8px 12px",
+                                                            background: msg.role === "user" 
+                                                                ? "rgba(255, 255, 255, 0.15)" 
+                                                                : "var(--bg-input)",
+                                                            borderRadius: 8,
+                                                            fontSize: 13,
+                                                        }}
+                                                    >
+                                                        {attachment.fileType === "image" ? (
+                                                            <ImageIcon style={{ width: 16, height: 16, color: msg.role === "user" ? "#f8fafc" : "var(--text-primary)" }} />
+                                                        ) : (
+                                                            <FileText style={{ width: 16, height: 16, color: msg.role === "user" ? "#f8fafc" : "var(--text-primary)" }} />
+                                                        )}
+                                                        <span style={{
+                                                            flex: 1,
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap",
+                                                            color: msg.role === "user" ? "#f8fafc" : "var(--text-primary)",
+                                                        }}>
+                                                            {attachment.name}
+                                                        </span>
+                                                        {attachment.url && attachment.fileType === "image" && (
+                                                            <img
+                                                                src={attachment.url}
+                                                                alt={attachment.name}
+                                                                style={{
+                                                                    maxWidth: 100,
+                                                                    maxHeight: 100,
+                                                                    borderRadius: 4,
+                                                                    objectFit: "cover",
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div style={{
                                             fontSize: 14,
                                             lineHeight: 1.5,
@@ -339,7 +392,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                         ))}
 
                         {/* Live Agent Activity - shows during streaming */}
-                        {isStreamActive && <ExecutionTimeline isLive={true} />}
+                        {isStreamActive && <ExecutionTimeline isLive={true} defaultCollapsed={true} />}
 
                         <div ref={messagesEndRef} />
                     </div>
@@ -347,32 +400,139 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
             </div>
 
             {/* Input area */}
-            <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-subtle)", background: "var(--bg-panel)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1, position: "relative" }}>
+            <div style={{ padding: "20px", background: "var(--bg-app)" }}>
+                <div style={{ 
+                    position: "relative",
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border-light)",
+                    borderRadius: 16,
+                    padding: selectedFiles.length > 0 ? "12px 12px 12px 16px" : "12px 12px 12px 16px",
+                    minHeight: 56,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8
+                }}>
+                    {/* File previews inside input area */}
+                    {selectedFiles.length > 0 && (
+                        <div style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                            marginBottom: 4
+                        }}>
+                            {selectedFiles.map((attachment) => (
+                                <div
+                                    key={attachment.id}
+                                    style={{
+                                        position: "relative",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        padding: "8px 28px 8px 12px",
+                                        background: "var(--bg-panel)",
+                                        border: "1px solid var(--border-light)",
+                                        borderRadius: 8,
+                                        fontSize: 13,
+                                        maxWidth: "fit-content",
+                                    }}
+                                >
+                                    {attachment.fileType === "image" ? (
+                                        <ImageIcon style={{ width: 18, height: 18, color: "var(--text-primary)", flexShrink: 0 }} />
+                                    ) : (
+                                        <FileText style={{ width: 18, height: 18, color: "var(--text-primary)", flexShrink: 0 }} />
+                                    )}
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                        <span
+                                            style={{
+                                                maxWidth: "150px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                color: "var(--text-primary)",
+                                                fontSize: 13,
+                                            }}
+                                            title={attachment.name}
+                                        >
+                                            {attachment.name}
+                                        </span>
+                                        <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>
+                                            {attachment.fileType === "image" ? "Image" : "Spreadsheet"}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => handleFilesRemoved([attachment.id])}
+                                        style={{
+                                            position: "absolute",
+                                            top: -6,
+                                            right: -6,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            width: 20,
+                                            height: 20,
+                                            padding: 0,
+                                            background: "var(--bg-app)",
+                                            border: "1px solid var(--border-light)",
+                                            cursor: "pointer",
+                                            color: "var(--text-secondary)",
+                                            borderRadius: "50%",
+                                            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                        }}
+                                        title="Remove file"
+                                    >
+                                        <X style={{ width: 12, height: 12 }} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", paddingRight: 0 }}>
+                        <FileUpload
+                            onFilesSelected={handleFilesSelected}
+                            onFilesRemoved={handleFilesRemoved}
+                            selectedFiles={selectedFiles}
+                            maxFiles={5}
+                            disabled={isLoading}
+                        />
                         <textarea
                             ref={inputRef as any}
                             value={input}
                             onChange={handleInput}
                             onPaste={handlePaste}
                             onKeyDown={handleKeyPress}
-                            placeholder="Type your message..."
+                            placeholder="Ask anything"
                             rows={1}
                             style={{
-                                ...inputStyles,
-                                width: "100%",
+                                flex: 1,
+                                fontSize: 14,
+                                color: "var(--text-primary)",
+                                background: "transparent",
+                                border: "none",
+                                outline: "none",
                                 resize: "none",
-                                minHeight: 48,
+                                minHeight: 24,
                                 maxHeight: 120,
-                                paddingTop: 14,
-                                fontFamily: "inherit"
+                                padding: 0,
+                                paddingRight: 48,
+                                fontFamily: "inherit",
+                                lineHeight: 1.5,
                             }}
                             disabled={isLoading}
                         />
 
                         {isLoading ? (
                             <button onClick={handleStop} style={{
-                                ...sendButtonStyles,
+                                position: "absolute",
+                                right: 0,
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                width: 36,
+                                height: 36,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: "50%",
                                 background: "var(--bg-panel)",
                                 border: "1px solid var(--border-light)",
                                 cursor: "pointer",
@@ -381,7 +541,29 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                 <Square style={{ width: 10, height: 10, fill: "#ef4444", color: "#ef4444" }} />
                             </button>
                         ) : (
-                            <button onClick={handleSend} disabled={!input.trim()} style={sendButtonStyles}>
+                            <button 
+                                onClick={handleSend} 
+                                disabled={!input.trim() && selectedFiles.length === 0} 
+                                style={{
+                                    position: "absolute",
+                                    right: 0,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    width: 36,
+                                    height: 36,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderRadius: "50%",
+                                    background: (input.trim() || selectedFiles.length > 0) && !isLoading 
+                                        ? "linear-gradient(135deg, #003323, #50D387)" 
+                                        : "var(--bg-panel)",
+                                    border: "none",
+                                    cursor: (input.trim() || selectedFiles.length > 0) && !isLoading ? "pointer" : "not-allowed",
+                                    opacity: (input.trim() || selectedFiles.length > 0) && !isLoading ? 1 : 0.5,
+                                    transition: "all 0.2s ease",
+                                }}
+                            >
                                 <Send style={{ width: 16, height: 16, color: "white" }} />
                             </button>
                         )}

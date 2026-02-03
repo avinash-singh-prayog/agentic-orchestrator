@@ -5,16 +5,18 @@
  */
 
 import React, { useState, useEffect } from "react"
-import { Sun, Moon, Activity, AlertCircle, LogOut } from "lucide-react"
+import { Sun, Moon, Activity, AlertCircle, LogOut, Settings } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useChatHistoryStore } from "@/stores/chatHistoryStore"
+import LLMSettings from "@/components/Settings/LLMSettings"
 
 const Navigation: React.FC = () => {
     const { isLightMode, toggleTheme } = useTheme()
     const { getHealth } = useAgentAPI()
-    const { logout } = useChatHistoryStore()
+    const { logout, userId } = useChatHistoryStore()
     const [healthStatus, setHealthStatus] = useState<"healthy" | "unhealthy" | "loading">("loading")
+    const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -26,8 +28,9 @@ const Navigation: React.FC = () => {
             }
         }
 
+        // Check health once on mount, then every 5 minutes (reduced from 30 seconds)
         checkHealth()
-        const interval = setInterval(checkHealth, 30000)
+        const interval = setInterval(checkHealth, 300000) // 5 minutes
         return () => clearInterval(interval)
     }, [getHealth])
 
@@ -135,6 +138,11 @@ const Navigation: React.FC = () => {
                     )}
                 </div>
 
+                {/* Settings Button */}
+                <button onClick={() => setIsSettingsOpen(true)} style={buttonStyles} title="LLM Settings">
+                    <Settings style={{ width: 18, height: 18, color: "#94a3b8" }} />
+                </button>
+
                 {/* Theme Toggle */}
                 <button onClick={toggleTheme} style={buttonStyles} title={isLightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}>
                     {isLightMode ? (
@@ -149,6 +157,15 @@ const Navigation: React.FC = () => {
                     <LogOut style={{ width: 18, height: 18, color: "#ef4444" }} />
                 </button>
             </div>
+
+            {/* LLM Settings Modal */}
+            {userId && (
+                <LLMSettings
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    userId={userId}
+                />
+            )}
         </nav>
     )
 }

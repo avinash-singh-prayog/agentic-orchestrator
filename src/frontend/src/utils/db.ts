@@ -6,6 +6,7 @@
  */
 
 import Dexie, { type Table } from 'dexie'
+import type { FileAttachment } from '@/types/message'
 
 // ============================================================================
 // Types
@@ -35,6 +36,7 @@ export interface Message {
   content: string
   timestamp: Date
   activity?: AgentActivityEvent[]  // Agent activity for assistant messages
+  attachments?: FileAttachment[]   // File attachments
 }
 
 export interface UserSession {
@@ -44,6 +46,9 @@ export interface UserSession {
   email?: string
   name?: string
   activeConversationId: string | null
+  llmProvider?: string    // LLM provider (e.g., "openai", "anthropic")
+  llmModel?: string       // LLM model (e.g., "gpt-4")
+  hasApiKey?: boolean     // Whether user has configured an API key (don't store actual key)
 }
 
 // ============================================================================
@@ -152,7 +157,8 @@ export async function addMessage(
   conversationId: string,
   role: 'user' | 'assistant',
   content: string,
-  activity?: AgentActivityEvent[]
+  activity?: AgentActivityEvent[],
+  attachments?: FileAttachment[]
 ): Promise<Message> {
   const message: Message = {
     id: crypto.randomUUID(),
@@ -160,7 +166,8 @@ export async function addMessage(
     role,
     content,
     timestamp: new Date(),
-    ...(activity && activity.length > 0 ? { activity } : {})
+    ...(activity && activity.length > 0 ? { activity } : {}),
+    ...(attachments && attachments.length > 0 ? { attachments } : {})
   }
   
   await db.transaction('rw', [db.messages, db.conversations], async () => {

@@ -22,6 +22,9 @@ class TransactionRCAAgentSettings(BaseSettings):
     # LLM Model
     transaction_rca_agent_llm: str = "openrouter/openai/gpt-5.2"
 
+    # Database
+    database_url: str = ""  # Will be read from DATABASE_URL env var
+
     model_config = {
         "env_prefix": "TRANSACTION_RCA_AGENT_",
         "env_file": str(Path(__file__).resolve().parent.parent / ".env"),

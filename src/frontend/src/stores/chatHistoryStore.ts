@@ -9,7 +9,7 @@
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import { API_ENDPOINTS } from '@/utils/const'
-import { type AgentActivityEvent } from '@/types/message'
+import { type AgentActivityEvent, type FileAttachment } from '@/types/message'
 import {
   type Conversation as DBConversation,
   type Message as DBMessage,
@@ -43,6 +43,7 @@ interface MessageInfo {
   content: string
   timestamp: string
   activity?: AgentActivityEvent[]
+  attachments?: FileAttachment[]
 }
 
 interface Conversation {
@@ -60,6 +61,7 @@ interface Message {
   content: string
   timestamp: Date
   activity?: { sender: string; receiver?: string; message: string; state?: string }[]
+  attachments?: FileAttachment[]
 }
 
 interface ChatHistoryState {
@@ -85,7 +87,7 @@ interface ChatHistoryActions {
   createNewConversation: () => Promise<string>
   setActiveConversation: (id: string | null) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
-  addUserMessage: (content: string) => Promise<void>
+  addUserMessage: (content: string, attachments?: FileAttachment[]) => Promise<void>
   addAssistantMessage: (content: string, activity?: { sender: string; receiver?: string; message: string; state?: string }[]) => Promise<void>
   getActiveThreadId: () => string | null
   reset: () => void
@@ -129,7 +131,8 @@ const convertDBMessage = (msg: DBMessage): Message => ({
   role: msg.role,
   content: msg.content,
   timestamp: new Date(msg.timestamp),
-  activity: msg.activity
+  activity: msg.activity,
+  attachments: msg.attachments
 })
 
 // ============================================================================
@@ -325,7 +328,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
             
             // Save to cache
             for (const msg of data) {
-              await addDBMessage(id, msg.role, msg.content, msg.activity)
+              await addDBMessage(id, msg.role, msg.content, msg.activity, msg.attachments)
             }
             
             // Reload from cache
@@ -376,7 +379,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     }
   },
 
-  addUserMessage: async (content) => {
+  addUserMessage: async (content, attachments) => {
     let { activeConversationId, tenantId, userId } = get()
     
     if (!activeConversationId) {
@@ -385,7 +388,7 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
     }
     
     // Add to IndexedDB
-    const dbMessage = await addDBMessage(activeConversationId!, 'user', content)
+    const dbMessage = await addDBMessage(activeConversationId!, 'user', content, undefined, attachments)
     
     // Update local state
     set(state => ({ 

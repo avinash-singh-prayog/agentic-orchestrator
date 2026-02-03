@@ -32,7 +32,12 @@ async def call_transaction_rca_agent(transaction_context_json: str) -> str:
     The agent will return RCA analysis with classification, confidence, evidence, and human intervention prompt.
     """
     logger.info(f"Delegating to Transaction RCA Agent: {transaction_context_json[:100]}...")
-    return await call_transaction_rca_via_slim(transaction_context_json)
+    
+    # Note: LLM config is passed via supervisor_node's config, which is not directly accessible here
+    # The LLM config should be passed through the tool invocation context if needed
+    # For now, we'll rely on the Transaction RCA Agent using its default LLM config
+    # TODO: Extract LLM config from tool invocation context if available
+    return await call_transaction_rca_via_slim(transaction_context_json, llm_config=None)
 
 
 SUPERVISOR_TOOLS = [call_transaction_rca_agent]

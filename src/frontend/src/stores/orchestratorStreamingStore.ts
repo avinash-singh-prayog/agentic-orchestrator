@@ -7,6 +7,7 @@
 
 import { create } from "zustand"
 import type { OrchestratorStreamStep, StreamingState } from "@/types/streaming"
+import type { FileAttachment } from "@/types/message"
 import { API_ENDPOINTS } from "@/utils/const"
 import { useChatHistoryStore } from "@/stores/chatHistoryStore"
 
@@ -16,7 +17,7 @@ interface OrchestratorStreamingActions {
   setError: (error: string) => void
   setStreaming: (isStreaming: boolean) => void
   setComplete: (isComplete: boolean) => void
-  startStreaming: (prompt: string, context?: Record<string, unknown>) => Promise<void>
+  startStreaming: (prompt: string, context?: Record<string, unknown>, attachments?: FileAttachment[]) => Promise<void>
   stopStreaming: () => void
   reset: () => void
 }
@@ -75,7 +76,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
       set({ status: "idle", abortController: null })
     },
 
-    startStreaming: async (prompt, context) => {
+    startStreaming: async (prompt, context, attachments) => {
       const { reset, addEvent, setFinalResponse, setError, stopStreaming } = get()
       
       // Stop any existing stream
@@ -102,30 +103,92 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
         threadId = await chatStore.createNewConversation()
       }
 
-      // Add user message to local history
-      await chatStore.addUserMessage(prompt)
+      // Add user message to local history (with attachments)
+      await chatStore.addUserMessage(prompt, attachments)
 
       reset()
       set({ status: "connecting", abortController }) // Re-set abortController as reset() might clear it
 
       try {
+        // Prepare request body with attachments
+        const requestBody: Record<string, unknown> = {
+          prompt,
+          tenant_id: tenantId,
+          user_id: userId,
+          thread_id: threadId,
+          ...context,
+        }
+
+        // Use FormData if we have files, otherwise use JSON
+        const hasFiles = attachments && attachments.length > 0 && attachments.some(att => att.file)
+        
+        let body: FormData | string
+        let headers: HeadersInit
+        
+        if (hasFiles) {
+          // Use FormData to send files directly (no base64 conversion needed!)
+          const formData = new FormData()
+          
+          // Add text fields
+          formData.append('prompt', prompt)
+          formData.append('tenant_id', tenantId)
+          formData.append('user_id', userId)
+          formData.append('thread_id', threadId)
+          
+          // Add context fields
+          Object.entries(context || {}).forEach(([key, value]) => {
+            formData.append(key, String(value))
+          })
+          
+          // Add files directly - no base64 conversion!
+          const validAttachments = attachments.filter(att => att.file)
+          validAttachments.forEach((att, index) => {
+            formData.append(`file_${index}`, att.file!)
+            formData.append(`file_${index}_id`, att.id)
+            formData.append(`file_${index}_name`, att.name)
+            formData.append(`file_${index}_type`, att.type)
+            formData.append(`file_${index}_size`, String(att.size))
+            formData.append(`file_${index}_file_type`, att.fileType)
+          })
+          
+          body = formData
+          // Don't set Content-Type - browser will set it with boundary
+          headers = {}
+        } else {
+          // No files - use JSON as before
+          if (attachments && attachments.length > 0) {
+            requestBody.attachments = attachments.map(att => ({
+              id: att.id,
+              name: att.name,
+              type: att.type,
+              size: att.size,
+              file_type: att.fileType,
+            }))
+          }
+          body = JSON.stringify(requestBody)
+          headers = {
+            "Content-Type": "application/json",
+          }
+        }
+
         const response = await fetch(`${API_URL}${API_ENDPOINTS.PROMPT_STREAM}`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt,
-            tenant_id: tenantId,
-            user_id: userId,
-            thread_id: threadId,
-            ...context,
-          }),
+          headers,
+          body,
           signal,
         })
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          // Try to get error details from response
+          let errorMessage = `HTTP error! status: ${response.status}`
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.detail || errorData.message || errorMessage
+          } catch {
+            // If response is not JSON, use status text
+            errorMessage = response.statusText || errorMessage
+          }
+          throw new Error(errorMessage)
         }
 
         // Check content-type to determine response format
@@ -233,7 +296,14 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
           set({ status: "completed" })
         }
       } catch (error) {
-        setError(error instanceof Error ? error.message : "Unknown error occurred")
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+        console.error("Streaming error:", error)
+        setError(errorMessage)
+        
+        // If it's a 422 validation error, provide more helpful message
+        if (error instanceof Error && error.message.includes("422")) {
+          setError("File upload validation failed. Please ensure files are valid and try again.")
+        }
       }
     },
   })
