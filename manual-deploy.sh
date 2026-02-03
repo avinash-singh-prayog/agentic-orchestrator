@@ -92,6 +92,53 @@ login_ecr() {
     echo -e "${GREEN}✅ ECR login successful${NC}"
 }
 
+# Wait for deployment to complete
+wait_for_deployment() {
+    local SERVICE_NAME=$1
+    local MAX_WAIT=${2:-600}  # Default 10 minutes
+    local WAIT_INTERVAL=10
+    local ELAPSED=0
+    
+    echo -e "${YELLOW}Waiting for deployment to complete (max ${MAX_WAIT}s)...${NC}"
+    
+    while [ $ELAPSED -lt $MAX_WAIT ]; do
+        local STATUS=$(aws ecs describe-services \
+            --cluster ${CLUSTER_NAME} \
+            --services ${SERVICE_NAME} \
+            --region ${AWS_REGION} \
+            --query 'services[0].deployments[?status==`PRIMARY`].[rolloutState,runningCount,desiredCount]' \
+            --output text 2>/dev/null)
+        
+        if [ -z "$STATUS" ]; then
+            echo -e "${YELLOW}Waiting for deployment to initialize...${NC}"
+            sleep $WAIT_INTERVAL
+            ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+            continue
+        fi
+        
+        local ROLLOUT_STATE=$(echo $STATUS | awk '{print $1}')
+        local RUNNING_COUNT=$(echo $STATUS | awk '{print $2}')
+        local DESIRED_COUNT=$(echo $STATUS | awk '{print $3}')
+        
+        if [ "$ROLLOUT_STATE" = "COMPLETED" ] && [ "$RUNNING_COUNT" -eq "$DESIRED_COUNT" ] && [ "$DESIRED_COUNT" -gt 0 ]; then
+            echo -e "${GREEN}✅ Deployment completed! Running: ${RUNNING_COUNT}/${DESIRED_COUNT}${NC}"
+            return 0
+        fi
+        
+        if [ "$ROLLOUT_STATE" = "FAILED" ]; then
+            echo -e "${RED}❌ Deployment failed!${NC}"
+            return 1
+        fi
+        
+        echo -e "${YELLOW}Deployment in progress... State: ${ROLLOUT_STATE}, Running: ${RUNNING_COUNT}/${DESIRED_COUNT}${NC}"
+        sleep $WAIT_INTERVAL
+        ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+    done
+    
+    echo -e "${YELLOW}⚠️  Timeout waiting for deployment. Check AWS Console for status.${NC}"
+    return 1
+}
+
 # Deploy Supervisor Agent
 deploy_supervisor() {
     echo -e "${BLUE}========================================${NC}"
@@ -100,17 +147,29 @@ deploy_supervisor() {
     
     IMAGE_URI="${ECR_BASE}/${SUPERVISOR_REPO}"
     
-    # Build Docker image
-    echo -e "${YELLOW}Building Docker image...${NC}"
+    # Build Docker image for linux/amd64 platform (required for ECS)
+    echo -e "${YELLOW}Building Docker image for linux/amd64 platform...${NC}"
     cd src/orchestrator/supervisor_agent
-    docker build \
-        -t ${IMAGE_URI}:${BUILD_NUMBER} \
-        -t ${IMAGE_URI}:latest .
     
-    # Push to ECR
-    echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
-    docker push ${IMAGE_URI}:${BUILD_NUMBER}
-    docker push ${IMAGE_URI}:latest
+    # Use buildx for proper multi-platform support if available, otherwise fallback to regular build
+    if docker buildx version &> /dev/null; then
+        docker buildx build \
+            --platform linux/amd64 \
+            --tag ${IMAGE_URI}:${BUILD_NUMBER} \
+            --tag ${IMAGE_URI}:latest \
+            --push \
+            .
+    else
+        docker build \
+            --platform linux/amd64 \
+            -t ${IMAGE_URI}:${BUILD_NUMBER} \
+            -t ${IMAGE_URI}:latest .
+        
+        # Push to ECR
+        echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
+        docker push ${IMAGE_URI}:${BUILD_NUMBER}
+        docker push ${IMAGE_URI}:latest
+    fi
     
     # Get current task definition
     echo -e "${YELLOW}Fetching current task definition...${NC}"
@@ -124,6 +183,7 @@ deploy_supervisor() {
         .containerDefinitions[0].image = $IMAGE |
         .containerDefinitions[0].portMappings[0].containerPort = 3044 |
         .containerDefinitions[0].portMappings[0].hostPort = 3044 |
+        .containerDefinitions[0].portMappings[0].name = "prayog-prod-ag-orch-pinelabs-supervisor-agent-container-3044-tcp" |
         .containerDefinitions[0].healthCheck = {
             "command": ["CMD-SHELL", "curl -f http://localhost:3044/supervisor-pinelabs/health || exit 1"],
             "interval": 30,
@@ -160,6 +220,9 @@ deploy_supervisor() {
         --force-new-deployment \
         --region ${AWS_REGION}
     
+    # Wait for deployment to complete
+    wait_for_deployment ${SUPERVISOR_SERVICE}
+    
     # Cleanup
     rm -f /tmp/task-def-supervisor.json /tmp/new-task-def-supervisor.json
     
@@ -167,7 +230,7 @@ deploy_supervisor() {
     docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true
     
     cd - > /dev/null
-    echo -e "${GREEN}✅ Supervisor Agent deployment triggered successfully!${NC}"
+    echo -e "${GREEN}✅ Supervisor Agent deployment completed!${NC}"
 }
 
 # Deploy RCA Agent
@@ -178,17 +241,29 @@ deploy_rca() {
     
     IMAGE_URI="${ECR_BASE}/${RCA_REPO}"
     
-    # Build Docker image
-    echo -e "${YELLOW}Building Docker image...${NC}"
+    # Build Docker image for linux/amd64 platform (required for ECS)
+    echo -e "${YELLOW}Building Docker image for linux/amd64 platform...${NC}"
     cd src/orchestrator/transaction_rca_agent
-    docker build \
-        -t ${IMAGE_URI}:${BUILD_NUMBER} \
-        -t ${IMAGE_URI}:latest .
     
-    # Push to ECR
-    echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
-    docker push ${IMAGE_URI}:${BUILD_NUMBER}
-    docker push ${IMAGE_URI}:latest
+    # Use buildx for proper multi-platform support if available, otherwise fallback to regular build
+    if docker buildx version &> /dev/null; then
+        docker buildx build \
+            --platform linux/amd64 \
+            --tag ${IMAGE_URI}:${BUILD_NUMBER} \
+            --tag ${IMAGE_URI}:latest \
+            --push \
+            .
+    else
+        docker build \
+            --platform linux/amd64 \
+            -t ${IMAGE_URI}:${BUILD_NUMBER} \
+            -t ${IMAGE_URI}:latest .
+        
+        # Push to ECR
+        echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
+        docker push ${IMAGE_URI}:${BUILD_NUMBER}
+        docker push ${IMAGE_URI}:latest
+    fi
     
     # Get current task definition
     echo -e "${YELLOW}Fetching current task definition...${NC}"
@@ -203,6 +278,7 @@ deploy_rca() {
         .containerDefinitions[0].image = $IMAGE |
         .containerDefinitions[0].portMappings[0].containerPort = 3045 |
         .containerDefinitions[0].portMappings[0].hostPort = 3045 |
+        .containerDefinitions[0].portMappings[0].name = "prayog-prod-ag-orch-transaction-rca-agent-container-3045-tcp" |
         .containerDefinitions[0].environment = (
             (.containerDefinitions[0].environment // []) |
             map(select(.name != "SLIM_ENDPOINT")) +
@@ -244,6 +320,9 @@ deploy_rca() {
         --force-new-deployment \
         --region ${AWS_REGION}
     
+    # Wait for deployment to complete
+    wait_for_deployment ${RCA_SERVICE}
+    
     # Cleanup
     rm -f /tmp/task-def-rca.json /tmp/new-task-def-rca.json
     
@@ -251,7 +330,7 @@ deploy_rca() {
     docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true
     
     cd - > /dev/null
-    echo -e "${GREEN}✅ Transaction RCA Agent deployment triggered successfully!${NC}"
+    echo -e "${GREEN}✅ Transaction RCA Agent deployment completed!${NC}"
 }
 
 # Deploy Frontend
@@ -279,8 +358,9 @@ deploy_frontend() {
     fi
     
     # Install dependencies and build
+    # Vite requires environment variables to be available during build time
     npm install
-    npm run build
+    VITE_ORCHESTRATOR_API_URL=${VITE_ORCHESTRATOR_API_URL} npm run build
     
     # Deploy to S3
     echo -e "${YELLOW}Deploying to S3...${NC}"

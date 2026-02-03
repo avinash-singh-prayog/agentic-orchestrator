@@ -150,6 +150,13 @@ aws logs tail /ecs/prayog-prod-ecs-ag-orch-pinelabs-supervisor-agent-td --follow
 - Check disk space: `df -h`
 - Try cleaning up: `docker system prune -a`
 
+### Platform Mismatch Error (CannotPullContainerError)
+If you see errors like `image Manifest does not contain descriptor matching platform 'linux/amd64'`:
+- **Root Cause**: Images were built for the wrong platform (e.g., `linux/arm64` on Apple Silicon Macs)
+- **Solution**: Always use `--platform linux/amd64` when building Docker images for ECS
+- The deployment script now includes this flag automatically
+- If building manually, ensure you use: `docker build --platform linux/amd64 ...`
+
 ### ECR Login Fails
 - Verify AWS credentials: `aws sts get-caller-identity`
 - Check region: `aws configure get region`
@@ -182,9 +189,9 @@ aws ecr get-login-password --region ap-south-1 | \
   docker login --username AWS --password-stdin \
   084375559937.dkr.ecr.ap-south-1.amazonaws.com
 
-# 2. Build and push
+# 2. Build and push (IMPORTANT: Use --platform linux/amd64 for ECS compatibility)
 cd src/orchestrator/supervisor_agent
-docker build -t 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent:latest .
+docker build --platform linux/amd64 -t 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent:latest .
 docker push 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent:latest
 
 # 3. Update ECS service (simplest method - uses latest tag)
@@ -203,9 +210,9 @@ aws ecr get-login-password --region ap-south-1 | \
   docker login --username AWS --password-stdin \
   084375559937.dkr.ecr.ap-south-1.amazonaws.com
 
-# 2. Build and push
+# 2. Build and push (IMPORTANT: Use --platform linux/amd64 for ECS compatibility)
 cd src/orchestrator/transaction_rca_agent
-docker build -t 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/transaction-rca-agent:latest .
+docker build --platform linux/amd64 -t 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/transaction-rca-agent:latest .
 docker push 084375559937.dkr.ecr.ap-south-1.amazonaws.com/prayog-prod-agentic-orchestrator/transaction-rca-agent:latest
 
 # 3. Get and update task definition

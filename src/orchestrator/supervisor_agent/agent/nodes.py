@@ -66,14 +66,17 @@ class SupervisorNodes:
             )
         
         has_images = self._has_images_in_messages(messages)
+        # Set reasonable max_tokens to avoid exceeding account limits (default 65535 is too high)
+        # 4000 tokens is reasonable for most use cases and should fit within free tier limits
+        max_tokens = 4000
         if has_images:
             # Use vision model if images are present
             logger.info("Using vision model with user_config")
-            return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, use_vision=True, user_config=user_config)
+            return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, max_tokens=max_tokens, use_vision=True, user_config=user_config)
         
         # Use user-configured LLM
         logger.info(f"Using user-configured LLM: {user_config.get('provider')}/{user_config.get('model')}")
-        return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, user_config=user_config)
+        return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, max_tokens=max_tokens, user_config=user_config)
 
     async def supervisor_node(
         self, 

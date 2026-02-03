@@ -6,7 +6,6 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { useChatHistoryStore } from '@/stores/chatHistoryStore'
 import { API_ENDPOINTS } from '@/utils/const'
 import axios from 'axios'
 import { Loader2, Key, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Info } from 'lucide-react'
@@ -49,7 +48,6 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
     const [model, setModel] = useState<string>("")
     const [apiKey, setApiKey] = useState<string>("")
     const [showApiKey, setShowApiKey] = useState<boolean>(false)
-    const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isSaving, setIsSaving] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<boolean>(false)

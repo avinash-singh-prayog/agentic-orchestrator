@@ -532,7 +532,12 @@ async def get_user_llm_config(user_id: str) -> Optional[dict]:
                         
                         provider, model, api_key_stored, updated_at = row
                         
-                        logger.info(f"Retrieved from DB for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key_stored)}, api_key_length={len(api_key_stored) if api_key_stored else 0}")
+                        # Log API key preview for debugging (first 10 + last 4 chars)
+                        api_key_preview = ""
+                        if api_key_stored:
+                            api_key_preview = api_key_stored[:10] + "..." + api_key_stored[-4:] if len(api_key_stored) > 14 else "***"
+                        
+                        logger.info(f"Retrieved from DB for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key_stored)}, api_key_length={len(api_key_stored) if api_key_stored else 0}, api_key_preview={api_key_preview}, updated_at={updated_at}")
                         
                         if not provider or not model:
                             logger.warning(f"Provider or model missing for user {user_id}")
@@ -541,7 +546,9 @@ async def get_user_llm_config(user_id: str) -> Optional[dict]:
                         # API key is stored directly (no encryption/decryption)
                         api_key = api_key_stored if api_key_stored else ""
                         
-                        logger.info(f"Returning config for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key)}")
+                        # Log the actual API key being returned (masked)
+                        returned_preview = api_key[:10] + "..." + api_key[-4:] if len(api_key) > 14 else "***"
+                        logger.info(f"Returning config for user {user_id}: provider={provider}, model={model}, has_api_key={bool(api_key)}, api_key_preview={returned_preview}")
                         
                         return {
                             "provider": provider,

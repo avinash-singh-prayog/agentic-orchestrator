@@ -66,7 +66,15 @@ class LLMFactory:
             
             logger.info(f"Initializing LLM with user config: {model_string} (provider: {provider})")
             
-            # Set API key in environment temporarily (LiteLLM reads from env)
+            # Validate API key is provided
+            if not api_key or not api_key.strip():
+                raise ValueError(f"API key is required for provider {provider} but was not provided in user_config")
+            
+            # Log API key info (masked for security)
+            api_key_preview = api_key[:10] + "..." + api_key[-4:] if len(api_key) > 14 else "***"
+            logger.info(f"Using user-provided API key: {api_key_preview} (length: {len(api_key)}) for provider {provider}")
+            
+            # Map provider to environment variable name
             env_var_map = {
                 "openai": "OPENAI_API_KEY",
                 "anthropic": "ANTHROPIC_API_KEY",
@@ -76,29 +84,56 @@ class LLMFactory:
             }
             
             env_var = env_var_map.get(provider)
-            original_key = None
+            if not env_var:
+                raise ValueError(f"Unknown provider: {provider}. Cannot set API key.")
+            
+            # CRITICAL: Save original value and set user's API key
+            # This ensures the user's API key is used, not the one from docker-compose/env
+            original_key = os.environ.get(env_var)
+            if original_key:
+                original_preview = original_key[:10] + "..." + original_key[-4:] if len(original_key) > 14 else "***"
+                logger.warning(f"Overriding existing {env_var} (original: {original_preview}) with user-provided key: {api_key_preview}")
+            else:
+                logger.info(f"Setting {env_var} with user-provided API key (no existing key found)")
+            
+            # Set the user's API key in environment (LiteLLM reads from env)
+            os.environ[env_var] = api_key
+            
+            # Verify it was set correctly
+            verify_key = os.environ.get(env_var)
+            if verify_key != api_key:
+                logger.error(f"CRITICAL: Failed to set {env_var}! Expected: {api_key_preview}, Got: {verify_key[:10] + '...' + verify_key[-4:] if verify_key and len(verify_key) > 14 else 'None'}")
+                raise ValueError(f"Failed to set API key in environment variable {env_var}")
+            
+            logger.info(f"Successfully set {env_var} to user-provided API key. Verified: {api_key_preview}")
             
             try:
-                if env_var and api_key:
-                    original_key = os.environ.get(env_var)
-                    os.environ[env_var] = api_key
-                    logger.debug(f"Set {env_var} for user-configured LLM")
+                # Set reasonable default max_tokens if not provided to avoid exceeding account limits
+                # Default 65535 is too high for free tier accounts
+                effective_max_tokens = max_tokens if max_tokens is not None else 4000
+                if max_tokens is None:
+                    logger.info(f"max_tokens not specified, using default: {effective_max_tokens} (to avoid exceeding account limits)")
                 
                 llm = ChatLiteLLM(
                     model=model_string,
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_tokens=effective_max_tokens,
                     model_kwargs={
                         "num_retries": 5,
                         "timeout": 60,
                     }
                 )
+                logger.info(f"Successfully created LLM instance with user-provided API key for {provider}/{model}")
                 return llm
             except Exception as e:
-                if env_var and original_key:
+                logger.error(f"Failed to create LLM instance with user-provided API key: {e}", exc_info=True)
+                # Restore original key on error
+                if original_key:
                     os.environ[env_var] = original_key
-                elif env_var and env_var in os.environ:
+                    logger.info(f"Restored original {env_var}")
+                elif env_var in os.environ:
                     del os.environ[env_var]
+                    logger.info(f"Removed {env_var} from environment")
                 raise
         
         # No fallback to environment variables - user_config is required

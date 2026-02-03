@@ -154,7 +154,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
         )
     }, [activeEdges, setEdges])
 
-    const onNodeClick = useCallback((_event: React.MouseEvent, node: { id: string }) => {
+    const onNodeClick = useCallback((_event: React.MouseEvent, _node: { id: string }) => {
         // Node click handler
     }, [])
 
