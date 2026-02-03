@@ -39,9 +39,9 @@ def extract_llm_error_message(error: Exception) -> str:
 
 class SupervisorNodes:
     def __init__(self):
-        self.llm = LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0)
+        # Don't initialize LLM here - it requires user_config which is only available at runtime
+        # LLM will be created lazily in _get_llm_for_messages when user_config is available
         self.tools = {t.name: t for t in SUPERVISOR_TOOLS}
-        self.llm_with_tools = self.llm.bind_tools(SUPERVISOR_TOOLS)
     
     def _has_images_in_messages(self, messages) -> bool:
         """Check if any message contains image content."""
@@ -58,17 +58,22 @@ class SupervisorNodes:
     def _get_llm_for_messages(self, messages, user_config: Optional[Dict[str, str]] = None):
         """Get appropriate LLM based on message content (vision or standard) and user config."""
         logger.info(f"_get_llm_for_messages called with user_config: {user_config}")
+        
+        # user_config is REQUIRED - no fallback
+        if not user_config:
+            raise ValueError(
+                "LLM configuration is required. Please configure your API key in the frontend settings."
+            )
+        
         has_images = self._has_images_in_messages(messages)
         if has_images:
             # Use vision model if images are present
             logger.info("Using vision model with user_config")
             return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, use_vision=True, user_config=user_config)
-        if user_config:
-            # Use user-configured LLM
-            logger.info(f"Using user-configured LLM: {user_config.get('provider')}/{user_config.get('model')}")
-            return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, user_config=user_config)
-        logger.info("No user_config provided, using default LLM")
-        return self.llm
+        
+        # Use user-configured LLM
+        logger.info(f"Using user-configured LLM: {user_config.get('provider')}/{user_config.get('model')}")
+        return LLMFactory.get_llm("SUPERVISOR_LLM", temperature=0, user_config=user_config)
 
     async def supervisor_node(
         self, 

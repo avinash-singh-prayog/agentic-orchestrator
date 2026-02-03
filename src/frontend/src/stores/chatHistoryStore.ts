@@ -76,6 +76,8 @@ interface ChatHistoryState {
   isLoading: boolean
   isLoadingMessages: boolean
   isSyncing: boolean
+  hasApiKey: boolean | null // null = not checked yet, true = has key, false = no key
+  isCheckingApiKey: boolean
 }
 
 interface ChatHistoryActions {
@@ -90,6 +92,8 @@ interface ChatHistoryActions {
   addUserMessage: (content: string, attachments?: FileAttachment[]) => Promise<void>
   addAssistantMessage: (content: string, activity?: { sender: string; receiver?: string; message: string; state?: string }[]) => Promise<void>
   getActiveThreadId: () => string | null
+  checkApiKey: () => Promise<void>
+  setApiKeyConfigured: () => void
   reset: () => void
 }
 
@@ -110,7 +114,9 @@ const initialState: ChatHistoryState = {
   messages: [],
   isLoading: false,
   isLoadingMessages: false,
-  isSyncing: false
+  isSyncing: false,
+  hasApiKey: null,
+  isCheckingApiKey: false
 }
 
 // ============================================================================
@@ -157,6 +163,9 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
           name: session.name || null
         })
 
+        // Check API key status
+        await get().checkApiKey()
+
         // Load conversations
         await get().loadConversations()
         
@@ -191,6 +200,9 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
       name: name || null,
       isLoading: false
     })
+    
+    // Check API key status
+    await get().checkApiKey()
     
     // Load data for this user
     await get().loadConversations()
@@ -417,6 +429,34 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
 
   getActiveThreadId: () => get().activeConversationId,
 
+  checkApiKey: async () => {
+    const { userId } = get()
+    if (!userId) {
+      set({ hasApiKey: false })
+      return
+    }
+
+    set({ isCheckingApiKey: true })
+    try {
+      const response = await fetch(`${API_URL}${API_ENDPOINTS.LLM_CONFIG}?user_id=${userId}`)
+      if (response.ok) {
+        const config = await response.json()
+        set({ hasApiKey: config.has_api_key === true })
+      } else {
+        set({ hasApiKey: false })
+      }
+    } catch (error) {
+      console.error("Failed to check API key:", error)
+      set({ hasApiKey: false })
+    } finally {
+      set({ isCheckingApiKey: false })
+    }
+  },
+
+  setApiKeyConfigured: () => {
+    set({ hasApiKey: true })
+  },
+
   reset: () => set(initialState)
 }))
 
@@ -426,6 +466,12 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
 
 export const useConversations = () => 
   useChatHistoryStore(state => state.conversations)
+
+export const useHasApiKey = () => 
+  useChatHistoryStore(state => state.hasApiKey)
+
+export const useIsCheckingApiKey = () => 
+  useChatHistoryStore(state => state.isCheckingApiKey)
 
 export const useActiveConversationId = () => 
   useChatHistoryStore(state => state.activeConversationId)

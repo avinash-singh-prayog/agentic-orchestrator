@@ -494,12 +494,37 @@ async def run_agent(request: ChatRequest):
     # Generate thread_id if not provided
     thread_id = request.thread_id or str(uuid.uuid4())
     
-    # Fetch user's LLM configuration
+    # Fetch user's LLM configuration - REQUIRED
     llm_config = None
     try:
         llm_config = await get_user_llm_config(request.user_id)
+        if not llm_config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+        if not llm_config.get("api_key") or not llm_config.get("api_key").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning(f"Failed to fetch LLM config for user {request.user_id}: {e}. Using default.")
+        logger.error(f"Failed to fetch LLM config for user {request.user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "api_key_required",
+                "message": "API key is required. Please configure your API key in the settings before using the system."
+            }
+        )
     
     # Build config with multi-tenant namespace and LLM config
     config = build_config(request.tenant_id, request.user_id, thread_id, llm_config)
@@ -528,14 +553,38 @@ async def stream_events(
     """Stream events from the LangGraph workflow with context persistence."""
     logger.info(f"[stream_events] Starting stream - prompt: {prompt[:50]}..., attachments: {len(attachments) if attachments else 0}")
     
-    # Fetch user's LLM configuration
+    # Fetch user's LLM configuration - REQUIRED
     llm_config = None
     try:
         llm_config = await get_user_llm_config(user_id)
-        if llm_config:
-            logger.info(f"[stream_events] Using user LLM config: {llm_config.get('provider')}/{llm_config.get('model')}")
+        if not llm_config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+        if not llm_config.get("api_key") or not llm_config.get("api_key").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+        logger.info(f"[stream_events] Using user LLM config: {llm_config.get('provider')}/{llm_config.get('model')}")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning(f"[stream_events] Failed to fetch LLM config for user {user_id}: {e}. Using default.")
+        logger.error(f"[stream_events] Failed to fetch LLM config for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "api_key_required",
+                "message": "API key is required. Please configure your API key in the settings before using the system."
+            }
+        )
     
     # Build message with attachments (with error handling)
     try:

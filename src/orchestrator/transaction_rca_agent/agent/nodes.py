@@ -7,7 +7,7 @@ Business logic nodes for performing root cause analysis on unprocessed transacti
 import logging
 import json
 import copy
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import JsonOutputParser
@@ -153,15 +153,18 @@ class TransactionRCANodes:
     """Business logic nodes for Transaction RCA analysis."""
 
     def __init__(self):
-        self.llm = LLMFactory.get_llm(
-            "TRANSACTION_RCA_AGENT_LLM", temperature=0.1, max_tokens=2000
-        )
+        # Don't initialize LLM here - it requires user_config which is only available at runtime
+        # LLM will be created lazily when user_config is available
         self.json_parser = JsonOutputParser()
 
-    async def normalize_input_with_llm(self, raw_input: Any) -> Dict[str, Any]:
+    async def normalize_input_with_llm(self, raw_input: Any, user_config: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Use LLM to normalize input data to the expected TransactionContext format.
         Handles type mismatches like empty strings for dicts, lists for strings, etc.
+        
+        Args:
+            raw_input: Raw input data to normalize
+            user_config: User LLM configuration (required)
         """
         normalization_prompt = """You are a data normalization assistant. Your task is to convert input data into a valid TransactionContext JSON format.
 
@@ -208,9 +211,19 @@ Return the normalized JSON:"""
                 HumanMessage(content=normalization_prompt.format(input_data=input_str))
             ]
 
-            # Use a separate LLM instance for normalization (can be faster/lighter model)
+            # user_config is REQUIRED
+            if not user_config:
+                raise ValueError(
+                    "LLM configuration is required for normalization. "
+                    "Please configure your API key in the frontend settings."
+                )
+            
+            # Use a separate LLM instance for normalization
             normalization_llm = LLMFactory.get_llm(
-                "TRANSACTION_RCA_AGENT_LLM", temperature=0, max_tokens=2000
+                "TRANSACTION_RCA_AGENT_LLM", 
+                temperature=0, 
+                max_tokens=2000,
+                user_config=user_config
             )
             
             response = await normalization_llm.ainvoke(messages)
@@ -651,16 +664,19 @@ Return ONLY valid JSON:"""
                 if user_config:
                     logger.info(f"Using user LLM config: {user_config.get('provider')}/{user_config.get('model')}")
             
-            # Get LLM instance (with user config if available)
-            if user_config:
-                llm_to_use = LLMFactory.get_llm(
-                    "TRANSACTION_RCA_AGENT_LLM",
-                    temperature=0.1,
-                    max_tokens=2000,
-                    user_config=user_config
+            # user_config is REQUIRED - no fallback
+            if not user_config:
+                raise ValueError(
+                    "LLM configuration is required. Please configure your API key in the frontend settings."
                 )
-            else:
-                llm_to_use = self.llm
+            
+            # Get LLM instance with user config
+            llm_to_use = LLMFactory.get_llm(
+                "TRANSACTION_RCA_AGENT_LLM",
+                temperature=0.1,
+                max_tokens=2000,
+                user_config=user_config
+            )
             
             # Build input context for LLM - handle flexible format
             transaction_id = getattr(context, 'transaction_id', None) or "UNKNOWN"

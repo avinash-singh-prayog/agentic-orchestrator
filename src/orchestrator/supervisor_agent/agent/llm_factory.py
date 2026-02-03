@@ -123,43 +123,8 @@ class LLMFactory:
                     del os.environ[env_var]
                 raise
         
-        # Fallback to environment variables (backward compatibility)
-        # If vision is needed, check for vision-specific model first
-        if use_vision:
-            vision_model = os.getenv("SUPERVISOR_VISION_LLM")
-            if vision_model:
-                model_name = vision_model
-                logger.info(f"Using vision model: {model_name} from SUPERVISOR_VISION_LLM")
-            else:
-                # Fallback to regular model (may or may not support vision)
-                if not model_env_var:
-                    raise ValueError("model_env_var is required when user_config is not provided")
-                model_name = os.getenv(model_env_var)
-                if model_name:
-                    logger.info(f"Using model: {model_name} for vision (no SUPERVISOR_VISION_LLM set)")
-                else:
-                    raise ValueError(f"Environment variable '{model_env_var}' is not set. Please configure the LLM model name.")
-        else:
-            if not model_env_var:
-                raise ValueError("model_env_var is required when user_config is not provided")
-            model_name = os.getenv(model_env_var)
-            if not model_name:
-                # Fallback or error - deciding to error to ensure configuration is explicit
-                raise ValueError(f"Environment variable '{model_env_var}' is not set. Please configure the LLM model name.")
-            logger.info(f"Initializing LLM with model: {model_name} from env var: {model_env_var}")
-
-        # Determine which API key to use based on the model provider
-        model_kwargs = {
-            "num_retries": 5,
-            "timeout": 60,
-        }
-        
-        # ChatLiteLLM wrapper handles the underlying litellm calls.
-        # Pass API key via model_kwargs to ensure authentication works
-        llm = ChatLiteLLM(
-            model=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            model_kwargs=model_kwargs
+        # No fallback to environment variables - user_config is required
+        raise ValueError(
+            "LLM configuration is required. Please provide user_config with provider, model, and api_key. "
+            "Environment variable fallback has been removed. Users must configure their API key in the frontend."
         )
-        return llm

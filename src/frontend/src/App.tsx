@@ -12,6 +12,7 @@ import MainArea from "@/components/MainArea/MainArea"
 import { ChatArea } from "@/components/Chat"
 import ChatSidebar from "@/components/Chat/ChatSidebar"
 import AuthScreen from "@/components/Auth/AuthScreen"
+import ApiKeySetup from "@/components/Auth/ApiKeySetup"
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 
 import {
@@ -19,7 +20,7 @@ import {
   useStreamingEvents,
   useStreamingFinalResponse
 } from "@/stores/orchestratorStreamingStore"
-import { useChatHistoryStore, useChatSession } from "@/stores/chatHistoryStore"
+import { useChatHistoryStore, useChatSession, useHasApiKey, useIsCheckingApiKey } from "@/stores/chatHistoryStore"
 
 const App: React.FC = () => {
 
@@ -36,9 +37,13 @@ const App: React.FC = () => {
   const addAssistantMessage = useChatHistoryStore(state => state.addAssistantMessage)
 
   // Auth & Session
-  const { isAuthenticated } = useChatSession()
+  const { isAuthenticated, userId } = useChatSession()
   const initSession = useChatHistoryStore(state => state.initSession)
   const isLoadingSession = useChatHistoryStore(state => state.isLoading)
+  const hasApiKey = useHasApiKey()
+  const isCheckingApiKey = useIsCheckingApiKey()
+  const setApiKeyConfigured = useChatHistoryStore(state => state.setApiKeyConfigured)
+  const checkApiKey = useChatHistoryStore(state => state.checkApiKey)
 
   // Initialize session on mount
   useEffect(() => {
@@ -200,7 +205,7 @@ const App: React.FC = () => {
     </div>
   )
 
-  if (isLoadingSession) {
+  if (isLoadingSession || isCheckingApiKey) {
     return (
       <div style={{ ...appStyles, alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 className="animate-spin text-[var(--accent-primary)]" size={32} />
@@ -210,6 +215,20 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return <AuthScreen />
+  }
+
+  // Show API key setup if user is authenticated but doesn't have an API key
+  if (isAuthenticated && userId && hasApiKey === false) {
+    return (
+      <ApiKeySetup 
+        userId={userId} 
+        onComplete={async () => {
+          setApiKeyConfigured()
+          // Also refresh the API key check to ensure it's up to date
+          await checkApiKey()
+        }} 
+      />
+    )
   }
 
   return (
