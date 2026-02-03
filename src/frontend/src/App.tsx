@@ -86,7 +86,7 @@ const App: React.FC = () => {
         message: event.message,
         state: event.state
       }))
-      console.log('[Activity Save] Saving activity with', activity.length, 'events:', activity)
+      
       addAssistantMessage(finalResponse, activity)
     }
   }, [streamingStatus, finalResponse, streamingEvents, addAssistantMessage])

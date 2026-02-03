@@ -292,6 +292,31 @@ Return the normalized JSON:"""
         normalized = copy.deepcopy(raw_input)
         logger.info(f"Normalizing input with keys: {list(normalized.keys())}")
 
+        # Convert checkpoints from dict to list format if needed
+        if "checkpoints" in normalized and isinstance(normalized["checkpoints"], dict):
+            logger.info(f"Converting checkpoints from dict to list format")
+            checkpoints_list = []
+            for checkpoint_name, checkpoint_data in normalized["checkpoints"].items():
+                if isinstance(checkpoint_data, dict):
+                    checkpoint_obj = {
+                        "checkpoint_name": checkpoint_name,
+                        "status": checkpoint_data.get("status", "UNKNOWN"),
+                        "timestamp": checkpoint_data.get("timestamp"),
+                        "details": checkpoint_data.get("details", {})
+                    }
+                    checkpoints_list.append(checkpoint_obj)
+                else:
+                    # If checkpoint_data is not a dict, create a simple checkpoint
+                    checkpoint_obj = {
+                        "checkpoint_name": checkpoint_name,
+                        "status": str(checkpoint_data) if checkpoint_data else "UNKNOWN",
+                        "timestamp": None,
+                        "details": {}
+                    }
+                    checkpoints_list.append(checkpoint_obj)
+            normalized["checkpoints"] = checkpoints_list
+            logger.info(f"Converted {len(checkpoints_list)} checkpoints from dict to list")
+
         # Fix checkpoints details
         if "checkpoints" in normalized and isinstance(normalized["checkpoints"], list):
             logger.info(f"Normalizing {len(normalized['checkpoints'])} checkpoints")
@@ -450,38 +475,34 @@ Return the normalized JSON:"""
 
                 # If we have context_data, try to validate as TransactionContext
                 if context_data is not None:
-                    # Try to validate directly first
+                    # TransactionContext now accepts any format and auto-normalizes checkpoints and observational_notes
                     try:
+                        # Ensure we have at least an empty dict structure
+                        if not isinstance(context_data, dict):
+                            context_data = {"data": context_data}
+                        
+                        # Create TransactionContext - validators will normalize checkpoints (dict->list) and observational_notes (list->string)
                         transaction_context = TransactionContext(**context_data)
-                        logger.info(f"Parsed transaction context: {transaction_context.transaction_id}")
+                        logger.info(f"Parsed transaction context: {getattr(transaction_context, 'transaction_id', 'N/A')}")
                         return {"transaction_context": transaction_context}
                     except Exception as validation_error:
-                        logger.warning(f"Direct validation failed: {validation_error}. Attempting LLM normalization...")
-                        # Use LLM to normalize the input
-                        normalized_data = await self.normalize_input_with_llm(context_data)
-                        
-                        if "error" in normalized_data:
-                            return {
-                                "error": normalized_data["error"],
-                                "messages": [
-                                    AIMessage(content=f"Error normalizing input: {normalized_data['error']}")
-                                ],
-                            }
-                        
-                        # Try validation again with normalized data
+                        logger.warning(f"Validation failed: {validation_error}. Creating fallback context...")
+                        # Last resort: create with minimal required fields
                         try:
-                            transaction_context = TransactionContext(**normalized_data)
-                            logger.info(f"Parsed transaction context after normalization: {transaction_context.transaction_id}")
+                            # Try to extract what we can
+                            fallback_context = {}
+                            if isinstance(context_data, dict):
+                                fallback_context = {k: v for k, v in context_data.items()}
+                            # Create with whatever we have - validators will normalize
+                            transaction_context = TransactionContext(**fallback_context)
+                            logger.info(f"Created fallback transaction context")
                             return {"transaction_context": transaction_context}
                         except Exception as e:
-                            logger.error(f"Validation failed even after normalization: {e}")
-                            # Don't fail completely - try to extract what we can
-                            return {
-                                "error": f"Failed to parse transaction context after normalization: {str(e)}",
-                                "messages": [
-                                    AIMessage(content=f"Error parsing input: {str(e)}")
-                                ],
-                            }
+                            logger.error(f"Failed to create fallback context: {e}")
+                            # Absolute last resort: empty context
+                            transaction_context = TransactionContext()
+                            logger.warning(f"Created empty transaction context as last resort")
+                            return {"transaction_context": transaction_context}
 
             except (json.JSONDecodeError, TypeError) as e:
                 # If not JSON, try to extract from natural language using LLM
@@ -497,11 +518,21 @@ Return the normalized JSON:"""
                                 ],
                             }
                         
-                        # Normalize and validate
-                        normalized_data = await self.normalize_input_with_llm(extracted_data)
-                        transaction_context = TransactionContext(**normalized_data)
-                        logger.info(f"Parsed transaction context from natural language: {transaction_context.transaction_id}")
-                        return {"transaction_context": transaction_context}
+                        # Create transaction context - now accepts any format
+                        try:
+                            transaction_context = TransactionContext(**extracted_data)
+                            logger.info(f"Parsed transaction context from natural language: {getattr(transaction_context, 'transaction_id', 'N/A')}")
+                            return {"transaction_context": transaction_context}
+                        except Exception as e:
+                            logger.warning(f"Failed to create context from extracted data: {e}. Creating minimal context.")
+                            minimal_context = {
+                                "transaction_id": extracted_data.get("transaction_id") if isinstance(extracted_data, dict) else None,
+                                "checkpoints": extracted_data.get("checkpoints", []) if isinstance(extracted_data, dict) else [],
+                            }
+                            if isinstance(extracted_data, dict):
+                                minimal_context.update({k: v for k, v in extracted_data.items() if k not in minimal_context})
+                            transaction_context = TransactionContext(**minimal_context)
+                            return {"transaction_context": transaction_context}
                     except Exception as extract_error:
                         logger.error(f"Failed to extract from natural language: {extract_error}")
                         return {
@@ -584,7 +615,6 @@ Return ONLY valid JSON:"""
         config = None
     ) -> Dict[str, Any]:
         """Perform RCA analysis using LLM reasoning."""
-        from langchain_core.runnables import RunnableConfig
         
         context = state.get("transaction_context")
         if not context:
@@ -595,20 +625,28 @@ Return ONLY valid JSON:"""
                 ],
             }
 
-        logger.info(f"Analyzing RCA for transaction: {context.transaction_id}")
+        transaction_id = getattr(context, 'transaction_id', None) or "UNKNOWN"
+        logger.info(f"Analyzing RCA for transaction: {transaction_id}")
 
         try:
             # Extract LLM config from config if available
             user_config = None
             if config:
-                if isinstance(config, RunnableConfig):
-                    configurable = getattr(config, "configurable", {})
-                    if isinstance(configurable, dict):
-                        user_config = configurable.get("llm_config")
-                elif isinstance(config, dict):
-                    configurable = config.get("configurable", {})
-                    if isinstance(configurable, dict):
-                        user_config = configurable.get("llm_config")
+                configurable = None
+                # Method 1: Direct attribute access (for RunnableConfig objects)
+                if hasattr(config, "configurable"):
+                    configurable = getattr(config, "configurable", None)
+                
+                # Method 2: Dict access (for dict configs)
+                if not configurable and isinstance(config, dict):
+                    configurable = config.get("configurable")
+                
+                # Method 3: Try get() method if config is dict-like
+                if not configurable and hasattr(config, "get") and not isinstance(config, dict):
+                    configurable = config.get("configurable")
+                
+                if configurable and isinstance(configurable, dict):
+                    user_config = configurable.get("llm_config")
                 
                 if user_config:
                     logger.info(f"Using user LLM config: {user_config.get('provider')}/{user_config.get('model')}")
@@ -624,24 +662,42 @@ Return ONLY valid JSON:"""
             else:
                 llm_to_use = self.llm
             
-            # Build input context for LLM
+            # Build input context for LLM - handle flexible format
+            transaction_id = getattr(context, 'transaction_id', None) or "UNKNOWN"
+            checkpoints = getattr(context, 'checkpoints', None) or []
+            
+            # Convert checkpoints to dict format - handle any format
+            checkpoint_list = []
+            if checkpoints:
+                for cp in checkpoints:
+                    if isinstance(cp, dict):
+                        checkpoint_list.append(cp)
+                    elif hasattr(cp, 'model_dump'):
+                        checkpoint_list.append(cp.model_dump())
+                    elif hasattr(cp, '__dict__'):
+                        checkpoint_list.append(cp.__dict__)
+                    else:
+                        checkpoint_list.append({"data": str(cp)})
+            
+            # Get all fields from context (including extra fields)
             input_data = {
-                "transaction_id": context.transaction_id,
-                "checkpoints": [
-                    {
-                        "checkpoint_name": cp.checkpoint_name,
-                        "status": cp.status,
-                        "timestamp": cp.timestamp,
-                        "details": cp.details,
-                    }
-                    for cp in context.checkpoints
-                ],
-                "merchant_config": context.merchant_config,
-                "merchant_data": context.merchant_data,
-                "external_signals": context.external_signals,
-                "risk_indicators": context.risk_indicators,
-                "observational_notes": context.observational_notes,
+                "transaction_id": transaction_id,
+                "checkpoints": checkpoint_list,
+                "merchant_config": getattr(context, 'merchant_config', None),
+                "merchant_data": getattr(context, 'merchant_data', None),
+                "external_signals": getattr(context, 'external_signals', None),
+                "risk_indicators": getattr(context, 'risk_indicators', None),
+                "observational_notes": getattr(context, 'observational_notes', None),
             }
+            
+            # Add any extra fields from the flexible model
+            if hasattr(context, 'model_extra') and context.model_extra:
+                input_data.update(context.model_extra)
+            elif hasattr(context, '__dict__'):
+                # Include any other attributes that might be present
+                for key, value in context.__dict__.items():
+                    if key not in input_data and not key.startswith('_'):
+                        input_data[key] = value
 
             # Create messages for LLM
             messages = [

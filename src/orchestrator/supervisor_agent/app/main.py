@@ -566,7 +566,10 @@ async def stream_events(
     last_content = ""
     
     import asyncio
-    from langchain_core.messages import ToolMessage
+    from langchain_core.messages import ToolMessage, AIMessage
+    
+    # Track current tool name for tools node
+    current_tool_name = None
     
     try:
         async with get_checkpointer() as checkpointer:
@@ -602,6 +605,11 @@ async def stream_events(
             # Config passed here. 
             async for event in graph_with_memory.astream_events(initial_state, config, version="v2"):
                 event_type = event.get("event", "")
+                event_name = event.get("name", "")
+                
+                # Debug logging for tool-related events
+                if "tool" in event_type.lower() or event_name == "tools":
+                    logger.info(f"[STREAM DEBUG] Event: type={event_type}, name={event_name}, data_keys={list(event.get('data', {}).keys()) if isinstance(event.get('data'), dict) else 'no data'}")
                 
                 # Track node transitions
                 if event_type == "on_chain_start":
@@ -614,6 +622,52 @@ async def stream_events(
                                 "node": node_name
                             }
                         }) + "\n"
+                    elif node_name == "tools":
+                        # Capture when tools node starts - this is when Transaction RCA Agent is called
+                        # Try to extract tool name from event data
+                        event_data_raw = event.get("data", {})
+                        # Log all event data for debugging
+                        logger.info(f"[STREAM] on_chain_start for tools node, event data keys: {list(event_data_raw.keys()) if isinstance(event_data_raw, dict) else 'not a dict'}")
+                        
+                        # Try to get tool name from input or other sources
+                        input_data = event_data_raw.get("input", {})
+                        messages = input_data.get("messages", []) if isinstance(input_data, dict) else []
+                        if messages:
+                            last_msg = messages[-1] if messages else None
+                            if last_msg and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                                tool_call = last_msg.tool_calls[0]
+                                tool_name = tool_call.get("name", "unknown")
+                                # Store tool name for use in on_chain_end
+                                current_tool_name = tool_name
+                                tool_name_lower = tool_name.lower()
+                                
+                                # Determine sender
+                                sender = "Unknown Agent"
+                                if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
+                                    sender = "Transaction RCA Agent"
+                                elif "slim" in tool_name_lower:
+                                    sender = "SLIM Transport"
+                                
+                                logger.info(f"[STREAM] Detected tool call in tools node: {tool_name}, sender: {sender}")
+                                
+                                # Emit delegation event
+                                yield json.dumps({
+                                    "content": {
+                                        "sender": "Supervisor",
+                                        "message": f"Delegating to {tool_name}...",
+                                        "node": "tools"
+                                    }
+                                }) + "\n"
+                                
+                                # Emit agent starting event
+                                yield json.dumps({
+                                    "content": {
+                                        "sender": sender,
+                                        "message": f"Executing {tool_name}...",
+                                        "node": "tools",
+                                        "agent_active": True
+                                    }
+                                }) + "\n"
                 
                 # Capture tool calls
                 elif event_type == "on_tool_start":
@@ -639,14 +693,18 @@ async def stream_events(
                     
                     # Log for debugging (using module-level logger)
                     logger.info(f"Tool: {tool_name}, Mapped sender: {sender}")
-                        
-                    yield json.dumps({
+                    
+                    # Emit event with explicit agent identification for frontend
+                    event_data = {
                         "content": {
                             "sender": sender,
-                            "message": "Processing request...",
-                            "node": "tools"
+                            "message": f"Executing {tool_name}...",
+                            "node": "tools",
+                            "agent_active": True  # Flag to indicate agent is actively processing
                         }
-                    }) + "\n"
+                    }
+                    logger.info(f"[STREAM] Emitting tool_start event: sender={sender}, tool={tool_name}")
+                    yield json.dumps(event_data) + "\n"
                 
                 # Capture tool results
                 elif event_type == "on_tool_end":
@@ -663,13 +721,84 @@ async def stream_events(
                         sender = "SLIM Transport"
                     
                     if tool_output:
-                        yield json.dumps({
+                        # Don't truncate Transaction RCA Agent output - it contains important analysis
+                        output_message = str(tool_output)
+                        if sender == "Transaction RCA Agent" and len(output_message) > 500:
+                            # For RCA, show first 500 chars + indicator
+                            output_message = output_message[:500] + "... (analysis continues)"
+                        
+                        event_data = {
                             "content": {
                                 "sender": sender,
-                                "message": str(tool_output)[:200] + "...",
-                                "node": "carrier"
+                                "message": output_message if sender == "Transaction RCA Agent" else (str(tool_output)[:200] + "..."),
+                                "node": "tools"
                             }
-                        }) + "\n"
+                        }
+                        logger.info(f"[STREAM] Emitting tool_end event: sender={sender}, tool={tool_name}, output_length={len(str(tool_output))}")
+                        yield json.dumps(event_data) + "\n"
+                
+                # Capture tool node completion (when tools node finishes)
+                elif event_type == "on_chain_end" and event_name == "tools":
+                    output = event.get("data", {}).get("output", {})
+                    input_data = event.get("data", {}).get("input", {})
+                    logger.info(f"[STREAM] Tools node ended, output type: {type(output)}, keys: {list(output.keys()) if isinstance(output, dict) else 'not a dict'}")
+                    
+                    # Try to extract tool output from messages
+                    if isinstance(output, dict) and "messages" in output:
+                        messages = output["messages"]
+                        input_messages = input_data.get("messages", []) if isinstance(input_data, dict) else []
+                        
+                        # Look for ToolMessage which contains the tool output
+                        for msg in messages:
+                            from langchain_core.messages import ToolMessage, AIMessage
+                            if isinstance(msg, ToolMessage):
+                                tool_output = str(msg.content)
+                                tool_call_id = getattr(msg, "tool_call_id", None)
+                                
+                                # Find the corresponding AIMessage with the tool call to get the tool name
+                                tool_name = "unknown"
+                                if tool_call_id:
+                                    # Look in input messages for the AIMessage with matching tool_call_id
+                                    for input_msg in input_messages:
+                                        if isinstance(input_msg, AIMessage) and hasattr(input_msg, "tool_calls"):
+                                            for tool_call in input_msg.tool_calls or []:
+                                                if getattr(tool_call, "id", None) == tool_call_id:
+                                                    tool_name = getattr(tool_call, "name", "unknown")
+                                                    break
+                                            if tool_name != "unknown":
+                                                break
+                                
+                                # Fallback to tracked tool name if extraction failed
+                                if tool_name == "unknown" and current_tool_name:
+                                    tool_name = current_tool_name
+                                    logger.info(f"[STREAM] Using tracked tool name: {tool_name}")
+                                
+                                tool_name_lower = tool_name.lower()
+                                
+                                # Determine sender
+                                sender = "Unknown Agent"
+                                if ("transaction" in tool_name_lower and "rca" in tool_name_lower) or "transaction_rca" in tool_name_lower:
+                                    sender = "Transaction RCA Agent"
+                                elif "slim" in tool_name_lower:
+                                    sender = "SLIM Transport"
+                                
+                                logger.info(f"[STREAM] Found ToolMessage: tool={tool_name}, sender={sender}, output_length={len(tool_output)}")
+                                
+                                # Emit tool result event
+                                output_message = tool_output
+                                if sender == "Transaction RCA Agent" and len(output_message) > 500:
+                                    output_message = output_message[:500] + "... (analysis continues)"
+                                
+                                yield json.dumps({
+                                    "content": {
+                                        "sender": sender,
+                                        "message": output_message if sender == "Transaction RCA Agent" else (tool_output[:200] + "..."),
+                                        "node": "tools"
+                                    }
+                                }) + "\n"
+                                # Reset tracked tool name after use
+                                current_tool_name = None
+                                break  # Only emit once for the first ToolMessage
                 
                 # Capture final AI messages
                 elif event_type == "on_chain_end":

@@ -4,43 +4,109 @@ Domain Models for Transaction RCA Agent.
 Pydantic models for transaction context input and RCA analysis output.
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional, Any, Dict, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
 
 class TransactionCheckpoint(BaseModel):
-    """System checkpoint status."""
+    """System checkpoint status - flexible format accepting any fields."""
 
-    checkpoint_name: str = Field(
-        ..., description="Checkpoint name: ingestion, authorization, routing, ledger, settlement_file_generated, bank_acknowledged, credited"
+    model_config = ConfigDict(extra="allow")  # Allow arbitrary fields
+
+    checkpoint_name: Optional[str] = Field(
+        None, description="Checkpoint name: ingestion, authorization, routing, ledger, settlement_file_generated, bank_acknowledged, credited"
     )
-    status: str = Field(..., description="Status: success, pending, failed")
+    status: Optional[str] = Field(None, description="Status: success, pending, failed")
     timestamp: Optional[str] = Field(None, description="Timestamp of checkpoint")
     details: Optional[dict] = Field(None, description="Additional checkpoint details")
 
 
 class TransactionContext(BaseModel):
-    """Input transaction context for RCA analysis."""
+    """Input transaction context for RCA analysis - flexible format accepting any transaction structure."""
 
-    transaction_id: str = Field(..., description="Unique transaction identifier")
-    checkpoints: List[TransactionCheckpoint] = Field(
-        ..., description="List of system checkpoints with their status"
+    model_config = ConfigDict(
+        extra="allow",  # Allow arbitrary fields
+        validate_assignment=False,  # Don't validate on assignment
+        arbitrary_types_allowed=True,  # Allow arbitrary types
     )
-    merchant_config: Optional[dict] = Field(
+
+    transaction_id: Optional[Any] = Field(None, description="Unique transaction identifier")
+    checkpoints: Optional[Any] = Field(
+        None, description="System checkpoints (can be dict, list, or any format)"
+    )
+    merchant_config: Optional[Any] = Field(
         None, description="Merchant configuration: TID, MDR, routing config"
     )
-    merchant_data: Optional[dict] = Field(
+    merchant_data: Optional[Any] = Field(
         None, description="Merchant master data: Account, IFSC, bank details"
     )
-    external_signals: Optional[dict] = Field(
+    external_signals: Optional[Any] = Field(
         None, description="External dependency signals: Bank health, rejections"
     )
-    risk_indicators: Optional[dict] = Field(
+    risk_indicators: Optional[Any] = Field(
         None, description="Risk and compliance indicators"
     )
-    observational_notes: Optional[str] = Field(
-        None, description="Optional observational notes"
+    observational_notes: Optional[Any] = Field(
+        None, description="Optional observational notes (can be string, list, or any format)"
     )
+    
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_all_fields(cls, data: Any) -> Dict[str, Any]:
+        """Root validator that normalizes ALL fields before any validation happens."""
+        if not isinstance(data, dict):
+            # If not a dict, wrap it
+            return {"data": data}
+        
+        normalized = dict(data)
+        
+        # Normalize checkpoints - handle dict, list, or any format
+        if 'checkpoints' in normalized:
+            checkpoints = normalized['checkpoints']
+            if checkpoints is not None:
+                if isinstance(checkpoints, list):
+                    # Already a list, keep as-is
+                    pass
+                elif isinstance(checkpoints, dict):
+                    # Convert dict to list format
+                    checkpoints_list = []
+                    for checkpoint_name, checkpoint_data in checkpoints.items():
+                        if isinstance(checkpoint_data, dict):
+                            checkpoint_obj = {
+                                "checkpoint_name": checkpoint_name,
+                                "status": checkpoint_data.get("status", "UNKNOWN"),
+                                "timestamp": checkpoint_data.get("timestamp"),
+                                "details": checkpoint_data.get("details", {})
+                            }
+                            checkpoints_list.append(checkpoint_obj)
+                        else:
+                            checkpoint_obj = {
+                                "checkpoint_name": checkpoint_name,
+                                "status": str(checkpoint_data) if checkpoint_data else "UNKNOWN",
+                                "timestamp": None,
+                                "details": {}
+                            }
+                            checkpoints_list.append(checkpoint_obj)
+                    normalized['checkpoints'] = checkpoints_list
+                else:
+                    # Any other type, wrap it
+                    normalized['checkpoints'] = [{"data": checkpoints}]
+        
+        # Normalize observational_notes - handle string, list, or any format
+        if 'observational_notes' in normalized:
+            notes = normalized['observational_notes']
+            if notes is not None:
+                if isinstance(notes, str):
+                    # Already a string, keep as-is
+                    pass
+                elif isinstance(notes, list):
+                    # Convert list to string
+                    normalized['observational_notes'] = "; ".join(str(item) for item in notes)
+                else:
+                    # Any other type, convert to string
+                    normalized['observational_notes'] = str(notes)
+        
+        return normalized
 
 
 class RCAAnalysis(BaseModel):

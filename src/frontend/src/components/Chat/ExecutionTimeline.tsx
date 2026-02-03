@@ -266,10 +266,6 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                 {events.map((event, index) => {
                     const getAgentKey = (sender: string) => {
                         const s = sender.toLowerCase()
-                        // Debug logging
-                        if (s.includes("transaction") || s.includes("rca")) {
-                            console.log(`[ExecutionTimeline] Sender: "${sender}", Lower: "${s}", Checking Transaction RCA...`)
-                        }
                         if (s.includes("carrier")) return "carrier"
                         if (s.includes("transaction") && s.includes("rca")) return "transaction-rca"
                         if (s.includes("rca")) return "transaction-rca"

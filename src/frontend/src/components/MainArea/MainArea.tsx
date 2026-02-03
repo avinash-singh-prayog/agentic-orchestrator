@@ -33,8 +33,6 @@ const edgeTypes = {
 const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } => {
     const senderLower = sender.toLowerCase()
 
-    // Debug log to verify sender name
-    console.log("Animation Path for sender:", sender, "Lower:", senderLower)
 
     // Base path always includes supervisor and transport
     const basePath = {
@@ -49,7 +47,6 @@ const getAnimationPath = (sender: string): { nodes: string[], edges: string[] } 
         senderLower === "transaction_rca_agent" ||
         senderLower === "transaction-rca-agent"
     ) {
-        console.log("Found Transaction RCA Agent activity:", sender)
         return {
             nodes: [...basePath.nodes, "transaction-rca-agent"],
             edges: [...basePath.edges, "slim-to-transaction-rca-agent"],
@@ -87,9 +84,23 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
     const events = useStreamingEvents()
     const streamingStatus = useStreamingStatus()
 
-    // Determine active agent name - from streaming events or sync prop
+    // Determine active agent name - check for Transaction RCA Agent first, then use last event
     const activeAgentName = useMemo(() => {
         if (streamingStatus === "streaming" && events.length > 0) {
+            // Check if Transaction RCA Agent is in recent events (last 5 events)
+            // This ensures graph animates even if Supervisor is the final event
+            const recentEvents = events.slice(-5)
+            const rcaEvent = recentEvents.find(e => {
+                const senderLower = e.sender.toLowerCase()
+                return (senderLower.includes("transaction") && senderLower.includes("rca")) ||
+                       senderLower.includes("rca")
+            })
+            
+            if (rcaEvent) {
+                return rcaEvent.sender
+            }
+            
+            // Otherwise use the last event
             return events[events.length - 1].sender
         }
         return syncActiveAgent || null
@@ -144,7 +155,7 @@ const MainArea: React.FC<MainAreaProps> = ({ isProcessing, activeAgent: syncActi
     }, [activeEdges, setEdges])
 
     const onNodeClick = useCallback((_event: React.MouseEvent, node: { id: string }) => {
-        console.log("Node clicked:", node.id)
+        // Node click handler
     }, [])
 
     const containerStyles: React.CSSProperties = {

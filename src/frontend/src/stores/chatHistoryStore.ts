@@ -401,12 +401,10 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
 
   addAssistantMessage: async (content, activity) => {
     const { activeConversationId } = get()
-    console.log('[addAssistantMessage] Called with activity:', activity?.length, 'events, conversationId:', activeConversationId)
     if (!activeConversationId) return
     
     // Add to IndexedDB with activity
     const dbMessage = await addDBMessage(activeConversationId, 'assistant', content, activity)
-    console.log('[addAssistantMessage] Saved to IndexedDB, message has activity:', !!dbMessage.activity, dbMessage.activity?.length)
     
     // Update local state
     set(state => ({ 

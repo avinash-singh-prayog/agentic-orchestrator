@@ -3,10 +3,10 @@ Transaction management API endpoints.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from database.base import get_db
 from database.models import TransactionStatus
@@ -22,22 +22,26 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 # ============================================================================
 
 class TransactionCheckpointRequest(BaseModel):
-    """Transaction checkpoint data."""
-    checkpoint_name: str
-    status: str
+    """Transaction checkpoint data - flexible format accepting any fields."""
+    model_config = ConfigDict(extra="allow")  # Allow arbitrary fields
+    
+    checkpoint_name: Optional[str] = None
+    status: Optional[str] = None
     timestamp: Optional[str] = None
     details: Optional[dict] = None
 
 
 class TransactionCreateRequest(BaseModel):
-    """Request to create a transaction."""
-    transaction_id: str = Field(..., description="Unique transaction identifier")
+    """Request to create a transaction - accepts any transaction format."""
+    model_config = ConfigDict(extra="allow")  # Allow arbitrary fields
+    
+    transaction_id: Optional[str] = Field(None, description="Unique transaction identifier")
     merchant_id: Optional[str] = None
     merchant_name: Optional[str] = None
     transaction_value: Optional[float] = None
-    currency: str = "INR"
+    currency: Optional[str] = "INR"
     initiated_at: Optional[str] = None
-    checkpoints: Optional[List[TransactionCheckpointRequest]] = None
+    checkpoints: Optional[List[Any]] = None  # Accept any checkpoint format
     merchant_config: Optional[dict] = None
     merchant_data: Optional[dict] = None
     external_signals: Optional[dict] = None
@@ -85,22 +89,40 @@ def create_transaction(
     Create a new unprocessed transaction record.
     
     This endpoint is used to register transactions that need RCA analysis.
+    Accepts any transaction format - all fields are optional.
     """
     try:
-        # Check if transaction already exists
-        existing = TransactionService.get_transaction_by_transaction_id(
-            db, request.transaction_id
-        )
-        if existing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Transaction {request.transaction_id} already exists"
-            )
+        # Generate transaction_id if not provided
+        transaction_id = request.transaction_id
+        if not transaction_id:
+            import uuid
+            transaction_id = f"TXN-{uuid.uuid4().hex[:8]}"
         
-        # Convert checkpoints to dict format
+        # Check if transaction already exists (only if transaction_id was provided)
+        if request.transaction_id:
+            existing = TransactionService.get_transaction_by_transaction_id(
+                db, transaction_id
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Transaction {transaction_id} already exists"
+                )
+        
+        # Convert checkpoints to dict format - handle any format
         checkpoints = None
         if request.checkpoints:
-            checkpoints = [cp.model_dump() for cp in request.checkpoints]
+            if isinstance(request.checkpoints, list):
+                checkpoints = []
+                for cp in request.checkpoints:
+                    if isinstance(cp, dict):
+                        checkpoints.append(cp)
+                    elif hasattr(cp, 'model_dump'):
+                        checkpoints.append(cp.model_dump())
+                    else:
+                        checkpoints.append({"data": str(cp)})
+            else:
+                checkpoints = [{"data": str(request.checkpoints)}]
         
         # Parse initiated_at if provided
         from datetime import datetime
@@ -113,11 +135,11 @@ def create_transaction(
         
         transaction = TransactionService.create_transaction(
             db,
-            transaction_id=request.transaction_id,
+            transaction_id=transaction_id,
             merchant_id=request.merchant_id,
             merchant_name=request.merchant_name,
             transaction_value=request.transaction_value,
-            currency=request.currency,
+            currency=request.currency or "INR",
             initiated_at=initiated_at,
             checkpoints=checkpoints,
             merchant_config=request.merchant_config,

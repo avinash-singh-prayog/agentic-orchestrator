@@ -48,8 +48,9 @@ async def run_agent(request: RCAAnalysisRequest) -> AgentResponse:
     Returns:
         Agent response with RCA analysis and human intervention prompt.
     """
+    transaction_id = getattr(request.transaction_context, 'transaction_id', None) or "UNKNOWN"
     logger.info(
-        f"Received RCA analysis request for transaction: {request.transaction_context.transaction_id}"
+        f"Received RCA analysis request for transaction: {transaction_id}"
     )
 
     try:
