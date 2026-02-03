@@ -273,7 +273,7 @@ deploy_rca() {
     
     # Update task definition with new image and SLIM_ENDPOINT
     echo -e "${YELLOW}Updating task definition...${NC}"
-    cat /tmp/task-def-rca.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" \
+    if ! cat /tmp/task-def-rca.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" \
                                      --arg SLIM_ENDPOINT "${SLIM_ENDPOINT}" '
         .containerDefinitions[0].image = $IMAGE |
         .containerDefinitions[0].portMappings[0].containerPort = 3045 |
@@ -300,7 +300,10 @@ deploy_rca() {
             .registeredAt,
             .registeredBy
         )
-    ' > /tmp/new-task-def-rca.json
+    ' > /tmp/new-task-def-rca.json; then
+        echo -e "${RED}❌ Failed to update task definition JSON${NC}"
+        exit 1
+    fi
     
     # Register new task definition
     echo -e "${YELLOW}Registering new task definition...${NC}"
@@ -309,16 +312,26 @@ deploy_rca() {
         --query 'taskDefinition.taskDefinitionArn' \
         --output text)
     
+    if [ -z "$NEW_TASK_DEF_ARN" ]; then
+        echo -e "${RED}❌ Failed to register new task definition${NC}"
+        exit 1
+    fi
+    
     echo -e "${GREEN}New task definition ARN: ${NEW_TASK_DEF_ARN}${NC}"
     
     # Update ECS service
     echo -e "${YELLOW}Updating ECS service...${NC}"
-    aws ecs update-service \
+    if ! aws ecs update-service \
         --cluster ${CLUSTER_NAME} \
         --service ${RCA_SERVICE} \
         --task-definition ${NEW_TASK_DEF_ARN} \
         --force-new-deployment \
-        --region ${AWS_REGION}
+        --region ${AWS_REGION} > /dev/null; then
+        echo -e "${RED}❌ Failed to update ECS service${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✅ ECS service update initiated${NC}"
     
     # Wait for deployment to complete
     wait_for_deployment ${RCA_SERVICE}

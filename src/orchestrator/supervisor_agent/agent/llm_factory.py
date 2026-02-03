@@ -159,7 +159,6 @@ class LLMFactory:
                     litellm.gemini_api_key = api_key
                 elif provider == "groq":
                     model_kwargs["api_key"] = api_key
-                    model_kwargs["GROQ_API_KEY"] = api_key
                     os.environ[env_var] = api_key
                     litellm.groq_api_key = api_key
                 else:
