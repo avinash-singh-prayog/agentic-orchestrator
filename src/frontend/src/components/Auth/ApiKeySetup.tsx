@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { API_ENDPOINTS } from '@/utils/const'
 import axios from 'axios'
-import { Loader2, Key, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Info, X } from 'lucide-react'
+import { Loader2, Key, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, X } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL
 if (!API_URL) {

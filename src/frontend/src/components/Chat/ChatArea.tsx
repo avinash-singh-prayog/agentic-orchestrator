@@ -6,12 +6,12 @@
  */
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Sparkles, Square, FileText, Image as ImageIcon, X, Settings, AlertCircle } from "lucide-react"
+import { Send, Sparkles, Square, FileText, Image as ImageIcon, X } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import ReactMarkdown from "react-markdown"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
 import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents, useStreamingError } from "@/stores/orchestratorStreamingStore"
-import { useChatMessages, useActiveConversationId, useHasApiKey, useChatHistoryStore } from "@/stores/chatHistoryStore"
+import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
 import ExecutionTimeline from "./ExecutionTimeline"
 import FileUpload from "./FileUpload"
 import type { Message, FileAttachment } from "@/types/message"
