@@ -554,37 +554,35 @@ async def stream_events(
     logger.info(f"[stream_events] Starting stream - prompt: {prompt[:50]}..., attachments: {len(attachments) if attachments else 0}")
     
     # Fetch user's LLM configuration - REQUIRED
+    # Note: API key validation is done in the endpoint before streaming starts
+    # This is just to get the config for use in the stream
     llm_config = None
     try:
         llm_config = await get_user_llm_config(user_id)
-        if not llm_config:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "api_key_required",
-                    "message": "API key is required. Please configure your API key in the settings before using the system."
+        if not llm_config or not llm_config.get("api_key") or not llm_config.get("api_key").strip():
+            # This should not happen if validation in endpoint worked, but handle gracefully
+            logger.error(f"[stream_events] LLM config missing or invalid for user {user_id}")
+            yield json.dumps({
+                "content": {
+                    "sender": "System",
+                    "receiver": user_id,
+                    "message": "API key is required. Please configure your API key in the settings before using the system.",
+                    "node": "error"
                 }
-            )
-        if not llm_config.get("api_key") or not llm_config.get("api_key").strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "api_key_required",
-                    "message": "API key is required. Please configure your API key in the settings before using the system."
-                }
-            )
+            }) + "\n"
+            return
         logger.info(f"[stream_events] Using user LLM config: {llm_config.get('provider')}/{llm_config.get('model')}")
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"[stream_events] Failed to fetch LLM config for user {user_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "api_key_required",
-                "message": "API key is required. Please configure your API key in the settings before using the system."
+        yield json.dumps({
+            "content": {
+                "sender": "System",
+                "receiver": user_id,
+                "message": "API key is required. Please configure your API key in the settings before using the system.",
+                "node": "error"
             }
-        )
+        }) + "\n"
+        return
     
     # Build message with attachments (with error handling)
     try:
@@ -1015,6 +1013,37 @@ async def stream_agent(request: Request):
         except Exception as e:
             logger.error(f"Error parsing JSON request: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
+    
+    # Check API key BEFORE starting the stream to avoid "response already started" error
+    try:
+        llm_config = await get_user_llm_config(user_id)
+        if not llm_config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+        if not llm_config.get("api_key") or not llm_config.get("api_key").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "api_key_required",
+                    "message": "API key is required. Please configure your API key in the settings before using the system."
+                }
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch LLM config for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "api_key_required",
+                "message": "API key is required. Please configure your API key in the settings before using the system."
+            }
+        )
     
     try:
         return StreamingResponse(

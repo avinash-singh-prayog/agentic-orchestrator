@@ -8,6 +8,7 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { X, Eye, EyeOff, CheckCircle, AlertCircle, Loader } from "lucide-react"
 import { API_ENDPOINTS } from "@/utils/const"
+import { useTheme } from "@/contexts/ThemeContext"
 
 const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL || 'http://localhost:8000'
 
@@ -15,6 +16,7 @@ interface LLMSettingsProps {
   isOpen: boolean
   onClose: () => void
   userId: string
+  onApiKeySaved?: () => void
 }
 
 interface LLMConfig {
@@ -47,7 +49,8 @@ const AVAILABLE_PROVIDERS = {
   }
 }
 
-const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) => {
+const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onApiKeySaved }) => {
+  const { isLightMode } = useTheme()
   const [provider, setProvider] = useState<string>("openai")
   const [model, setModel] = useState<string>("")
   const [apiKey, setApiKey] = useState<string>("")
@@ -189,6 +192,10 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
         // Clear API key field for security
         setApiKey("")
         setTestResult(null)
+        // Notify parent to refresh API key state
+        if (onApiKeySaved) {
+          onApiKeySaved()
+        }
         // Close modal after a short delay
         setTimeout(() => {
           onClose()
@@ -219,7 +226,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        backgroundColor: isLightMode ? "rgba(0, 0, 0, 0.4)" : "rgba(0, 0, 0, 0.7)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -230,29 +237,36 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
     >
       <div
         style={{
-          backgroundColor: "#1a1d2e",
+          backgroundColor: "var(--bg-panel)",
           borderRadius: 16,
           padding: 24,
           width: "90%",
           maxWidth: 600,
           maxHeight: "90vh",
           overflow: "auto",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid var(--border-light)",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#fff" }}>LLM Settings</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>LLM Settings</h2>
           <button
             onClick={onClose}
             style={{
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              color: "#94a3b8",
+              color: "var(--text-tertiary)",
               padding: 4,
+              transition: "color 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--text-primary)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text-tertiary)"
             }}
           >
             <X size={20} />
@@ -261,13 +275,13 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
 
         {isLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
-            <Loader className="animate-spin" size={24} color="#50d387" />
+            <Loader className="animate-spin" size={24} color="var(--accent-primary)" />
           </div>
         ) : (
           <>
             {/* Provider Selection */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "#e2e8f0" }}>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                 Provider
               </label>
               <select
@@ -277,9 +291,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 8,
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  color: "#fff",
+                  border: "1px solid var(--border-light)",
+                  backgroundColor: "var(--bg-input)",
+                  color: "var(--text-primary)",
                   fontSize: 14,
                 }}
               >
@@ -293,7 +307,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
 
             {/* Model Selection */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "#e2e8f0" }}>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                 Model
               </label>
               <select
@@ -303,9 +317,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 8,
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  color: "#fff",
+                  border: "1px solid var(--border-light)",
+                  backgroundColor: "var(--bg-input)",
+                  color: "var(--text-primary)",
                   fontSize: 14,
                 }}
               >
@@ -319,15 +333,15 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
 
             {/* API Key Input */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "#e2e8f0" }}>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                 API Key
                 {providerInfo && (
-                  <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 8 }}>
+                  <span style={{ fontSize: 12, color: "var(--text-tertiary)", marginLeft: 8 }}>
                     (starts with {providerInfo.api_key_prefix}...)
                   </span>
                 )}
                 {currentConfig && currentConfig.has_api_key && currentConfig.provider === provider && (
-                  <span style={{ fontSize: 12, color: "#10b981", marginLeft: 8 }}>
+                  <span style={{ fontSize: 12, color: "var(--accent-primary)", marginLeft: 8 }}>
                     (optional - click Save to reuse existing key)
                   </span>
                 )}
@@ -352,9 +366,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                     padding: "10px 12px",
                     paddingRight: 40,
                     borderRadius: 8,
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    backgroundColor: "rgba(255, 255, 255, 0.05)",
-                    color: "#fff",
+                    border: "1px solid var(--border-light)",
+                    backgroundColor: "var(--bg-input)",
+                    color: "var(--text-primary)",
                     fontSize: 14,
                   }}
                 />
@@ -368,8 +382,15 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    color: "#94a3b8",
+                    color: "var(--text-tertiary)",
                     padding: 4,
+                    transition: "color 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--text-primary)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-tertiary)"
                   }}
                 >
                   {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -383,12 +404,12 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                 style={{
                   padding: 12,
                   borderRadius: 8,
-                  backgroundColor: "rgba(16, 185, 129, 0.1)",
-                  border: "1px solid rgba(16, 185, 129, 0.2)",
+                  backgroundColor: "var(--accent-primary-bg)",
+                  border: "1px solid var(--accent-primary-border)",
                   marginBottom: 20,
                 }}
               >
-                <div style={{ fontSize: 12, color: "#10b981" }}>
+                <div style={{ fontSize: 12, color: "var(--accent-primary)" }}>
                   Current: {currentConfig.provider}/{currentConfig.model}
                   {currentConfig.updated_at && (
                     <span style={{ marginLeft: 8, opacity: 0.7 }}>
@@ -406,9 +427,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                   padding: 12,
                   borderRadius: 8,
                   backgroundColor: testResult.success
-                    ? "rgba(16, 185, 129, 0.1)"
+                    ? "var(--accent-primary-bg)"
                     : "rgba(239, 68, 68, 0.1)",
-                  border: `1px solid ${testResult.success ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
+                  border: `1px solid ${testResult.success ? "var(--accent-primary-border)" : "rgba(239, 68, 68, 0.2)"}`,
                   marginBottom: 20,
                   display: "flex",
                   alignItems: "center",
@@ -416,11 +437,11 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                 }}
               >
                 {testResult.success ? (
-                  <CheckCircle size={16} color="#10b981" />
+                  <CheckCircle size={16} color="var(--accent-primary)" />
                 ) : (
                   <AlertCircle size={16} color="#ef4444" />
                 )}
-                <span style={{ fontSize: 12, color: testResult.success ? "#10b981" : "#ef4444" }}>
+                <span style={{ fontSize: 12, color: testResult.success ? "var(--accent-primary)" : "#ef4444" }}>
                   {testResult.message}
                 </span>
               </div>
@@ -453,9 +474,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                 style={{
                   padding: "10px 20px",
                   borderRadius: 8,
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  color: "#fff",
+                  border: "1px solid var(--border-light)",
+                  backgroundColor: "var(--bg-input)",
+                  color: "var(--text-primary)",
                   cursor: isTesting || isSaving || !provider || !model || (!apiKey && (!currentConfig || !currentConfig.has_api_key)) ? "not-allowed" : "pointer",
                   opacity: isTesting || isSaving || !provider || !model || (!apiKey && (!currentConfig || !currentConfig.has_api_key)) ? 0.5 : 1,
                   fontSize: 14,
@@ -463,11 +484,20 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isTesting && !isSaving && provider && model && (apiKey || (currentConfig && currentConfig.has_api_key))) {
+                    e.currentTarget.style.backgroundColor = "var(--bg-panel)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--bg-input)"
                 }}
               >
                 {isTesting ? (
                   <>
-                    <Loader className="animate-spin" size={16} />
+                    <Loader className="animate-spin" size={16} color="var(--text-primary)" />
                     Testing...
                   </>
                 ) : (
@@ -490,6 +520,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId }) =>
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
+                  transition: "opacity 0.2s ease",
                 }}
               >
                 {isSaving ? (

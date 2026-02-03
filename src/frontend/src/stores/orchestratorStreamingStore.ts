@@ -181,14 +181,28 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
         if (!response.ok) {
           // Try to get error details from response
           let errorMessage = `HTTP error! status: ${response.status}`
+          let errorData: any = null
           try {
-            const errorData = await response.json()
-            errorMessage = errorData.detail || errorData.message || errorMessage
+            errorData = await response.json()
+            // Handle nested error detail structure
+            if (errorData.detail) {
+              if (typeof errorData.detail === 'string') {
+                errorMessage = errorData.detail
+              } else if (errorData.detail.message) {
+                errorMessage = errorData.detail.message
+              } else if (errorData.detail.error) {
+                errorMessage = errorData.detail.message || errorData.detail.error
+              }
+            } else if (errorData.message) {
+              errorMessage = errorData.message
+            }
           } catch {
             // If response is not JSON, use status text
             errorMessage = response.statusText || errorMessage
           }
-          throw new Error(errorMessage)
+          const error = new Error(errorMessage)
+          ;(error as any).detail = errorData
+          throw error
         }
 
         // Check content-type to determine response format

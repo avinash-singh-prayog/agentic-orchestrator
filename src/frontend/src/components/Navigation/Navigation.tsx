@@ -14,7 +14,7 @@ import LLMSettings from "@/components/Settings/LLMSettings"
 const Navigation: React.FC = () => {
     const { isLightMode, toggleTheme } = useTheme()
     const { getHealth } = useAgentAPI()
-    const { logout, userId } = useChatHistoryStore()
+    const { logout, userId, checkApiKey } = useChatHistoryStore()
     const [healthStatus, setHealthStatus] = useState<"healthy" | "unhealthy" | "loading">("loading")
     const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
 
@@ -164,6 +164,10 @@ const Navigation: React.FC = () => {
                     isOpen={isSettingsOpen}
                     onClose={() => setIsSettingsOpen(false)}
                     userId={userId}
+                    onApiKeySaved={async () => {
+                        // Refresh API key state after saving
+                        await checkApiKey()
+                    }}
                 />
             )}
         </nav>

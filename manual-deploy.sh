@@ -239,37 +239,76 @@ deploy_rca() {
     echo -e "${BLUE}Deploying Transaction RCA Agent${NC}"
     echo -e "${BLUE}========================================${NC}"
     
+    # Ensure we're in the project root
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cd "${SCRIPT_DIR}"
+    
     IMAGE_URI="${ECR_BASE}/${RCA_REPO}"
     
     # Build Docker image for linux/amd64 platform (required for ECS)
     echo -e "${YELLOW}Building Docker image for linux/amd64 platform...${NC}"
+    echo -e "${YELLOW}Current directory: $(pwd)${NC}"
+    echo -e "${YELLOW}Changing to: src/orchestrator/transaction_rca_agent${NC}"
+    
+    if [ ! -d "src/orchestrator/transaction_rca_agent" ]; then
+        echo -e "${RED}❌ Directory src/orchestrator/transaction_rca_agent does not exist!${NC}"
+        exit 1
+    fi
+    
     cd src/orchestrator/transaction_rca_agent
     
     # Use buildx for proper multi-platform support if available, otherwise fallback to regular build
     if docker buildx version &> /dev/null; then
-        docker buildx build \
+        echo -e "${YELLOW}Using docker buildx for multi-platform build...${NC}"
+        if ! docker buildx build \
             --platform linux/amd64 \
             --tag ${IMAGE_URI}:${BUILD_NUMBER} \
             --tag ${IMAGE_URI}:latest \
             --push \
-            .
+            .; then
+            echo -e "${RED}❌ Docker buildx build failed${NC}"
+            cd "${SCRIPT_DIR}"
+            exit 1
+        fi
     else
-        docker build \
+        echo -e "${YELLOW}Using regular docker build...${NC}"
+        if ! docker build \
             --platform linux/amd64 \
             -t ${IMAGE_URI}:${BUILD_NUMBER} \
-            -t ${IMAGE_URI}:latest .
+            -t ${IMAGE_URI}:latest .; then
+            echo -e "${RED}❌ Docker build failed${NC}"
+            cd "${SCRIPT_DIR}"
+            exit 1
+        fi
         
         # Push to ECR
         echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
-        docker push ${IMAGE_URI}:${BUILD_NUMBER}
-        docker push ${IMAGE_URI}:latest
+        if ! docker push ${IMAGE_URI}:${BUILD_NUMBER}; then
+            echo -e "${RED}❌ Failed to push image ${IMAGE_URI}:${BUILD_NUMBER}${NC}"
+            cd "${SCRIPT_DIR}"
+            exit 1
+        fi
+        if ! docker push ${IMAGE_URI}:latest; then
+            echo -e "${RED}❌ Failed to push image ${IMAGE_URI}:latest${NC}"
+            cd "${SCRIPT_DIR}"
+            exit 1
+        fi
     fi
+    
+    echo -e "${GREEN}✅ Docker image built and pushed successfully${NC}"
+    
+    # Return to project root for AWS CLI commands
+    cd "${SCRIPT_DIR}"
     
     # Get current task definition
     echo -e "${YELLOW}Fetching current task definition...${NC}"
-    aws ecs describe-task-definition \
+    if ! aws ecs describe-task-definition \
         --task-definition ${RCA_TASK_DEF} \
-        --query 'taskDefinition' > /tmp/task-def-rca.json
+        --region ${AWS_REGION} \
+        --query 'taskDefinition' > /tmp/task-def-rca.json; then
+        echo -e "${RED}❌ Failed to fetch current task definition${NC}"
+        exit 1
+    fi
     
     # Update task definition with new image and SLIM_ENDPOINT
     echo -e "${YELLOW}Updating task definition...${NC}"
@@ -342,7 +381,6 @@ deploy_rca() {
     # Clean up local Docker images
     docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true
     
-    cd - > /dev/null
     echo -e "${GREEN}✅ Transaction RCA Agent deployment completed!${NC}"
 }
 

@@ -6,12 +6,12 @@
  */
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Sparkles, Square, FileText, Image as ImageIcon, X } from "lucide-react"
+import { Send, Sparkles, Square, FileText, Image as ImageIcon, X, Settings, AlertCircle } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import ReactMarkdown from "react-markdown"
 import { useAgentAPI } from "@/hooks/useAgentAPI"
-import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents } from "@/stores/orchestratorStreamingStore"
-import { useChatMessages, useActiveConversationId } from "@/stores/chatHistoryStore"
+import { useStreamingActions, useStreamingStatus, useStreamingFinalResponse, useStreamingEvents, useStreamingError } from "@/stores/orchestratorStreamingStore"
+import { useChatMessages, useActiveConversationId, useHasApiKey, useChatHistoryStore } from "@/stores/chatHistoryStore"
 import ExecutionTimeline from "./ExecutionTimeline"
 import FileUpload from "./FileUpload"
 import type { Message, FileAttachment } from "@/types/message"
@@ -37,9 +37,30 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
     // Get messages from chat history store
     const historyMessages = useChatMessages()
     const activeConversationId = useActiveConversationId()
+    const streamingError = useStreamingError()
 
     const isLoading = apiLoading || streamingStatus === "streaming" || streamingStatus === "connecting"
     const isStreamActive = streamingStatus === "streaming" || streamingStatus === "connecting"
+
+    // Display streaming errors in chat
+    useEffect(() => {
+        if (streamingError && streamingStatus === "error") {
+            const errorMessage: Message = {
+                id: uuidv4(),
+                role: "assistant",
+                content: streamingError,
+                timestamp: new Date(),
+            }
+            setMessages((prev) => {
+                // Don't add duplicate error messages
+                const lastMsg = prev[prev.length - 1]
+                if (lastMsg?.role === "assistant" && lastMsg?.content === streamingError) {
+                    return prev
+                }
+                return [...prev, errorMessage]
+            })
+        }
+    }, [streamingError, streamingStatus])
 
     // Sync local messages with history store when active conversation changes
     useEffect(() => {
@@ -136,6 +157,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
         }
 
         reset()
+        // Let backend handle API key validation - errors will be displayed via streaming error state
         await startStreaming(prompt, {}, attachments)
     }
 
@@ -542,8 +564,9 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                             </button>
                         ) : (
                             <button 
+                                type="button"
                                 onClick={handleSend} 
-                                disabled={!input.trim() && selectedFiles.length === 0} 
+                                disabled={(!input.trim() && selectedFiles.length === 0) || isLoading} 
                                 style={{
                                     position: "absolute",
                                     right: 0,
@@ -555,7 +578,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     borderRadius: "50%",
-                                    background: (input.trim() || selectedFiles.length > 0) && !isLoading 
+                                    background: (input.trim() || selectedFiles.length > 0) && !isLoading
                                         ? "linear-gradient(135deg, #003323, #50D387)" 
                                         : "var(--bg-panel)",
                                     border: "none",
@@ -563,6 +586,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                                     opacity: (input.trim() || selectedFiles.length > 0) && !isLoading ? 1 : 0.5,
                                     transition: "all 0.2s ease",
                                 }}
+                                title="Send message"
                             >
                                 <Send style={{ width: 16, height: 16, color: "white" }} />
                             </button>

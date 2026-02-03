@@ -1,14 +1,15 @@
 /**
  * API Key Setup Component
  * 
- * Full-screen component that prompts users to configure their API key
- * before they can use the system. This is shown after login if no API key is configured.
+ * Modal component that prompts users to configure their API key.
+ * Can be dismissed and shown again when needed.
  */
 
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { API_ENDPOINTS } from '@/utils/const'
 import axios from 'axios'
-import { Loader2, Key, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Info } from 'lucide-react'
+import { Loader2, Key, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight, Info, X } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_ORCHESTRATOR_API_URL
 if (!API_URL) {
@@ -40,10 +41,12 @@ const AVAILABLE_PROVIDERS = {
 
 interface ApiKeySetupProps {
     userId: string
+    isOpen: boolean
+    onClose: () => void
     onComplete: () => void
 }
 
-const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
+const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, isOpen, onClose, onComplete }) => {
     const [provider, setProvider] = useState<string>("openai")
     const [model, setModel] = useState<string>("")
     const [apiKey, setApiKey] = useState<string>("")
@@ -85,10 +88,11 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
 
             if (response.status === 200) {
                 setSuccess(true)
-                // Wait a moment to show success message, then call onComplete
+                // Wait a moment to show success message, then call onComplete and close
                 // onComplete will update the store to mark API key as configured
                 setTimeout(() => {
                     onComplete()
+                    onClose()
                 }, 1500)
             }
         } catch (err: any) {
@@ -107,69 +111,111 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
     const providerInfo = AVAILABLE_PROVIDERS[provider as keyof typeof AVAILABLE_PROVIDERS]
     const models = providerInfo?.models || []
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[var(--bg-app)] text-[var(--text-primary)] p-4 relative overflow-hidden transition-colors duration-300">
-            {/* Background Elements */}
+    if (!isOpen) return null
+
+    const notificationContent = (
+        <div
+            style={{
+                position: "fixed",
+                top: 80,
+                right: 24,
+                zIndex: 9999,
+                maxWidth: 420,
+                animation: "slideInRight 0.3s ease-out",
+            }}
+        >
+            <style>{`
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+            `}</style>
             <div
-                className="absolute inset-0 pointer-events-none"
+                className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl p-6 relative backdrop-blur-xl transition-colors duration-300"
                 style={{
-                    backgroundImage: 'radial-gradient(var(--color-grid) 1px, transparent 1px)',
-                    backgroundSize: '30px 30px'
+                    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
                 }}
-            />
-
-            {/* Glow Orbs */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--accent-primary)]/10 rounded-full blur-3xl pointer-events-none mix-blend-screen" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--accent-primary)]/10 rounded-full blur-3xl pointer-events-none mix-blend-screen" />
-
-            {/* Main Card */}
-            <div className="w-full max-w-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-2xl shadow-xl p-8 relative z-10 backdrop-blur-xl transition-colors duration-300">
+            >
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: "absolute",
+                        top: 12,
+                        right: 12,
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-tertiary)",
+                        padding: 4,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 8,
+                        transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--bg-app)"
+                        e.currentTarget.style.color = "var(--text-primary)"
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                        e.currentTarget.style.color = "var(--text-tertiary)"
+                    }}
+                    title="Close"
+                >
+                    <X size={18} />
+                </button>
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
-                        <div className="p-3 bg-[var(--accent-primary)]/10 rounded-full">
-                            <Key className="text-[var(--accent-primary)]" size={32} />
+                <div className="mb-6">
+                    <div className="flex items-start gap-3 mb-4">
+                        <div className="p-2 bg-[var(--accent-primary)]/10 rounded-lg flex-shrink-0">
+                            <Key className="text-[var(--accent-primary)]" size={20} />
                         </div>
-                    </div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-primary)] to-[#003323] mb-2">
-                        Configure API Key
-                    </h1>
-                    <p className="text-[var(--text-secondary)] text-sm mb-4">
-                        To use this system, you need to provide an API key for your preferred LLM provider.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-tertiary)] bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 rounded-lg p-3">
-                        <Info size={16} />
-                        <span>Your API key is encrypted and stored securely. It will be used for all AI operations.</span>
+                        <div className="flex-1">
+                            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-1">
+                                Configure API Key
+                            </h2>
+                            <p className="text-[var(--text-secondary)] text-sm">
+                                Set up your LLM API key to start chatting
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Success Message */}
                 {success && (
-                    <div className="mb-6 p-4 bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 rounded-lg flex items-center gap-3 text-[var(--accent-primary)] text-sm">
-                        <CheckCircle size={18} />
-                        <span>API key configured successfully! Redirecting...</span>
+                    <div className="mb-4 p-3 bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 rounded-lg flex items-center gap-2 text-[var(--accent-primary)] text-sm">
+                        <CheckCircle size={16} />
+                        <span>API key configured successfully!</span>
                     </div>
                 )}
 
                 {/* Error Message */}
                 {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-500 text-sm">
-                        <AlertCircle size={18} />
+                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-500 text-sm">
+                        <AlertCircle size={16} />
                         <span>{error}</span>
                     </div>
                 )}
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Provider Selection */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                             Provider
                         </label>
                         <select
                             value={provider}
                             onChange={(e) => setProvider(e.target.value)}
-                            className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-3 px-4 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
+                            className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-2.5 px-3 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
                             required
                         >
                             {Object.keys(AVAILABLE_PROVIDERS).map((p) => (
@@ -181,14 +227,14 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
                     </div>
 
                     {/* Model Selection */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                             Model
                         </label>
                         <select
                             value={model}
                             onChange={(e) => setModel(e.target.value)}
-                            className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-3 px-4 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
+                            className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-2.5 px-3 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
                             required
                         >
                             {models.map((m) => (
@@ -200,7 +246,7 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
                     </div>
 
                     {/* API Key Input */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                             API Key
                             {providerInfo && (
@@ -210,13 +256,13 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
                             )}
                         </label>
                         <div className="relative">
-                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={18} />
+                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={16} />
                             <input
                                 type={showApiKey ? "text" : "password"}
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
                                 placeholder="Enter your API key"
-                                className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-3 pl-10 pr-10 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
+                                className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] rounded-lg py-2.5 pl-9 pr-9 outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all text-sm text-[var(--text-primary)]"
                                 required
                                 minLength={10}
                             />
@@ -225,7 +271,7 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
                                 onClick={() => setShowApiKey(!showApiKey)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                             >
-                                {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
                     </div>
@@ -234,31 +280,31 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
                     <button
                         type="submit"
                         disabled={isSaving || success || !provider || !model || !apiKey.trim()}
-                        className="w-full bg-gradient-to-r from-[#003323] to-[var(--accent-primary)] hover:from-[#004d2e] hover:to-[#80e0a8] text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[var(--accent-primary)]/20"
+                        className="w-full bg-gradient-to-r from-[#003323] to-[var(--accent-primary)] hover:from-[#004d2e] hover:to-[#80e0a8] text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-2 shadow-lg shadow-[var(--accent-primary)]/20 text-sm"
                     >
                         {isSaving ? (
                             <>
-                                <Loader2 className="animate-spin" size={18} />
+                                <Loader2 className="animate-spin" size={16} />
                                 <span>Saving...</span>
                             </>
                         ) : success ? (
                             <>
-                                <CheckCircle size={18} />
+                                <CheckCircle size={16} />
                                 <span>Success!</span>
                             </>
                         ) : (
                             <>
-                                <span>Save & Continue</span>
-                                <ArrowRight size={16} />
+                                <span>Save</span>
+                                <ArrowRight size={14} />
                             </>
                         )}
                     </button>
                 </form>
 
                 {/* Help Text */}
-                <div className="mt-6 text-center text-xs text-[var(--text-tertiary)]">
+                <div className="mt-4 text-center text-xs text-[var(--text-tertiary)]">
                     <p>
-                        Don't have an API key? Get one from{' '}
+                        Need an API key?{' '}
                         {provider === 'openai' && <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-[var(--text-accent)] hover:opacity-80">OpenAI</a>}
                         {provider === 'anthropic' && <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[var(--text-accent)] hover:opacity-80">Anthropic</a>}
                         {provider === 'google' && <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[var(--text-accent)] hover:opacity-80">Google AI Studio</a>}
@@ -269,6 +315,8 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ userId, onComplete }) => {
             </div>
         </div>
     )
+
+    return createPortal(notificationContent, document.body)
 }
 
 export default ApiKeySetup

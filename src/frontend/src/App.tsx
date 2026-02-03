@@ -44,6 +44,25 @@ const App: React.FC = () => {
   const isCheckingApiKey = useIsCheckingApiKey()
   const setApiKeyConfigured = useChatHistoryStore(state => state.setApiKeyConfigured)
   const checkApiKey = useChatHistoryStore(state => state.checkApiKey)
+  
+  // Show API key setup modal for new users (dismissible)
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+  
+  // Show modal when user first logs in without API key
+  useEffect(() => {
+    if (isAuthenticated && userId && hasApiKey === false && !isLoadingSession && !isCheckingApiKey) {
+      // Check if user has dismissed this modal before (using localStorage with user-specific key)
+      const dismissedKey = `apiKeyModalDismissed_${userId}`
+      const hasDismissed = localStorage.getItem(dismissedKey)
+      if (!hasDismissed) {
+        // Small delay to ensure UI is ready
+        const timer = setTimeout(() => {
+          setShowApiKeyModal(true)
+        }, 500)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [isAuthenticated, userId, hasApiKey, isLoadingSession, isCheckingApiKey])
 
   // Initialize session on mount
   useEffect(() => {
@@ -217,20 +236,6 @@ const App: React.FC = () => {
     return <AuthScreen />
   }
 
-  // Show API key setup if user is authenticated but doesn't have an API key
-  if (isAuthenticated && userId && hasApiKey === false) {
-    return (
-      <ApiKeySetup 
-        userId={userId} 
-        onComplete={async () => {
-          setApiKeyConfigured()
-          // Also refresh the API key check to ensure it's up to date
-          await checkApiKey()
-        }} 
-      />
-    )
-  }
-
   return (
     <div style={appStyles}>
       <Navigation />
@@ -345,6 +350,27 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* API Key Setup Modal - shown for new users without API key */}
+      {isAuthenticated && userId && (
+        <ApiKeySetup 
+          userId={userId}
+          isOpen={showApiKeyModal}
+          onClose={() => {
+            setShowApiKeyModal(false)
+            // Store dismissal with user-specific key
+            const dismissedKey = `apiKeyModalDismissed_${userId}`
+            localStorage.setItem(dismissedKey, 'true')
+          }}
+          onComplete={async () => {
+            setApiKeyConfigured()
+            await checkApiKey()
+            // Remove dismissal flag on success so it can show again if needed
+            const dismissedKey = `apiKeyModalDismissed_${userId}`
+            localStorage.removeItem(dismissedKey)
+          }} 
+        />
+      )}
     </div>
   )
 }
