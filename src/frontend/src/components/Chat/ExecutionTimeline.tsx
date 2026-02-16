@@ -81,6 +81,12 @@ const agentConfig: Record<string, {
         bgColor: "rgba(80, 211, 135, 0.15)",
         label: "Transaction RCA Agent"
     },
+    "external-db": {
+        icon: FileSearch,
+        color: "#50D387",
+        bgColor: "rgba(80, 211, 135, 0.15)",
+        label: "RCA agent"
+    },
     rate: {
         icon: CircleDollarSign,
         color: "#50D387",
@@ -266,6 +272,7 @@ const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
                 {events.map((event, index) => {
                     const getAgentKey = (sender: string) => {
                         const s = sender.toLowerCase()
+                        if (s.includes("external") && s.includes("db")) return "external-db"
                         if (s.includes("carrier")) return "carrier"
                         if (s.includes("transaction") && s.includes("rca")) return "transaction-rca"
                         if (s.includes("rca")) return "transaction-rca"

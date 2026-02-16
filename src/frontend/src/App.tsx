@@ -8,62 +8,33 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 
 import Navigation from "@/components/Navigation/Navigation"
-import MainArea from "@/components/MainArea/MainArea"
 import { ChatArea } from "@/components/Chat"
 import ChatSidebar from "@/components/Chat/ChatSidebar"
 import AuthScreen from "@/components/Auth/AuthScreen"
-import ApiKeySetup from "@/components/Auth/ApiKeySetup"
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import {
   useStreamingStatus,
   useStreamingEvents,
   useStreamingFinalResponse
 } from "@/stores/orchestratorStreamingStore"
-import { useChatHistoryStore, useChatSession, useHasApiKey, useIsCheckingApiKey } from "@/stores/chatHistoryStore"
+import { useChatHistoryStore, useChatSession } from "@/stores/chatHistoryStore"
 
 const App: React.FC = () => {
 
-  const [isGraphVisible, setIsGraphVisible] = useState(true)
-  const [syncActiveAgent, setSyncActiveAgent] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(220) // Sidebar width in pixels
-  const [graphWidth, setGraphWidth] = useState(450) // Graph width in pixels
-  const [draggingPanel, setDraggingPanel] = useState<'sidebar' | 'graph' | null>(null)
+  const [draggingPanel, setDraggingPanel] = useState<'sidebar' | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const streamingStatus = useStreamingStatus()
   const streamingEvents = useStreamingEvents()
   const finalResponse = useStreamingFinalResponse()
   const addAssistantMessage = useChatHistoryStore(state => state.addAssistantMessage)
+  const isLoadingSession = useChatHistoryStore(state => state.isLoading)
 
   // Auth & Session
-  const { isAuthenticated, userId } = useChatSession()
+  const { isAuthenticated } = useChatSession()
   const initSession = useChatHistoryStore(state => state.initSession)
-  const isLoadingSession = useChatHistoryStore(state => state.isLoading)
-  const hasApiKey = useHasApiKey()
-  const isCheckingApiKey = useIsCheckingApiKey()
-  const setApiKeyConfigured = useChatHistoryStore(state => state.setApiKeyConfigured)
-  const checkApiKey = useChatHistoryStore(state => state.checkApiKey)
-  
-  // Show API key setup modal for new users (dismissible)
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
-  
-  // Show modal when user first logs in without API key
-  useEffect(() => {
-    if (isAuthenticated && userId && hasApiKey === false && !isLoadingSession && !isCheckingApiKey) {
-      // Check if user has dismissed this modal before (using localStorage with user-specific key)
-      const dismissedKey = `apiKeyModalDismissed_${userId}`
-      const hasDismissed = localStorage.getItem(dismissedKey)
-      if (!hasDismissed) {
-        // Small delay to ensure UI is ready
-        const timer = setTimeout(() => {
-          setShowApiKeyModal(true)
-        }, 500)
-        return () => clearTimeout(timer)
-      }
-    }
-  }, [isAuthenticated, userId, hasApiKey, isLoadingSession, isCheckingApiKey])
-
   // Initialize session on mount
   useEffect(() => {
     initSession()
@@ -75,30 +46,13 @@ const App: React.FC = () => {
       const width = window.innerWidth
       if (width < 768) {
         setSidebarWidth(50) // Collapse sidebar
-        setIsGraphVisible(false) // Hide graph
       }
     }
 
-    // Initial check
     handleResize()
-
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  const isProcessing = streamingStatus === "streaming" || streamingStatus === "connecting"
-
-  // Get current active agent from streaming events
-  const streamingActiveAgent = streamingEvents.length > 0
-    ? streamingEvents[streamingEvents.length - 1].sender
-    : null
-
-  // Clear sync active agent when not processing
-  useEffect(() => {
-    if (streamingStatus === "idle") {
-      setSyncActiveAgent(null)
-    }
-  }, [streamingStatus])
 
   // Save assistant response to history when streaming completes
   useEffect(() => {
@@ -121,29 +75,15 @@ const App: React.FC = () => {
     setDraggingPanel('sidebar')
   }, [])
 
-  const handleGraphMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    setDraggingPanel('graph')
-  }, [])
-
-
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!draggingPanel || !containerRef.current) return
-
+    if (draggingPanel !== 'sidebar') return
     const containerRect = containerRef.current.getBoundingClientRect()
-
-    if (draggingPanel === 'sidebar') {
-      const newWidth = e.clientX - containerRect.left
-      const minWidth = 180
-      const maxWidth = 350
-      setSidebarWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
-    } else if (draggingPanel === 'graph') {
-      const newWidth = containerRect.right - e.clientX
-      const minWidth = 300
-      const maxWidth = containerRect.width - sidebarWidth - 300 // Keep space for chat
-      setGraphWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
-    }
-  }, [draggingPanel, sidebarWidth])
+    const newWidth = e.clientX - containerRect.left
+    const minWidth = 180
+    const maxWidth = 350
+    setSidebarWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)))
+  }, [draggingPanel])
 
   const handleMouseUp = useCallback(() => {
     setDraggingPanel(null)
@@ -224,7 +164,7 @@ const App: React.FC = () => {
     </div>
   )
 
-  if (isLoadingSession || isCheckingApiKey) {
+  if (isLoadingSession) {
     return (
       <div style={{ ...appStyles, alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 className="animate-spin text-[var(--accent-primary)]" size={32} />
@@ -258,119 +198,14 @@ const App: React.FC = () => {
         {/* Chat area */}
         <div style={{
           flex: 1,
-          // width: isGraphVisible ? `calc(100% - ${graphWidth}px)` : "100%",
-          marginRight: isGraphVisible ? graphWidth : 0,
           minWidth: 300,
           background: "var(--bg-app)",
           flexShrink: 0,
-          transition: draggingPanel === 'graph' ? "none" : "margin-right 0.3s ease",
-          borderRight: "none",
         }}>
           <ChatArea />
         </div>
-
-
-        {/* Graph - RIGHT (Collapsible) */}
-        {/* Graph - RIGHT (Collapsible) */}
-        <div style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: isGraphVisible ? graphWidth : 0,
-          overflow: "hidden",
-          transition: draggingPanel === 'graph' ? "none" : "width 0.3s ease",
-          background: "var(--bg-panel)",
-          borderLeft: "1px solid var(--border-subtle)",
-        }}>
-          {isGraphVisible && (
-            <MainArea
-              isProcessing={isProcessing}
-              activeAgent={streamingActiveAgent || syncActiveAgent}
-            />
-          )}
-
-          {/* Graph Resizer (Invisible/Hoverable) */}
-          {isGraphVisible && (
-            <div
-              onMouseDown={handleGraphMouseDown}
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 6,
-                cursor: "col-resize",
-                zIndex: 50,
-                transform: "translateX(-50%)", // Center on the edge
-              }}
-              onMouseEnter={(e) => {
-                if (!draggingPanel) {
-                  e.currentTarget.style.background = 'var(--accent-primary-border)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!draggingPanel) {
-                  e.currentTarget.style.background = 'transparent'
-                }
-              }}
-            />
-          )}
-        </div>
-
-        {/* Toggle Button (Arrow) */}
-        <div
-          onClick={() => setIsGraphVisible(!isGraphVisible)}
-          style={{
-            position: "absolute",
-            right: isGraphVisible ? graphWidth : 0,
-            top: 20,
-            // transform: "translateY(-50%)",
-            width: 24,
-            height: 40,
-            background: "var(--bg-panel)",
-            border: "1px solid var(--border-light)",
-            borderRight: "none",
-            borderTopLeftRadius: 8,
-            borderBottomLeftRadius: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            zIndex: 100,
-            transition: draggingPanel === 'graph' ? "none" : "right 0.3s ease",
-            boxShadow: "var(--shadow-glow)", // usage of var instead of conditional
-          }}
-          title={isGraphVisible ? "Collapse Architecture" : "View Architecture"}
-        >
-          {isGraphVisible ? (
-            <ChevronRight size={16} color="var(--text-tertiary)" />
-          ) : (
-            <ChevronLeft size={16} color="var(--text-tertiary)" />
-          )}
-        </div>
       </div>
 
-      {/* API Key Setup Modal - shown for new users without API key */}
-      {isAuthenticated && userId && (
-        <ApiKeySetup 
-          userId={userId}
-          isOpen={showApiKeyModal}
-          onClose={() => {
-            setShowApiKeyModal(false)
-            // Store dismissal with user-specific key
-            const dismissedKey = `apiKeyModalDismissed_${userId}`
-            localStorage.setItem(dismissedKey, 'true')
-          }}
-          onComplete={async () => {
-            setApiKeyConfigured()
-            await checkApiKey()
-            // Remove dismissal flag on success so it can show again if needed
-            const dismissedKey = `apiKeyModalDismissed_${userId}`
-            localStorage.removeItem(dismissedKey)
-          }} 
-        />
-      )}
     </div>
   )
 }

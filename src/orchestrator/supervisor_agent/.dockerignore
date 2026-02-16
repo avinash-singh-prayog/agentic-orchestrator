@@ -1,0 +1,26 @@
+# Virtual environment (must not be copied; we create it in the image)
+.venv
+venv
+env
+
+# Python cache
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# Git and IDE
+.git
+.gitignore
+.cursor
+*.swp
+*.swo
+
+# Local / env (secrets stay on host)
+.env
+.env.local
+*.env

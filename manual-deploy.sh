@@ -5,7 +5,7 @@
 # 
 # Usage:
 #   ./manual-deploy.sh [service]
-#   service options: supervisor, rca, frontend, or all (default: all)
+#   service options: supervisor, frontend, or all (default: all)
 
 set -e  # Exit on error
 
@@ -29,12 +29,6 @@ SUPERVISOR_REPO='prayog-prod-agentic-orchestrator/pinelabs-supervisor-agent'
 SUPERVISOR_SERVICE='prayog-ag-orch-prod-pinelabs-supervisor-agent'
 SUPERVISOR_TASK_DEF='prayog-prod-ecs-ag-orch-pinelabs-supervisor-agent-td'
 SUPERVISOR_PORT=3044
-
-RCA_REPO='prayog-prod-agentic-orchestrator/transaction-rca-agent'
-RCA_SERVICE='prayog-ag-orch-prod-transaction-rca-agent'
-RCA_TASK_DEF='prayog-prod-ecs-ag-orch-transaction-rca-agent-td'
-RCA_PORT=3045
-SLIM_ENDPOINT='http://3.7.70.176:46357'
 
 # Frontend Configuration
 S3_BUCKET='pinelabs-frontend'
@@ -233,157 +227,6 @@ deploy_supervisor() {
     echo -e "${GREEN}✅ Supervisor Agent deployment completed!${NC}"
 }
 
-# Deploy RCA Agent
-deploy_rca() {
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}Deploying Transaction RCA Agent${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    
-    # Ensure we're in the project root
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cd "${SCRIPT_DIR}"
-    
-    IMAGE_URI="${ECR_BASE}/${RCA_REPO}"
-    
-    # Build Docker image for linux/amd64 platform (required for ECS)
-    echo -e "${YELLOW}Building Docker image for linux/amd64 platform...${NC}"
-    echo -e "${YELLOW}Current directory: $(pwd)${NC}"
-    echo -e "${YELLOW}Changing to: src/orchestrator/transaction_rca_agent${NC}"
-    
-    if [ ! -d "src/orchestrator/transaction_rca_agent" ]; then
-        echo -e "${RED}❌ Directory src/orchestrator/transaction_rca_agent does not exist!${NC}"
-        exit 1
-    fi
-    
-    cd src/orchestrator/transaction_rca_agent
-    
-    # Use buildx for proper multi-platform support if available, otherwise fallback to regular build
-    if docker buildx version &> /dev/null; then
-        echo -e "${YELLOW}Using docker buildx for multi-platform build...${NC}"
-        if ! docker buildx build \
-            --platform linux/amd64 \
-            --tag ${IMAGE_URI}:${BUILD_NUMBER} \
-            --tag ${IMAGE_URI}:latest \
-            --push \
-            .; then
-            echo -e "${RED}❌ Docker buildx build failed${NC}"
-            cd "${SCRIPT_DIR}"
-            exit 1
-        fi
-    else
-        echo -e "${YELLOW}Using regular docker build...${NC}"
-        if ! docker build \
-            --platform linux/amd64 \
-            -t ${IMAGE_URI}:${BUILD_NUMBER} \
-            -t ${IMAGE_URI}:latest .; then
-            echo -e "${RED}❌ Docker build failed${NC}"
-            cd "${SCRIPT_DIR}"
-            exit 1
-        fi
-        
-        # Push to ECR
-        echo -e "${YELLOW}Pushing Docker images to ECR...${NC}"
-        if ! docker push ${IMAGE_URI}:${BUILD_NUMBER}; then
-            echo -e "${RED}❌ Failed to push image ${IMAGE_URI}:${BUILD_NUMBER}${NC}"
-            cd "${SCRIPT_DIR}"
-            exit 1
-        fi
-        if ! docker push ${IMAGE_URI}:latest; then
-            echo -e "${RED}❌ Failed to push image ${IMAGE_URI}:latest${NC}"
-            cd "${SCRIPT_DIR}"
-            exit 1
-        fi
-    fi
-    
-    echo -e "${GREEN}✅ Docker image built and pushed successfully${NC}"
-    
-    # Return to project root for AWS CLI commands
-    cd "${SCRIPT_DIR}"
-    
-    # Get current task definition
-    echo -e "${YELLOW}Fetching current task definition...${NC}"
-    if ! aws ecs describe-task-definition \
-        --task-definition ${RCA_TASK_DEF} \
-        --region ${AWS_REGION} \
-        --query 'taskDefinition' > /tmp/task-def-rca.json; then
-        echo -e "${RED}❌ Failed to fetch current task definition${NC}"
-        exit 1
-    fi
-    
-    # Update task definition with new image and SLIM_ENDPOINT
-    echo -e "${YELLOW}Updating task definition...${NC}"
-    if ! cat /tmp/task-def-rca.json | jq --arg IMAGE "${IMAGE_URI}:${BUILD_NUMBER}" \
-                                     --arg SLIM_ENDPOINT "${SLIM_ENDPOINT}" '
-        .containerDefinitions[0].image = $IMAGE |
-        .containerDefinitions[0].portMappings[0].containerPort = 3045 |
-        .containerDefinitions[0].portMappings[0].hostPort = 3045 |
-        .containerDefinitions[0].portMappings[0].name = "prayog-prod-ag-orch-transaction-rca-agent-container-3045-tcp" |
-        .containerDefinitions[0].environment = (
-            (.containerDefinitions[0].environment // []) |
-            map(select(.name != "SLIM_ENDPOINT")) +
-            [{"name":"SLIM_ENDPOINT","value":$SLIM_ENDPOINT}]
-        ) |
-        .containerDefinitions[0].healthCheck = {
-            "command": ["CMD-SHELL", "curl -f http://localhost:3045/rca-pinelabs/health || exit 1"],
-            "interval": 30,
-            "timeout": 5,
-            "retries": 3,
-            "startPeriod": 60
-        } |
-        del(
-            .taskDefinitionArn,
-            .revision,
-            .status,
-            .requiresAttributes,
-            .compatibilities,
-            .registeredAt,
-            .registeredBy
-        )
-    ' > /tmp/new-task-def-rca.json; then
-        echo -e "${RED}❌ Failed to update task definition JSON${NC}"
-        exit 1
-    fi
-    
-    # Register new task definition
-    echo -e "${YELLOW}Registering new task definition...${NC}"
-    NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
-        --cli-input-json file:///tmp/new-task-def-rca.json \
-        --query 'taskDefinition.taskDefinitionArn' \
-        --output text)
-    
-    if [ -z "$NEW_TASK_DEF_ARN" ]; then
-        echo -e "${RED}❌ Failed to register new task definition${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}New task definition ARN: ${NEW_TASK_DEF_ARN}${NC}"
-    
-    # Update ECS service
-    echo -e "${YELLOW}Updating ECS service...${NC}"
-    if ! aws ecs update-service \
-        --cluster ${CLUSTER_NAME} \
-        --service ${RCA_SERVICE} \
-        --task-definition ${NEW_TASK_DEF_ARN} \
-        --force-new-deployment \
-        --region ${AWS_REGION} > /dev/null; then
-        echo -e "${RED}❌ Failed to update ECS service${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}✅ ECS service update initiated${NC}"
-    
-    # Wait for deployment to complete
-    wait_for_deployment ${RCA_SERVICE}
-    
-    # Cleanup
-    rm -f /tmp/task-def-rca.json /tmp/new-task-def-rca.json
-    
-    # Clean up local Docker images
-    docker rmi ${IMAGE_URI}:${BUILD_NUMBER} ${IMAGE_URI}:latest || true
-    
-    echo -e "${GREEN}✅ Transaction RCA Agent deployment completed!${NC}"
-}
-
 # Deploy Frontend
 deploy_frontend() {
     echo -e "${BLUE}========================================${NC}"
@@ -437,22 +280,17 @@ main() {
             login_ecr
             deploy_supervisor
             ;;
-        rca)
-            login_ecr
-            deploy_rca
-            ;;
         frontend)
             deploy_frontend
             ;;
         all)
             login_ecr
             deploy_supervisor
-            deploy_rca
             deploy_frontend
             ;;
         *)
             echo -e "${RED}❌ Invalid service: ${SERVICE}${NC}"
-            echo -e "Usage: ./manual-deploy.sh [supervisor|rca|frontend|all]"
+            echo -e "Usage: ./manual-deploy.sh [supervisor|frontend|all]"
             exit 1
             ;;
     esac

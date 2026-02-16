@@ -12,7 +12,8 @@ COPY pyproject.toml .
 COPY . .
 
 # Create virtual environment and install project with dependencies
-RUN uv venv && uv pip install .
+# Use --clear so any existing .venv from cache is replaced
+RUN uv venv --clear && uv pip install .
 
 # Install curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*

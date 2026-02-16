@@ -16,7 +16,7 @@ const Navigation: React.FC = () => {
     const { getHealth } = useAgentAPI()
     const { logout, userId, checkApiKey } = useChatHistoryStore()
     const [healthStatus, setHealthStatus] = useState<"healthy" | "unhealthy" | "loading">("loading")
-    const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
+    const [showLLMSettings, setShowLLMSettings] = useState(false)
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -138,11 +138,6 @@ const Navigation: React.FC = () => {
                     )}
                 </div>
 
-                {/* Settings Button */}
-                <button onClick={() => setIsSettingsOpen(true)} style={buttonStyles} title="LLM Settings">
-                    <Settings style={{ width: 18, height: 18, color: "#94a3b8" }} />
-                </button>
-
                 {/* Theme Toggle */}
                 <button onClick={toggleTheme} style={buttonStyles} title={isLightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}>
                     {isLightMode ? (
@@ -152,22 +147,23 @@ const Navigation: React.FC = () => {
                     )}
                 </button>
 
+                {/* LLM Settings */}
+                <button onClick={() => setShowLLMSettings(true)} style={buttonStyles} title="LLM / API Key Settings">
+                    <Settings style={{ width: 18, height: 18, color: "#94a3b8" }} />
+                </button>
+
                 {/* Logout Button */}
                 <button onClick={() => logout()} style={buttonStyles} title="Log Out">
                     <LogOut style={{ width: 18, height: 18, color: "#ef4444" }} />
                 </button>
             </div>
 
-            {/* LLM Settings Modal */}
             {userId && (
                 <LLMSettings
-                    isOpen={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
+                    isOpen={showLLMSettings}
+                    onClose={() => setShowLLMSettings(false)}
                     userId={userId}
-                    onApiKeySaved={async () => {
-                        // Refresh API key state after saving
-                        await checkApiKey()
-                    }}
+                    onApiKeySaved={() => checkApiKey()}
                 />
             )}
         </nav>

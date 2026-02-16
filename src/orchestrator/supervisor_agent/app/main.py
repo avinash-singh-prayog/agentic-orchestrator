@@ -11,6 +11,8 @@ import logging
 from typing import AsyncGenerator, Optional, List, Literal, Union
 from contextlib import asynccontextmanager
 
+import httpx
+
 from fastapi import FastAPI, HTTPException, status, APIRouter, Request, Form, File as FastAPIFile, UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -21,6 +23,10 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from app.document_processor import process_attachment
 
 logger = logging.getLogger(__name__)
+
+# External APIs (separately deployed; auth via user-id header from supervisor)
+EXTERNAL_DB_RCA_STREAM_URL = "https://prod-apis.prayog.io/pinelabs-agent/rca/external-db/stream"
+EXTERNAL_LLM_CONFIG_URL = "https://prod-apis.prayog.io/pinelabs-agent/llm/config"
 
 from agntcy_app_sdk.factory import AgntcyFactory
 from agent.shared import set_factory
@@ -543,6 +549,161 @@ async def run_agent(request: ChatRequest):
     return ChatResponse(response=last_msg, thread_id=thread_id)
 
 
+def _sse_message_for_external_db(event_type: str, data: dict) -> Optional[str]:
+    """Build NDJSON message string from external API SSE event, or None if nothing to show."""
+    sender = "RCA agent"
+    node = "external_db"
+    message = None
+    if event_type == "start" and "message" in data:
+        message = data["message"]
+    elif event_type == "db" and "message" in data:
+        message = data["message"]
+    elif event_type == "schema":
+        message = data.get("message") or ("Using cached schema" if data.get("cached") else "Loading schema...")
+    elif event_type == "eda" and "message" in data:
+        message = data["message"]
+    elif event_type == "embedding" and "message" in data:
+        message = data["message"]
+    elif event_type == "agent" and "message" in data:
+        message = data["message"]
+    elif event_type == "done":
+        message = data.get("rca_report", "")
+    elif event_type == "error":
+        message = data.get("message", "Unknown error")
+    if message is None:
+        return None
+    return json.dumps({
+        "content": {"sender": sender, "message": message, "node": node}
+    }) + "\n"
+
+
+async def stream_events_external_db(
+    prompt: str,
+    tenant_id: str,
+    user_id: str,
+    thread_id: str,
+) -> AsyncGenerator[str, None]:
+    """Stream events from the external DB RCA API; persist user/assistant messages and yield NDJSON.
+    Uses the same checkpointer and config (tenant_id, user_id, thread_id) as the graph flow,
+    so chat history is saved and listed identically (list_conversations, get_conversation).
+    """
+    prompt = (prompt or "").strip()
+    if not prompt:
+        yield json.dumps({
+            "content": {"sender": "System", "message": "Query cannot be empty.", "node": "error"}
+        }) + "\n"
+        return
+
+    config = build_config(tenant_id, user_id, thread_id, llm_config=None)
+    activity: List[dict] = []
+
+    try:
+        async with get_checkpointer() as checkpointer:
+            graph_with_memory = build_graph(checkpointer=checkpointer)
+            # Append user message to thread (as_node required to avoid ambiguous update)
+            await graph_with_memory.aupdate_state(config, {"messages": [HumanMessage(content=prompt)]}, as_node="supervisor")
+
+        # Initial event
+        yield json.dumps({
+            "content": {
+                "sender": "Supervisor",
+                "message": "Processing your request...",
+                "node": "supervisor",
+                "thread_id": thread_id,
+            }
+        }) + "\n"
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+            response = await client.post(
+                EXTERNAL_DB_RCA_STREAM_URL,
+                json={"user_query": prompt},
+                headers={
+                    "Content-Type": "application/json",
+                    "accept": "application/json",
+                    "user-id": user_id,
+                },
+            )
+            response.raise_for_status()
+
+            buffer = ""
+            event_type = None
+            data = None
+            final_message = None
+            seen_error = False
+            stream_done = False
+
+            async for chunk in response.aiter_text():
+                if stream_done:
+                    break
+                buffer += chunk
+                while "\n\n" in buffer:
+                    block, buffer = buffer.split("\n\n", 1)
+                    event_type = None
+                    data = None
+                    for line in block.split("\n"):
+                        line = line.strip()
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            try:
+                                data = json.loads(line[5:].strip())
+                            except json.JSONDecodeError:
+                                data = {}
+                    if event_type is None or data is None:
+                        continue
+                    if event_type == "error":
+                        seen_error = True
+                        msg = _sse_message_for_external_db("error", data)
+                        if msg:
+                            activity.append({"sender": "RCA agent", "message": data.get("message", ""), "state": "done"})
+                            yield msg
+                        final_message = data.get("message", "Error")
+                        stream_done = True
+                        break
+                    if event_type == "done":
+                        final_message = data.get("rca_report", "")
+                        msg = _sse_message_for_external_db("done", data)
+                        if msg:
+                            activity.append({"sender": "RCA agent", "message": (final_message[:200] + "..." if len(final_message) > 200 else final_message), "state": "done"})
+                            yield msg
+                        stream_done = True
+                        break
+                    msg = _sse_message_for_external_db(event_type, data)
+                    if msg:
+                        activity.append({"sender": "RCA agent", "message": data.get("message", data.get("rca_report", "")), "state": "PROCESSING"})
+                        yield msg
+
+            if final_message is not None:
+                async with get_checkpointer() as checkpointer:
+                    graph_with_memory = build_graph(checkpointer=checkpointer)
+                    if not seen_error:
+                        meta = dict(config.get("metadata") or {})
+                        meta["last_turn_activity"] = activity
+                        config_with_meta = {**config, "metadata": meta}
+                        await graph_with_memory.aupdate_state(config_with_meta, {"messages": [AIMessage(content=final_message)]}, as_node="supervisor")
+                    else:
+                        await graph_with_memory.aupdate_state(config, {"messages": [AIMessage(content=final_message)]}, as_node="supervisor")
+
+    except httpx.HTTPStatusError as e:
+        err_msg = f"External API error: {e.response.status_code}"
+        try:
+            body = e.response.json()
+            if isinstance(body.get("detail"), str):
+                err_msg = body["detail"]
+            elif isinstance(body.get("message"), str):
+                err_msg = body["message"]
+        except Exception:
+            pass
+        yield json.dumps({
+            "content": {"sender": "RCA agent", "message": err_msg, "node": "external_db"}
+        }) + "\n"
+    except Exception as e:
+        logger.exception("External DB stream failed")
+        yield json.dumps({
+            "content": {"sender": "System", "message": str(e), "node": "error"}
+        }) + "\n"
+
+
 async def stream_events(
     prompt: str,
     tenant_id: str,
@@ -645,7 +806,7 @@ async def stream_events(
                             ))
                         
                         if repair_messages:
-                            await graph_with_memory.aupdate_state(config, {"messages": repair_messages})
+                            await graph_with_memory.aupdate_state(config, {"messages": repair_messages}, as_node="supervisor")
                             print(f"INFO: Repaired dangling tool calls for thread {thread_id}")
             # --- State Repair End ---
             
@@ -1014,40 +1175,10 @@ async def stream_agent(request: Request):
             logger.error(f"Error parsing JSON request: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
     
-    # Check API key BEFORE starting the stream to avoid "response already started" error
-    try:
-        llm_config = await get_user_llm_config(user_id)
-        if not llm_config:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "api_key_required",
-                    "message": "API key is required. Please configure your API key in the settings before using the system."
-                }
-            )
-        if not llm_config.get("api_key") or not llm_config.get("api_key").strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "api_key_required",
-                    "message": "API key is required. Please configure your API key in the settings before using the system."
-                }
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to fetch LLM config for user {user_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "api_key_required",
-                "message": "API key is required. Please configure your API key in the settings before using the system."
-            }
-        )
-    
+    # External DB flow: no LLM config required (external API uses its own backend)
     try:
         return StreamingResponse(
-            stream_events(prompt, tenant_id, user_id, thread_id, request_attachments),
+            stream_events_external_db(prompt, tenant_id, user_id, thread_id),
             media_type="application/x-ndjson",
             headers={
                 "Cache-Control": "no-cache",
@@ -1230,6 +1361,18 @@ async def get_conversation(thread_id: str, tenant_id: str, user_id: str):
                     activity=[]
                 ))
         
+        # External DB flow: attach last_turn_activity from checkpoint metadata to last assistant message
+        meta = checkpoint_tuple.metadata or {}
+        if processed_messages and processed_messages[-1].role == "assistant" and meta.get("last_turn_activity"):
+            last = processed_messages[-1]
+            processed_messages[-1] = MessageInfo(
+                role=last.role,
+                content=last.content,
+                timestamp=last.timestamp,
+                activity=meta["last_turn_activity"],
+                attachments=getattr(last, "attachments", None),
+            )
+        
         return processed_messages
 
 
@@ -1330,6 +1473,13 @@ def validate_model_string(provider: str, model: str) -> str:
             return model
         else:
             return f"openrouter/{model}"
+    elif provider == "google":
+        # LiteLLM uses "gemini" as the provider name for Google's API, not "google"
+        if model.startswith("gemini/"):
+            return model
+        elif "/" in model:
+            return model
+        return f"gemini/{model}"
     elif provider == "groq":
         # Groq models may need meta-llama/ prefix for certain models
         if model.startswith("meta-llama/"):
@@ -1364,189 +1514,61 @@ def validate_api_key_format(provider: str, api_key: str) -> bool:
 
 @router.get("/v1/settings/llm-config", response_model=LLMConfigResponse)
 async def get_llm_config(user_id: str):
-    """Get user's current LLM configuration."""
-    try:
-        config = await get_user_llm_config(user_id)
-        
-        if not config:
-            return LLMConfigResponse(
-                provider=None,
-                model=None,
-                has_api_key=False,
-                updated_at=None
-            )
-        
-        return LLMConfigResponse(
-            provider=config["provider"],
-            model=config["model"],
-            has_api_key=bool(config.get("api_key")),
-            updated_at=config.get("updated_at")
-        )
-    except DatabaseConnectionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": "database_connection_error",
-                "message": "Unable to connect to database. Please try again later.",
-                "details": str(e.message)
-            }
-        )
-    except DatabaseTimeoutError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": "database_timeout",
-                "message": "Database operation timed out. Please try again.",
-                "details": str(e.message)
-            }
-        )
-    except DatabaseError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "database_error",
-                "message": "An unexpected database error occurred.",
-                "details": str(e.message)
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting LLM config: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "internal_error",
-                "message": "Failed to retrieve LLM configuration."
-            }
-        )
+    """Return fixed LLM config (Gemini). We do not store API key; external APIs manage it."""
+    # We do not read from our DB. Provider/model are fixed; has_api_key is unknown (external backend will error if missing).
+    return LLMConfigResponse(
+        provider="google",
+        model="gemini-2.5-flash",
+        has_api_key=False,  # We don't store; their backend will throw if user has no key
+        updated_at=None
+    )
+
+# External API expects "gemini" as provider name; we use "google" internally and in UI.
+_EXTERNAL_PROVIDER_MAP = {"google": "gemini"}
+
 
 @router.post("/v1/settings/llm-config")
 async def update_llm_config(request: LLMConfigRequest, user_id: str):
-    """Update user's LLM configuration."""
+    """Forward LLM config to external API only. We do not store API key or config in our DB."""
+    logger.info(f"Forwarding LLM config to external API for user {user_id}: provider={request.provider}, model={request.model}, api_key_provided={bool(request.api_key)}")
+    ext_provider = _EXTERNAL_PROVIDER_MAP.get(request.provider, request.provider)
     try:
-        logger.info(f"Update LLM config request for user {user_id}: provider={request.provider}, model={request.model}, api_key_provided={bool(request.api_key)}")
-        
-        # If API key is provided, validate its format
-        if request.api_key:
-            logger.info(f"API key provided, validating format for provider {request.provider}")
-            if not validate_api_key_format(request.provider, request.api_key):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "error": "invalid_api_key_format",
-                        "message": f"API key format is invalid for {request.provider}. Expected format: {AVAILABLE_PROVIDERS.get(request.provider, {}).get('api_key_prefix', 'N/A')}..."
-                    }
-                )
-            logger.info(f"API key format validated successfully, will save to database")
-        else:
-            # If API key is not provided, try to reuse existing one from database
-            logger.info(f"No API key provided, checking database for existing key for user {user_id}")
-            existing_config = await get_user_llm_config(user_id)
-            
-            if existing_config:
-                existing_api_key = existing_config.get("api_key", "")
-                existing_provider = existing_config.get("provider")
-                logger.info(f"Found existing config: provider={existing_provider}, has_api_key={bool(existing_api_key)}, api_key_length={len(existing_api_key) if existing_api_key else 0}")
-                
-                # Check if we have a valid (non-empty) API key for the requested provider
-                if existing_api_key and existing_api_key.strip():
-                    if existing_provider == request.provider:
-                        # Same provider - reuse the existing API key
-                        request.api_key = existing_api_key
-                        logger.info(f"Reusing existing API key for user {user_id} when switching to {request.provider}/{request.model}")
-                    else:
-                        # Different provider - need new API key for this provider
-                        logger.warning(f"User {user_id} switching from {existing_provider} to {request.provider}, requires new API key")
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail={
-                                "error": "api_key_required",
-                                "message": f"API key is required when switching to provider {request.provider}. Please provide an API key for {request.provider}."
-                            }
-                        )
-                else:
-                    # No existing API key or empty API key - require one
-                    logger.warning(f"No valid API key found in database for user {user_id}, provider {request.provider}")
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "error": "api_key_required",
-                            "message": f"API key is required for provider {request.provider}. Please provide an API key."
-                        }
-                    )
-            else:
-                # No existing config - require API key
-                logger.warning(f"No existing config found for user {user_id}, requires API key")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "error": "api_key_required",
-                        "message": f"API key is required for provider {request.provider}. Please provide an API key."
-                    }
-                )
-        
-        # Validate model
-        provider_info = AVAILABLE_PROVIDERS.get(request.provider)
-        if provider_info and request.model not in provider_info["models"]:
-            # Allow custom models but log a warning
-            logger.warning(f"User {user_id} using custom model {request.model} for provider {request.provider}")
-        
-        # Update configuration
-        success = await update_user_llm_config(
-            user_id,
-            request.provider,
-            request.model,
-            request.api_key
-        )
-        
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail={
-                    "error": "update_failed",
-                    "message": "Failed to update LLM configuration."
-                }
+        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
+            ext_response = await client.post(
+                EXTERNAL_LLM_CONFIG_URL,
+                json={
+                    "llm_provider": ext_provider,
+                    "llm_model": request.model,
+                    "llm_api_key": request.api_key or "",
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "accept": "application/json",
+                    "user-id": user_id,
+                },
             )
-        
+            ext_response.raise_for_status()
         return {
             "status": "success",
             "message": "LLM configuration updated successfully"
         }
-    except HTTPException:
-        raise
-    except DatabaseConnectionError as e:
+    except httpx.HTTPStatusError as e:
+        # Surface external API validation errors (e.g. "pass api key") to the client
+        try:
+            detail = e.response.json()
+        except Exception:
+            detail = {"message": e.response.text or str(e)}
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": "database_connection_error",
-                "message": "Unable to connect to database. Please try again later.",
-                "details": str(e.message)
-            }
-        )
-    except DatabaseTimeoutError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": "database_timeout",
-                "message": "Database operation timed out. Please try again.",
-                "details": str(e.message)
-            }
-        )
-    except DatabaseError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "database_error",
-                "message": "An unexpected database error occurred.",
-                "details": str(e.message)
-            }
+            status_code=e.response.status_code,
+            detail=detail
         )
     except Exception as e:
-        logger.error(f"Error updating LLM config: {e}", exc_info=True)
+        logger.error(f"Failed to forward LLM config to external API for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail={
-                "error": "internal_error",
-                "message": "Failed to update LLM configuration."
+                "error": "external_api_error",
+                "message": "Could not update LLM configuration. Please try again."
             }
         )
 

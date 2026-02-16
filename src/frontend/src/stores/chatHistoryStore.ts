@@ -431,25 +431,21 @@ export const useChatHistoryStore = create<ChatHistoryStore>((set, get) => ({
 
   checkApiKey: async () => {
     const { userId } = get()
-    if (!userId) {
-      set({ hasApiKey: false })
-      return
-    }
-
     set({ isCheckingApiKey: true })
     try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.LLM_CONFIG}?user_id=${userId}`)
-      if (response.ok) {
-        const config = await response.json()
-        set({ hasApiKey: config.has_api_key === true })
-      } else {
-        set({ hasApiKey: false })
+      if (!userId) {
+        set({ hasApiKey: false, isCheckingApiKey: false })
+        return
       }
-    } catch (error) {
-      console.error("Failed to check API key:", error)
-      set({ hasApiKey: false })
-    } finally {
-      set({ isCheckingApiKey: false })
+      const response = await fetch(`${API_URL}${API_ENDPOINTS.LLM_CONFIG}?user_id=${userId}`)
+      if (!response.ok) {
+        set({ hasApiKey: false, isCheckingApiKey: false })
+        return
+      }
+      const data = await response.json()
+      set({ hasApiKey: data.has_api_key === true, isCheckingApiKey: false })
+    } catch {
+      set({ hasApiKey: false, isCheckingApiKey: false })
     }
   },
 

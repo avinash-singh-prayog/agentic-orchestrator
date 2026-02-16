@@ -52,7 +52,6 @@ kill_port() {
 echo -e "${BLUE}🔍 Checking and freeing ports...${NC}"
 kill_port 3000
 kill_port 3044
-kill_port 3045
 
 # Function to setup Python service
 setup_python_service() {
@@ -80,7 +79,6 @@ setup_python_service() {
 # Setup Python services
 echo -e "\n${BLUE}📦 Setting up Python services...${NC}"
 setup_python_service "src/orchestrator/supervisor_agent" "Supervisor Agent"
-setup_python_service "src/orchestrator/transaction_rca_agent" "Transaction RCA Agent"
 
 # Setup Frontend
 echo -e "\n${BLUE}📦 Setting up Frontend...${NC}"
@@ -135,14 +133,10 @@ run_service "frontend" "npm run dev" "src/frontend"
 # Supervisor Agent
 run_service "supervisor-agent" ".venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 3044 --reload" "src/orchestrator/supervisor_agent"
 
-# Transaction RCA Agent (Dual mode: HTTP + SLIM for inter-agent communication)
-run_service "transaction-rca-agent" "PYTHONPATH=. .venv/bin/python -m app.main dual" "src/orchestrator/transaction_rca_agent"
-
 echo -e "\n${GREEN}✅ All services started!${NC}\n"
 echo -e "${BLUE}📍 Services running at:${NC}"
 echo -e "   Frontend:           http://localhost:3000"
 echo -e "   Supervisor Agent:   http://localhost:3044"
-echo -e "   Transaction RCA:    http://localhost:3045"
 echo -e "${YELLOW}🛑 Press Ctrl+C to stop all services${NC}\n"
 
 # Wait for all background processes

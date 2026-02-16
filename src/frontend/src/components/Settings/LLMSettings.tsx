@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { X, Eye, EyeOff, CheckCircle, AlertCircle, Loader } from "lucide-react"
+import { X, Eye, EyeOff, AlertCircle, Loader } from "lucide-react"
 import { API_ENDPOINTS } from "@/utils/const"
 import { useTheme } from "@/contexts/ThemeContext"
 
@@ -49,17 +49,19 @@ const AVAILABLE_PROVIDERS = {
   }
 }
 
+// Fixed for now: Gemini only
+const FIXED_PROVIDER = "google"
+const FIXED_MODEL = "gemini-2.5-flash"
+
 const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onApiKeySaved }) => {
   const { isLightMode } = useTheme()
-  const [provider, setProvider] = useState<string>("openai")
-  const [model, setModel] = useState<string>("")
+  const [provider] = useState<string>(FIXED_PROVIDER)
+  const [model] = useState<string>(FIXED_MODEL)
   const [apiKey, setApiKey] = useState<string>("")
   const [showApiKey, setShowApiKey] = useState<boolean>(false)
   const [currentConfig, setCurrentConfig] = useState<LLMConfig | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [isTesting, setIsTesting] = useState<boolean>(false)
   const [isSaving, setIsSaving] = useState<boolean>(false)
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Load current configuration
@@ -69,16 +71,6 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
     }
   }, [isOpen, userId])
 
-  // Update models when provider changes
-  useEffect(() => {
-    if (provider && AVAILABLE_PROVIDERS[provider as keyof typeof AVAILABLE_PROVIDERS]) {
-      const models = AVAILABLE_PROVIDERS[provider as keyof typeof AVAILABLE_PROVIDERS].models
-      if (models.length > 0 && !models.includes(model)) {
-        setModel(models[0])
-      }
-    }
-  }, [provider])
-
   const loadCurrentConfig = async () => {
     setIsLoading(true)
     setError(null)
@@ -87,12 +79,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
       if (response.ok) {
         const config: LLMConfig = await response.json()
         setCurrentConfig(config)
-        if (config.provider) {
-          setProvider(config.provider)
-        }
-        if (config.model) {
-          setModel(config.model)
-        }
+        // Provider/model are fixed (Gemini); only API key state is used from config
         // Don't set API key (security - it's not returned)
       } else {
         setError("Failed to load current configuration")
@@ -102,65 +89,6 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
       console.error(err)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const testConnection = async () => {
-    if (!provider || !model) {
-      setTestResult({ success: false, message: "Please select provider and model" })
-      return
-    }
-
-    // Check if API key is required for testing
-    if (!apiKey && (!currentConfig || !currentConfig.has_api_key)) {
-      setTestResult({ success: false, message: "API key is required for testing" })
-      return
-    }
-
-    setIsTesting(true)
-    setTestResult(null)
-    setError(null)
-
-    try {
-      // For testing, we need an API key - use provided one or fetch existing
-      let testApiKey = apiKey
-      if (!testApiKey && currentConfig && currentConfig.has_api_key && currentConfig.provider === provider) {
-        // We can't get the actual API key from the frontend (security), so we need user to provide it for testing
-        setTestResult({ success: false, message: "Please enter API key to test connection" })
-        setIsTesting(false)
-        return
-      }
-
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.LLM_CONFIG_TEST}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          provider,
-          model,
-          api_key: testApiKey,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setTestResult({ success: true, message: "Connection test successful!" })
-      } else {
-        setTestResult({
-          success: false,
-          message: data.detail?.message || "Connection test failed",
-        })
-      }
-    } catch (err) {
-      setTestResult({
-        success: false,
-        message: "Error testing connection",
-      })
-      console.error(err)
-    } finally {
-      setIsTesting(false)
     }
   }
 
@@ -191,7 +119,6 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
         await loadCurrentConfig()
         // Clear API key field for security
         setApiKey("")
-        setTestResult(null)
         // Notify parent to refresh API key state
         if (onApiKeySaved) {
           onApiKeySaved()
@@ -214,7 +141,6 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
   }
 
   const providerInfo = AVAILABLE_PROVIDERS[provider as keyof typeof AVAILABLE_PROVIDERS]
-  const models = providerInfo?.models || []
 
   if (!isOpen) return null
 
@@ -279,56 +205,43 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
           </div>
         ) : (
           <>
-            {/* Provider Selection */}
+            {/* Fixed: Gemini provider & model (read-only) */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                 Provider
               </label>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+              <div
                 style={{
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 8,
                   border: "1px solid var(--border-light)",
                   backgroundColor: "var(--bg-input)",
-                  color: "var(--text-primary)",
+                  color: "var(--text-tertiary)",
                   fontSize: 14,
                 }}
               >
-                {Object.keys(AVAILABLE_PROVIDERS).map((p) => (
-                  <option key={p} value={p}>
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                  </option>
-                ))}
-              </select>
+                Gemini
+              </div>
             </div>
 
-            {/* Model Selection */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
                 Model
               </label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
+              <div
                 style={{
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 8,
                   border: "1px solid var(--border-light)",
                   backgroundColor: "var(--bg-input)",
-                  color: "var(--text-primary)",
+                  color: "var(--text-tertiary)",
                   fontSize: 14,
                 }}
               >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                gemini-2.5-flash
+              </div>
             </div>
 
             {/* API Key Input */}
@@ -420,33 +333,6 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
               </div>
             )}
 
-            {/* Test Result */}
-            {testResult && (
-              <div
-                style={{
-                  padding: 12,
-                  borderRadius: 8,
-                  backgroundColor: testResult.success
-                    ? "var(--accent-primary-bg)"
-                    : "rgba(239, 68, 68, 0.1)",
-                  border: `1px solid ${testResult.success ? "var(--accent-primary-border)" : "rgba(239, 68, 68, 0.2)"}`,
-                  marginBottom: 20,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                {testResult.success ? (
-                  <CheckCircle size={16} color="var(--accent-primary)" />
-                ) : (
-                  <AlertCircle size={16} color="#ef4444" />
-                )}
-                <span style={{ fontSize: 12, color: testResult.success ? "var(--accent-primary)" : "#ef4444" }}>
-                  {testResult.message}
-                </span>
-              </div>
-            )}
-
             {/* Error Message */}
             {error && (
               <div
@@ -469,52 +355,16 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isOpen, onClose, userId, onAp
             {/* Action Buttons */}
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button
-                onClick={testConnection}
-                disabled={isTesting || isSaving || !provider || !model || (!apiKey && (!currentConfig || !currentConfig.has_api_key))}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border-light)",
-                  backgroundColor: "var(--bg-input)",
-                  color: "var(--text-primary)",
-                  cursor: isTesting || isSaving || !provider || !model || (!apiKey && (!currentConfig || !currentConfig.has_api_key)) ? "not-allowed" : "pointer",
-                  opacity: isTesting || isSaving || !provider || !model || (!apiKey && (!currentConfig || !currentConfig.has_api_key)) ? 0.5 : 1,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isTesting && !isSaving && provider && model && (apiKey || (currentConfig && currentConfig.has_api_key))) {
-                    e.currentTarget.style.backgroundColor = "var(--bg-panel)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--bg-input)"
-                }}
-              >
-                {isTesting ? (
-                  <>
-                    <Loader className="animate-spin" size={16} color="var(--text-primary)" />
-                    Testing...
-                  </>
-                ) : (
-                  "Test Connection"
-                )}
-              </button>
-              <button
                 onClick={saveConfiguration}
-                disabled={isSaving || isTesting || !provider || !model}
+                disabled={isSaving || !provider || !model}
                 style={{
                   padding: "10px 20px",
                   borderRadius: 8,
                   border: "none",
                   background: "linear-gradient(135deg, #003323, #50D387)",
                   color: "#fff",
-                  cursor: isSaving || isTesting || !provider || !model ? "not-allowed" : "pointer",
-                  opacity: isSaving || isTesting || !provider || !model ? 0.5 : 1,
+                  cursor: isSaving || !provider || !model ? "not-allowed" : "pointer",
+                  opacity: isSaving || !provider || !model ? 0.5 : 1,
                   fontSize: 14,
                   fontWeight: 500,
                   display: "flex",
