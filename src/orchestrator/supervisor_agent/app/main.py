@@ -5,9 +5,11 @@ Entry point for the supervisor agent with factory initialization.
 Multi-tenant chat context persistence via PostgreSQL checkpointer.
 """
 
+import asyncio
 import json
-import uuid
 import logging
+import os
+import uuid
 from typing import AsyncGenerator, Optional, List, Literal, Union
 from contextlib import asynccontextmanager
 
@@ -27,6 +29,11 @@ logger = logging.getLogger(__name__)
 # External APIs (separately deployed; auth via user-id header from supervisor)
 EXTERNAL_DB_RCA_STREAM_URL = "https://prod-apis.prayog.io/pinelabs-agent/rca/external-db/stream"
 EXTERNAL_LLM_CONFIG_URL = "https://prod-apis.prayog.io/pinelabs-agent/llm/config"
+
+# Accept header when calling external stream. Default application/json to reduce runc "sh not found".
+# Set EXTERNAL_DB_STREAM_ACCEPT=text/event-stream to explicitly request SSE.
+# See docs/RCA_STREAM_RUNC_ERROR_ANALYSIS.md
+EXTERNAL_DB_STREAM_ACCEPT = os.environ.get("EXTERNAL_DB_STREAM_ACCEPT", "application/json")
 
 from agntcy_app_sdk.factory import AgntcyFactory
 from agent.shared import set_factory
@@ -612,66 +619,71 @@ async def stream_events_external_db(
                 "thread_id": thread_id,
             }
         }) + "\n"
+        await asyncio.sleep(0)  # Flush so client sees first event immediately
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-            response = await client.post(
+            async with client.stream(
+                "POST",
                 EXTERNAL_DB_RCA_STREAM_URL,
                 json={"user_query": prompt},
                 headers={
                     "Content-Type": "application/json",
-                    "accept": "application/json",
+                    "Accept": EXTERNAL_DB_STREAM_ACCEPT,
                     "user-id": user_id,
                 },
-            )
-            response.raise_for_status()
+            ) as response:
+                response.raise_for_status()
 
-            buffer = ""
-            event_type = None
-            data = None
-            final_message = None
-            seen_error = False
-            stream_done = False
+                buffer = ""
+                event_type = None
+                data = None
+                final_message = None
+                seen_error = False
+                stream_done = False
 
-            async for chunk in response.aiter_text():
-                if stream_done:
-                    break
-                buffer += chunk
-                while "\n\n" in buffer:
-                    block, buffer = buffer.split("\n\n", 1)
-                    event_type = None
-                    data = None
-                    for line in block.split("\n"):
-                        line = line.strip()
-                        if line.startswith("event:"):
-                            event_type = line[6:].strip()
-                        elif line.startswith("data:"):
-                            try:
-                                data = json.loads(line[5:].strip())
-                            except json.JSONDecodeError:
-                                data = {}
-                    if event_type is None or data is None:
-                        continue
-                    if event_type == "error":
-                        seen_error = True
-                        msg = _sse_message_for_external_db("error", data)
-                        if msg:
-                            activity.append({"sender": "RCA agent", "message": data.get("message", ""), "state": "done"})
-                            yield msg
-                        final_message = data.get("message", "Error")
-                        stream_done = True
+                async for chunk in response.aiter_text():
+                    if stream_done:
                         break
-                    if event_type == "done":
-                        final_message = data.get("rca_report", "")
-                        msg = _sse_message_for_external_db("done", data)
+                    buffer += chunk
+                    while "\n\n" in buffer:
+                        block, buffer = buffer.split("\n\n", 1)
+                        event_type = None
+                        data = None
+                        for line in block.split("\n"):
+                            line = line.strip()
+                            if line.startswith("event:"):
+                                event_type = line[6:].strip()
+                            elif line.startswith("data:"):
+                                try:
+                                    data = json.loads(line[5:].strip())
+                                except json.JSONDecodeError:
+                                    data = {}
+                        if event_type is None or data is None:
+                            continue
+                        if event_type == "error":
+                            seen_error = True
+                            msg = _sse_message_for_external_db("error", data)
+                            if msg:
+                                activity.append({"sender": "RCA agent", "message": data.get("message", ""), "state": "done"})
+                                yield msg
+                                await asyncio.sleep(0)  # Yield so chunk is sent to client immediately
+                            final_message = data.get("message", "Error")
+                            stream_done = True
+                            break
+                        if event_type == "done":
+                            final_message = data.get("rca_report", "")
+                            msg = _sse_message_for_external_db("done", data)
+                            if msg:
+                                activity.append({"sender": "RCA agent", "message": (final_message[:200] + "..." if len(final_message) > 200 else final_message), "state": "done"})
+                                yield msg
+                                await asyncio.sleep(0)  # Yield so chunk is sent to client immediately
+                            stream_done = True
+                            break
+                        msg = _sse_message_for_external_db(event_type, data)
                         if msg:
-                            activity.append({"sender": "RCA agent", "message": (final_message[:200] + "..." if len(final_message) > 200 else final_message), "state": "done"})
+                            activity.append({"sender": "RCA agent", "message": data.get("message", data.get("rca_report", "")), "state": "PROCESSING"})
                             yield msg
-                        stream_done = True
-                        break
-                    msg = _sse_message_for_external_db(event_type, data)
-                    if msg:
-                        activity.append({"sender": "RCA agent", "message": data.get("message", data.get("rca_report", "")), "state": "PROCESSING"})
-                        yield msg
+                            await asyncio.sleep(0)  # Yield so chunk is sent to client immediately
 
             if final_message is not None:
                 async with get_checkpointer() as checkpointer:

@@ -244,6 +244,9 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
         let buffer = ""
         let lastMessage = ""
 
+        // Yield to the event loop after each event so the UI paints progressively (avoids all events appearing in one frame)
+        const yieldToUI = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
@@ -284,6 +287,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
                       timestamp: new Date().toISOString(),
                       state: "PROCESSING",
                     })
+                    await yieldToUI()
                   } else if (typeof data.content === "string") {
                     lastMessage = data.content
                     addEvent({
@@ -294,6 +298,7 @@ export const useOrchestratorStreamingStore = create<OrchestratorStreamingStore>(
                       timestamp: new Date().toISOString(),
                       state: "PROCESSING",
                     })
+                    await yieldToUI()
                   }
                 }
               } catch (e) {

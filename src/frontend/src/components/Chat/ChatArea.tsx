@@ -348,7 +348,7 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                     background: "var(--bg-input)",
                     border: "1px solid var(--border-light)",
                     borderRadius: 16,
-                    padding: "12px 48px 12px 16px",
+                    padding: "12px 52px 12px 16px",
                     minHeight: 56,
                     display: "flex",
                     flexDirection: "column",
@@ -359,7 +359,6 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                         alignItems: "center", 
                         width: "100%",
                         minHeight: 28,
-                        position: "relative",
                     }}>
                         <textarea
                             ref={inputRef as any}
@@ -386,56 +385,55 @@ const ChatArea: React.FC<ChatAreaProps> = () => {
                             }}
                             disabled={isLoading}
                         />
+                    </div>
 
-                        {isLoading ? (
-                            <button onClick={handleStop} style={{
+                    {/* Send / Stop button in bottom-right corner of input box */}
+                    {isLoading ? (
+                        <button onClick={handleStop} style={{
+                            position: "absolute",
+                            right: 10,
+                            bottom: 10,
+                            width: 36,
+                            height: 36,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "50%",
+                            background: "var(--bg-panel)",
+                            border: "1px solid var(--border-light)",
+                            cursor: "pointer",
+                            opacity: 1
+                        }} title="Stop generating">
+                            <Square style={{ width: 10, height: 10, fill: "#ef4444", color: "#ef4444" }} />
+                        </button>
+                    ) : (
+                        <button 
+                            type="button"
+                            onClick={handleSend} 
+                            disabled={!input.trim() || isLoading} 
+                            style={{
                                 position: "absolute",
-                                right: 0,
-                                top: "50%",
-                                transform: "translateY(-50%)",
+                                right: 10,
+                                bottom: 10,
                                 width: 36,
                                 height: 36,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 borderRadius: "50%",
-                                background: "var(--bg-panel)",
-                                border: "1px solid var(--border-light)",
-                                cursor: "pointer",
-                                opacity: 1
-                            }} title="Stop generating">
-                                <Square style={{ width: 10, height: 10, fill: "#ef4444", color: "#ef4444" }} />
-                            </button>
-                        ) : (
-                            <button 
-                                type="button"
-                                onClick={handleSend} 
-                                disabled={!input.trim() || isLoading} 
-                                style={{
-                                    position: "absolute",
-                                    right: 0,
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    width: 36,
-                                    height: 36,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    borderRadius: "50%",
-                                    background: input.trim() && !isLoading
-                                        ? "linear-gradient(135deg, #003323, #50D387)" 
-                                        : "var(--bg-panel)",
-                                    border: "none",
-                                    cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
-                                    opacity: input.trim() && !isLoading ? 1 : 0.5,
-                                    transition: "all 0.2s ease",
-                                }}
-                                title="Send message"
-                            >
-                                <Send style={{ width: 16, height: 16, color: "white" }} />
-                            </button>
-                        )}
-                    </div>
+                                background: input.trim() && !isLoading
+                                    ? "linear-gradient(135deg, #003323, #50D387)" 
+                                    : "var(--bg-panel)",
+                                border: "none",
+                                cursor: input.trim() && !isLoading ? "pointer" : "not-allowed",
+                                opacity: input.trim() && !isLoading ? 1 : 0.5,
+                                transition: "all 0.2s ease",
+                            }}
+                            title="Send message"
+                        >
+                            <Send style={{ width: 16, height: 16, color: "white" }} />
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
